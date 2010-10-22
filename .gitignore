@@ -1,6 +1,7 @@
 llvm/*
 *.deps
 *.bc
+*.o
 *~
 *.ll
 .depends
