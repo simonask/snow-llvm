@@ -20,7 +20,80 @@ CAPI SnAST* snow_ast_copy(SnAST* ast) {
 
 namespace snow {
 	void AST::free(SnAstNode* node, bool recursive) {
-		
+		if (node && recursive) {
+			switch (node->type) {
+				case SN_AST_SEQUENCE: {
+					SnAstNode* x = node->sequence.head;
+					while (x) {
+						SnAstNode* next = x->next;
+						this->free(x);
+						x = next;
+					}
+					break;
+				}
+				case SN_AST_CLOSURE: {
+					this->free(node->closure.parameters);
+					this->free(node->closure.body);
+					break;
+				}
+				case SN_AST_PARAMETER: {
+					this->free(node->parameter.id_type);
+					this->free(node->parameter.default_value);
+					break;
+				}
+				case SN_AST_RETURN: {
+					this->free(node->return_expr.value);
+					break;
+				}
+				case SN_AST_ASSIGN: {
+					this->free(node->assign.target);
+					this->free(node->assign.value);
+					break;
+				}
+				case SN_AST_MEMBER: {
+					this->free(node->member.object);
+					break;
+				}
+				case SN_AST_CALL: {
+					this->free(node->call.object);
+					this->free(node->call.args);
+					break;
+				}
+				case SN_AST_ASSOCIATION: {
+					this->free(node->association.object);
+					this->free(node->association.args);
+					break;
+				}
+				case SN_AST_NAMED_ARGUMENT: {
+					this->free(node->named_argument.expr);
+					break;
+				}
+				case SN_AST_AND: 
+				case SN_AST_OR:
+				case SN_AST_XOR: {
+					this->free(node->logic_and.left);
+					this->free(node->logic_and.right);
+					break;
+				}
+				case SN_AST_NOT: {
+					this->free(node->logic_not.expr);
+					break;
+				}
+				case SN_AST_LOOP: {
+					this->free(node->loop.cond);
+					this->free(node->loop.body);
+					break;
+				}
+				case SN_AST_IF_ELSE: {
+					this->free(node->if_else.cond);
+					this->free(node->if_else.body);
+					this->free(node->if_else.else_body);
+					break;
+				}
+				default: break;
+			}
+		}
+		_heap.free(node);
 	}
 	
 	void AST::print(SnAstNode* n, int indent) const {

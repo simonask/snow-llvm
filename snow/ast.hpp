@@ -226,6 +226,7 @@ namespace snow {
 	inline SnAstNode* AST::create(SnSnAstNodeType type) {
 		SnAstNode* n = _heap.alloc();
 		n->type = type;
+		n->next = NULL;
 		return n;
 	}
 	
