@@ -415,7 +415,10 @@ namespace snow {
 				error(pos, "Expected expression for postcondition, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
 			}
-			SnAstNode* cond = ast->if_else(op, NULL, NULL, type == Token::UNLESS);
+			if (type == Token::UNLESS) {
+				op = ast->logic_not(op);
+			}
+			SnAstNode* cond = ast->if_else(op, NULL, NULL);
 			MATCH_SUCCESS(cond);
 		}
 		MATCH_FAILED();
@@ -432,7 +435,10 @@ namespace snow {
 				error(pos, "Expected expression for postloop, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
 			}
-			MATCH_SUCCESS(ast->loop(op, NULL, type == Token::UNTIL));
+			if (type == Token::UNTIL) {
+				op = ast->logic_not(op);
+			}
+			MATCH_SUCCESS(ast->loop(op, NULL));
 		}
 		MATCH_FAILED();
 	}
@@ -459,7 +465,8 @@ namespace snow {
 				SnAstNode* body = sequence(pos);
 				if (pos->type == Token::END) {
 					++pos;
-					SnAstNode* loop = ast->loop(op, body, type == Token::UNTIL);
+					if (type == Token::UNTIL) { op = ast->logic_not(op); }
+					SnAstNode* loop = ast->loop(op, body);
 					MATCH_SUCCESS(loop);
 				} else {
 					error(pos, "Expected END, got %s.", get_token_name(pos->type));

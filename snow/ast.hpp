@@ -54,9 +54,8 @@ namespace snow {
 			struct { SnSymbol name; SnAstNode *expr; }     named_argument;
 			struct { SnAstNode *left, *right; }            logic_and, logic_or, logic_xor;
 			struct { SnAstNode *expr; }                    logic_not;
-
-			struct { SnAstNode *cond, *body; bool negate; }              loop;
-			struct { SnAstNode *cond, *body, *else_body; bool negate; }  if_else;
+			struct { SnAstNode *cond, *body; }             loop;
+			struct { SnAstNode *cond, *body, *else_body; } if_else;
 		};
 	};
 
@@ -89,8 +88,8 @@ namespace snow {
 		SnAstNode* logic_or(SnAstNode* left, SnAstNode* right);
 		SnAstNode* logic_xor(SnAstNode* left, SnAstNode* right);
 		SnAstNode* logic_not(SnAstNode* expr);
-		SnAstNode* loop(SnAstNode* cond, SnAstNode* body, bool negate);
-		SnAstNode* if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body, bool negate);
+		SnAstNode* loop(SnAstNode* cond, SnAstNode* body);
+		SnAstNode* if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body);
 	private:
 		SnAstNode* _root;
 		LinkHeap<SnAstNode> _heap;
@@ -209,14 +208,14 @@ namespace snow {
 		return n;
 	}
 	
-	inline SnAstNode* AST::loop(SnAstNode* cond, SnAstNode* body, bool negate) {
+	inline SnAstNode* AST::loop(SnAstNode* cond, SnAstNode* body) {
 		SnAstNode* n = create(SN_AST_LOOP);
 		n->loop.cond = cond;
 		n->loop.body = body;
 		return n;
 	}
 	
-	inline SnAstNode* AST::if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body, bool negate) {
+	inline SnAstNode* AST::if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body) {
 		SnAstNode* n = create(SN_AST_IF_ELSE);
 		n->if_else.cond = cond;
 		n->if_else.body = body;
