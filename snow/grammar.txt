@@ -1,0 +1,55 @@
+literal := nil | true | false | INTEGER | FLOAT | DQSTRING | SQSTRING | symbol;
+
+atomic_expression := literal | self | it | here | identifier | closure | '(' expression ')';
+
+call := atomic_expression argument_list+;
+
+member := atomic_expression? ('.' identifier)+;
+
+association := association_target ('[' expression_no_assign (',' expression_no_assign)* ']')+
+
+association_target := (call | member)+ | atomic_expression;
+
+lvalue := association | member | identifier;
+
+lvalues := lvalue (',' lvalue)*;
+
+assignment := (lvalues ':')+ operation (',' operation)*;
+
+closure := parameter_list? '{' sequence '}';
+
+parameter := identifier (AS identifier)? (':' operation)?;
+
+parameter_list := '[' (parameter (',' parameter)*)? ']';
+
+argument_list := closure | ('(' (argument (',' argument)*)? ')' closure?);
+
+argument := named_argument | expression_no_assign;
+
+expression_no_assign := operation (postcondition | postloop)*;
+
+named_argument := identifier ':' expression_no_assign;
+
+control := (return | BREAK | CONTINUE) postcondition?;
+
+condition := (IF | UNLESS) expression (THEN | separator) sequence (ELSE (IF | UNLESS) expression (THEN | separator) sequence)* (ELSE expression (THEN | separator) sequence)? END;
+
+loop := (WHILE | UNTIL) expression (DO | separator) sequence END;
+
+postcondition := (IF | UNLESS) operation;
+
+postloop := (WHILE | UNTIL) operation;
+
+chain := (association | call | member)+;
+
+operand := condition | loop | chain | atomic_expression;
+
+operation := operator? operand (operator operand)*;
+
+expression := (assignment | operation) (postcondition | postloop)*;
+
+statement := (expression | control) separator*;
+
+sequence := separator* statement*;
+
+program := sequence;

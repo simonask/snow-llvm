@@ -1,0 +1,11 @@
+llvm/*
+*.deps
+*.bc
+*~
+*.ll
+.depends
+a.out
+.DS_Store
+*.swp
+snow/snow
+*.dSYM
