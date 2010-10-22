@@ -14,5 +14,5 @@ LLVM_PLATFORM_LIBS := LLVMX86CodeGen LLVMX86AsmPrinter LLVMX86Disassembler LLVMX
 LLVM_LIBS := $(LLVM_LIBS) $(LLVM_PLATFORM_LIBS)
 LLVM_LIBS := $(patsubst %,$(LLVM_LIB_PATH)/lib%.a,$(LLVM_LIBS))
 
-driver: $(OBJECTS)
+driver: $(OBJECTS) $(LLVM_LIBS)
 	$(LD) $(LDFLAGS) $(OBJECTS) $(LLVM_LIBS) -o $@
