@@ -7,8 +7,6 @@
 #include "snow/symbol.h"
 #include "snow/ast.h"
 
-#include "snow/linkheap.hpp"
-
 struct SnAST {};
 
 enum SnSnAstNodeType {

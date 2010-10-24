@@ -2,8 +2,8 @@
 #include "snow/symbol.h"
 #include "snow/numeric.h"
 #include "snow/str.h"
-#include "snow/linkheap.hpp"
 
+#include "linkheap.hpp"
 #include "ast-intern.hpp"
 #include "lexer.hpp"
 

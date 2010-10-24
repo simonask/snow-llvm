@@ -3,7 +3,7 @@
 #define AST_INTERN_HPP_UNJFFI95
 
 #include "snow/ast.hpp"
-
+#include "linkheap.hpp"
 
 namespace snow {
 	class AST : public SnAST {

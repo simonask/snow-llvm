@@ -3,7 +3,7 @@
 #define LEXER_HPP_S9CRBPS5
 
 #include "snow/basic.h"
-#include "snow/linkbuffer.hpp"
+#include "linkbuffer.hpp"
 
 #include <string.h>
 
