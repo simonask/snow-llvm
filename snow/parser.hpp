@@ -5,7 +5,6 @@
 #include "snow/basic.h"
 #include "snow/value.h"
 #include "snow/symbol.h"
-#include "snow/ast.hpp"
 
 #include "snow/lexer.hpp"
 

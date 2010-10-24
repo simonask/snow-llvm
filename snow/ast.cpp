@@ -1,13 +1,12 @@
-#include "snow/ast.hpp"
-
-
+#include "snow/ast-intern.hpp"
 
 using namespace snow;
 
-
 static void inprintf(int indent, const char* fmt, ...);
 
-
+/*
+	Public API
+*/
 CAPI void snow_ast_free(SnAST* _ast) {
 	AST* ast = (AST*)_ast;
 	delete ast;
@@ -18,6 +17,9 @@ CAPI SnAST* snow_ast_copy(SnAST* ast) {
 }
 
 
+/*
+	Private API
+*/
 namespace snow {
 	void AST::free(SnAstNode* node, bool recursive) {
 		if (node && recursive) {
