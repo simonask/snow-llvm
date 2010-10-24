@@ -1,4 +1,4 @@
-#include "snow/lexer.hpp"
+#include "lexer.hpp"
 
 #include <alloca.h>
 

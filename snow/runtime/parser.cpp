@@ -1,9 +1,11 @@
-#include "snow/parser.hpp"
-#include "snow/lexer.hpp"
+#include "snow/parser.h"
 #include "snow/symbol.h"
 #include "snow/numeric.h"
 #include "snow/str.h"
+#include "snow/linkheap.hpp"
+
 #include "ast-intern.hpp"
+#include "lexer.hpp"
 
 #include <stdlib.h>
 #include <stdarg.h>
