@@ -1,5 +1,5 @@
-#include "snow/driver/basic.hpp"
-#include "snow/driver/functionpass.hpp"
+#include "basic.hpp"
+#include "functionpass.hpp"
 
 using namespace llvm;
 

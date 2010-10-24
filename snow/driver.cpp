@@ -1,4 +1,4 @@
-#include "snow/driver/basic.hpp"
+#include "libsnow/basic.hpp"
 
 #include <stdio.h>
 
@@ -19,12 +19,12 @@
 
 #include <signal.h>
 
-#include "snow/vm-intern.hpp"
+#include "runtime/vm-intern.hpp"
 #include "snow/basic.h"
 
-#include "snow/driver/debugger.hpp"
-#include "snow/driver/modulepass.hpp"
-#include "snow/driver/functionpass.hpp"
+#include "libsnow/debugger.hpp"
+#include "libsnow/modulepass.hpp"
+#include "libsnow/functionpass.hpp"
 
 using namespace llvm;
 
@@ -45,7 +45,7 @@ int main (int argc, char const *argv[])
 	std::string error;
 	Module* m = NULL;
 	MemoryBuffer* buffer = NULL;
-	if ((buffer = MemoryBuffer::getFile("snow.bc", &error))) {
+	if ((buffer = MemoryBuffer::getFile("runtime/snow-runtime.bc", &error))) {
 		m = getLazyBitcodeModule(buffer, context, &error);
 		if (!m) {
 			fprintf(stderr, "ERROR: Could not load snow.bc.\n");

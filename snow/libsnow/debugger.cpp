@@ -1,10 +1,10 @@
 #define __STDC_LIMIT_MACROS 1
 #define __STDC_CONSTANT_MACROS 1
 
-#include "snow/driver/debugger.hpp"
+#include "debugger.hpp"
 
 #include "snow/basic.h"
-#include "snow/vm-intern.hpp"
+#include "../runtime/vm-intern.hpp"
 
 #include <signal.h>
 #include <stdio.h>

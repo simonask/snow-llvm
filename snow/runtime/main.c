@@ -1,7 +1,7 @@
+#include "intern.h"
 #include "snow/snow.h"
 #include "snow/object.h"
 #include "snow/gc.h"
-#include "snow/intern.h"
 #include "snow/function.h"
 #include "snow/parser.h"
 #include "snow/linkbuffer.h"

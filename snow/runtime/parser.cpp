@@ -3,7 +3,7 @@
 #include "snow/symbol.h"
 #include "snow/numeric.h"
 #include "snow/str.h"
-#include "snow/ast-intern.hpp"
+#include "ast-intern.hpp"
 
 #include <stdlib.h>
 #include <stdarg.h>

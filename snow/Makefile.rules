@@ -33,7 +33,8 @@ CXX_MM_COMMAND = $(CXX) $(CXXFLAGS) -MM
 .%.cpp.o.deps: %.cpp $(LEVEL)/Makefile.config
 	$(CXX_MM_COMMAND) -MM $< > $@
 
-.PHONY: clean depends all subdirs $(SUBDIRS)
+GOALS = clean depends all install
+.PHONY: $(GOALS) subdirs $(SUBDIRS)
 .DEFAULT_GOAL := all
 .DELETE_ON_ERROR :=
 
@@ -52,5 +53,7 @@ clean: subdirs
 
 subdirs: $(SUBDIRS)
 
+CMDGOALS := $(filter $(GOALS),$(MAKECMDGOALS))
+
 $(SUBDIRS):
-	$(MAKE) $(MAKECMDGOALS) $(MAKEFLAGS) -C $@
+	$(MAKE) $(CMDGOALS) $(MAKEFLAGS) -C $@

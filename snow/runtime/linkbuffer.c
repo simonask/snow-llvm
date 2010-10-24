@@ -1,5 +1,5 @@
 #include "snow/linkbuffer.h"
-#include "snow/intern.h"
+#include "intern.h"
 #include <stdlib.h>
 #include <string.h>
 

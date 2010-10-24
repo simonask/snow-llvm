@@ -1,4 +1,4 @@
-#include "snow/ast-intern.hpp"
+#include "ast-intern.hpp"
 
 using namespace snow;
 

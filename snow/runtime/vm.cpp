@@ -1,8 +1,8 @@
 #define __STDC_LIMIT_MACROS 1
 #define __STDC_CONSTANT_MACROS 1
 
+#include "vm-intern.hpp"
 #include "snow/vm.h"
-#include "snow/vm-intern.hpp"
 #include "snow/process.h"
 #include "snow/ast.hpp"
 
