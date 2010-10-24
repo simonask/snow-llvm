@@ -63,7 +63,8 @@ VALUE snow_eval(SN_P p, const char* source) {
 
 VALUE snow_compile(SN_P p, const char* source) {
 	printf("parsing...\n");
-	snow_parse(p, source);
+	struct SnAST* ast = snow_parse(p, source);
+	if (ast) snow_vm_compile_ast(p, ast, source);
 	return NULL;
 /*	SnParserInfo info;
 	struct SnAstNode* ast = snow_parse(p, source, &info);

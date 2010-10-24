@@ -13,6 +13,7 @@ LLVM_LIBS := LLVMAnalysis LLVMArchive LLVMBitReader LLVMBitWriter LLVMCodeGen \
 LLVM_PLATFORM_LIBS := LLVMX86CodeGen LLVMX86AsmPrinter LLVMX86Disassembler LLVMX86Info
 LLVM_LIBS := $(LLVM_LIBS) $(LLVM_PLATFORM_LIBS)
 LLVM_LIBS := $(patsubst %,$(LLVM_LIB_PATH)/lib%.a,$(LLVM_LIBS))
+LLVM_LIBS := $(wildcard $(LLVM_LIB_PATH)/*.a)
 
 driver: $(OBJECTS) $(LLVM_LIBS)
 	$(LD) $(LDFLAGS) $(OBJECTS) $(LLVM_LIBS) -o $@

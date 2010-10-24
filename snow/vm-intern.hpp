@@ -26,6 +26,8 @@ typedef struct SnVM {
 	llvm::Function* argument_get;
 	llvm::Function* argument_push;
 	llvm::Function* argument_set_named;
+	llvm::Function* get_local;
+	llvm::Function* set_local;
 	
 	const llvm::FunctionType* function_type;
 	

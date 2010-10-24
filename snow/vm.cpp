@@ -13,33 +13,42 @@
 #include <llvm/DerivedTypes.h>
 #include <llvm/Constants.h>
 #include <llvm/Instructions.h>
-
+#include <llvm/Support/IRBuilder.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include <google/dense_hash_map>
 
 using namespace llvm;
 using namespace snow;
 
-struct SnCompilationInfo {
-	const char* source;
-	SnFunctionRef ref;
-	Function* function;
-	const Type* value_type;
+struct FunctionBuilderInfo {
+	SnVM* vm;
+	SnFunctionRef snow_function;
+	llvm::Function* llvm_function;
+	google::dense_hash_map<SnSymbol, Value*> locals;
 	
-	BasicBlock* block;
-	Value* last_value;
-	
-	Value* p;
-	Value* this_function;
+	Value* process;   // SN_P
+	Value* here;      // SnFunctionCallContext
+	Value* arguments; // SnArguments
 	Value* self;
-	Value* args;
+	Value* it;
 };
 
-#define VM_SET_FUNC(VM, NAME) {                         \
+struct Builder : public llvm::IRBuilder<> {
+	FunctionBuilderInfo& info;
+	
+	Value* last_value;
+	
+	Builder(llvm::BasicBlock* bb, FunctionBuilderInfo& info) : IRBuilder<>(bb) , info(info) , last_value(NULL) {}
+	Builder(const Builder& parent, llvm::BasicBlock* bb) : llvm::IRBuilder<>(bb), info(parent.info), last_value(parent.last_value) {}
+};
+
+#define VM_SET_FUNC(VM, NAME) do {                         \
 	llvm::Module* m = (VM)->module;                     \
 	llvm::Function* f = m->getFunction("snow_" #NAME);  \
 	if (!f) { fprintf(stderr, "Function snow_" #NAME " could not be found!\n"); }  \
 	(VM)->NAME = f;                                     \
-}
+} while (0)
 
 CAPI void snow_vm_init(SN_P p) {
 	SnVM* vm = reinterpret_cast<SnVM*>(p->vm);
@@ -57,6 +66,8 @@ CAPI void snow_vm_init(SN_P p) {
 	VM_SET_FUNC(vm, argument_get);
 	VM_SET_FUNC(vm, argument_push);
 	VM_SET_FUNC(vm, argument_set_named);
+	VM_SET_FUNC(vm, get_local);
+	VM_SET_FUNC(vm, set_local);
 	
 	vm->value_type = sizeof(VALUE) == 8 ? Type::getInt64Ty(*vm->context) : Type::getInt32Ty(*vm->context);
 	
@@ -65,9 +76,11 @@ CAPI void snow_vm_init(SN_P p) {
 	vm->true_constant = ConstantInt::get(vm->value_type, (uintptr_t)SN_TRUE);
 	vm->false_constant = ConstantInt::get(vm->value_type, (uintptr_t)SN_FALSE);
 	
-	// signature: VALUE func(SN_P, SnObject* function, VALUE self, SnArguments* args)
+	// signature: VALUE func(SN_P, SnFunctionCallContext* here)
 	const Type* voidPtrTy = Type::getInt8PtrTy(*vm->context);
-	std::vector<const Type*> params(4, voidPtrTy);
+	std::vector<const Type*> params;
+	params.push_back(PointerType::getUnqual(vm->module->getTypeByName("SnProcess")));
+	params.push_back(PointerType::getUnqual(vm->module->getTypeByName("SnFunctionCallContext")));
 	vm->function_type = FunctionType::get(voidPtrTy, params, false);
 }
 
@@ -94,89 +107,94 @@ CAPI SnFunctionRef snow_vm_load_precompiled_image(SN_P p, const char* file) {
 	return snow_create_function(p, hello);
 }
 
-static void vm_compile_recursive(SN_P p, SnVM* vm, const SnAstNode* ast, SnCompilationInfo& info) {
-	/*switch (ast->type) {
-		case SN_AST_LITERAL:
-		{
-			const SnAstLiteral* lit = &ast->literal;
-			printf("LITERAL: %p\n", lit->value);
-			if (!snow_is_object(lit->value)) {
-				info.last_value = ConstantInt::get(vm->value_type, (uintptr_t)lit->value);
-			} else {
-				// TODO!!
-				TRAP();
-			}
-			break;
-		}
+static void vm_compile_recursive(SN_P p, const SnAstNode* node, Builder& builder) {
+	SnVM* vm = builder.info.vm;
+	FunctionBuilderInfo& info = builder.info;
+	
+	switch (node->type) {
 		case SN_AST_SEQUENCE: {
-			const SnAstSequence* seq = &ast->sequence;
-			printf("SEQUENCE: %p (%lu nodes)\n", seq, seq->length);
-			for (size_t i = 0; i < seq->length; ++i) {
-				vm_compile_recursive(p, vm, seq->nodes[i], info);
+			for (SnAstNode* x = node->sequence.head; x; x = x->next) {
+				vm_compile_recursive(p, x, builder);
 			}
 			break;
 		}
-		case SN_AST_FUNCTION: {
-			const SnAstFunction* ast_f = &ast->function;
-			const SnAstSequence* args = &ast_f->seq_args->sequence;
-			const SnAstSequence* body = &ast_f->seq_body->sequence;
+		case SN_AST_LITERAL: {
+			builder.last_value = ConstantInt::get(vm->value_type, (intptr_t)node->literal.value);
+			break;
+		}
+		case SN_AST_CLOSURE: {
+			break;
+		}
+		case SN_AST_PARAMETER: {
+			ASSERT(false); // Invalid parameter at this point
 			break;
 		}
 		case SN_AST_RETURN: {
-			const SnAstReturn* r = &ast->ast_return;
-			
-			BasicBlock* old = info.block;
-			info.block = BasicBlock::Create(*vm->context, "return", info.function);
-			if (r->value) {
-				vm_compile_recursive(p, vm, r->value, info);
+			if (node->return_expr.value) {
+				vm_compile_recursive(p, node->return_expr.value, builder);
 			}
-			ReturnInst::Create(*vm->context, info.last_value, info.block);
-			info.block = old;
+			builder.CreateRet(builder.last_value);
+			break;
+		}
+		case SN_AST_IDENTIFIER: {
+			Value* sym = ConstantInt::get(vm->value_type, (intptr_t)node->identifier.name);
+			builder.last_value = builder.CreateCall3(vm->get_local, info.process, info.here, sym);
+			break;
 		}
 		case SN_AST_BREAK: {
+			ASSERT(false); // NIY
 			break;
 		}
 		case SN_AST_CONTINUE: {
+			ASSERT(false); // NIY
 			break;
 		}
 		case SN_AST_SELF: {
-			info.last_value = info.self;
+			builder.last_value = builder.CreateLoad(builder.CreateGEP(builder.info.here, ConstantInt::get(vm->value_type, offsetof(SnFunctionCallContext, self))));
 			break;
 		}
 		case SN_AST_HERE: {
-			info.last_value = info.this_function;
+			builder.last_value = info.here;
 			break;
 		}
 		case SN_AST_IT: {
-			Value* args[3];
-			args[0] = info.p;
-			args[1] = info.args;
-			args[2] = ConstantInt::get(Type::getInt32Ty(*vm->context), 0);
-			info.last_value = CallInst::Create(vm->argument_get, args, args+3, "it", info.block);
+			builder.last_value = info.it;
 			break;
 		}
-		case SN_AST_LOCAL: {
+		case SN_AST_ASSIGN: {
 			break;
 		}
-		case SN_AST_MEMBER:
-		case SN_AST_LOCAL_ASSIGNMENT:
-		case SN_AST_MEMBER_ASSIGNMENT:
-		case SN_AST_IF_ELSE:
-		case SN_AST_CALL:
-		case SN_AST_LOOP:
-		case SN_AST_TRY:
-		case SN_AST_CATCH:
-		case SN_AST_AND:
-		case SN_AST_OR:
-		case SN_AST_XOR:
-		case SN_AST_NOT:
-		case SN_AST_PARALLEL_THREAD:
-		case SN_AST_PARALLEL_FORK:
-		default: {
-			ASSERT(false && "Unknown AST node type.");
+		case SN_AST_MEMBER: {
 			break;
 		}
-	}*/
+		case SN_AST_CALL: {
+			break;
+		}
+		case SN_AST_ASSOCIATION: {
+			break;
+		}
+		case SN_AST_NAMED_ARGUMENT: {
+			break;
+		}
+		case SN_AST_AND: {
+			break;
+		}
+		case SN_AST_OR: {
+			break;
+		}
+		case SN_AST_XOR: {
+			break;
+		}
+		case SN_AST_NOT: {
+			break;
+		}
+		case SN_AST_LOOP: {
+			break;
+		}
+		case SN_AST_IF_ELSE: {
+			break;
+		}
+	}
 }
 	
 CAPI SnFunctionRef snow_vm_compile_ast(SN_P p, const SnAST* ast, const char* source) {
@@ -184,38 +202,55 @@ CAPI SnFunctionRef snow_vm_compile_ast(SN_P p, const SnAST* ast, const char* sou
 	
 	Module* m = new Module("<module compiled by Snow>", *vm->context);
 	
-	SnCompilationInfo info;
-	info.value_type = Type::getInt8PtrTy(*vm->context);
-	info.last_value = vm->nil_constant;
+	FunctionBuilderInfo info;
+	info.vm = vm;
+	info.llvm_function = Function::Create(vm->function_type, Function::ExternalLinkage, "__snow_entry", m);
+	Function::arg_iterator ai = info.llvm_function->arg_begin();
+	info.process = ai++;
+	info.process->setName("p");
+	info.here = ai++;
+	info.here->setName("here");
+
+	BasicBlock* entry = BasicBlock::Create(*vm->context, "entry", info.llvm_function);
+	Builder builder(entry, info);
+	builder.last_value = vm->nil_constant;
 	
-	info.function = Function::Create(vm->function_type, Function::ExternalLinkage, "__snow_entry", m);
-	Function::arg_iterator ai = info.function->arg_begin();
-	info.p = ai++;
-	info.p->setName("p");
-	info.this_function = ai++;
-	info.this_function->setName("this_function");
-	info.self = ai++;
-	info.self->setName("self");
-	info.args = ai++;
-	info.args->setName("args");
+	/*
+		VALUE arguments = here->arguments;
+		VALUE self = here->self;
+	*/
+	info.arguments = builder.CreateLoad(builder.CreateGEP(info.here, ConstantInt::get(vm->value_type, offsetof(SnFunctionCallContext, arguments))));
+	info.self = builder.CreateLoad(builder.CreateGEP(info.here, ConstantInt::get(vm->value_type, offsetof(SnFunctionCallContext, self))));
 	
-	info.block = BasicBlock::Create(*vm->context, "entry", info.function);
+	/*
+		VALUE it = args ? argument_get(args, 0) : SN_NIL;
+	*/
+	BasicBlock* args_is_null = BasicBlock::Create(*vm->context, "args_is_null", info.llvm_function);
+	BasicBlock* args_is_not_null = BasicBlock::Create(*vm->context, "args_is_not_null", info.llvm_function);
+	Builder builder_args_is_not_null(args_is_not_null, info);
+	outs() << *vm->argument_get << '\n';
+	Value* it = builder_args_is_not_null.CreateCall3(vm->argument_get, info.process, info.arguments, vm->null_constant);
+	builder.CreateCondBr(builder.CreateIsNull(info.arguments), args_is_null, args_is_not_null);
+	llvm::PHINode* it_phi = builder.CreatePHI(vm->value_type);
+	it_phi->addIncoming(vm->nil_constant, args_is_null);
+	it_phi->addIncoming(it, args_is_not_null);
+	info.it = it_phi;
 	
-	info.ref = snow_create_function(p, info.function);
-	info.source = source;
+	
+	info.snow_function = snow_create_function(p, info.llvm_function);
 	
 	/*ASSERT(ast->type == SN_AST_FUNCTION);
 	const SnAstFunction* ast_function = &ast->function;
 	vm_compile_recursive(p, vm, ast_function->seq_body, info);*/
 	
-	ReturnInst::Create(*vm->context, info.last_value, info.block);
+	//ReturnInst::Create(*vm->context, info.last_value, info.block);
 	
 	printf("COMPILED MODULE:\n");
 	outs() << *m << '\n';
 	
 	vm->engine->addModule(m);
 	
-	return info.ref;
+	return info.snow_function;
 }
 
 CAPI VALUE snow_vm_call_function(SN_P p, void* jit_func, SnFunctionRef function, VALUE self, struct SnArguments* args) {

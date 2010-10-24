@@ -32,4 +32,12 @@ typedef struct SnFunctionSignature {
 	SnFunctionParameter params[];
 } SnFunctionSignature;
 
+typedef struct SnFunctionCallContext {
+	SnFunctionRef function;
+	struct SnFunctionCallContext* caller;
+	struct SnFunctionCallContext* definition_context;
+	struct SnArguments* arguments;
+	VALUE self;
+} SnFunctionCallContext;
+
 #endif /* end of include guard: FUNCTION_H_X576C5TP */
