@@ -6,5 +6,5 @@ OBJECTS = $(patsubst %,%.bc,$(SOURCES))
 
 include $(LEVEL)/Makefile.rules
 
-snow-runtime.bc: $(OBJECTS)
+$(TARGET): $(OBJECTS)
 	$(BC_LINK) $(BC_LINKFLAGS) -o $@ $(OBJECTS)

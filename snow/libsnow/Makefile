@@ -6,7 +6,7 @@ OBJECTS = $(patsubst %,%.o,$(SOURCES))
 
 include $(LEVEL)/Makefile.rules
 
-libsnow.a: $(OBJECTS) $(LLVM_LIBS)
+$(TARGET): $(OBJECTS) $(LLVM_LIBS)
 	$(AR) rcs $@ $(OBJECTS)
 
 libsnow.$(DYNAMIC_LIBRARY_EXT): libsnow.a
