@@ -5,26 +5,27 @@
 #include "snow/object.h"
 
 struct SnLinkBuffer;
-struct SnType;
+struct SnArray;
 
-CAPI const struct SnType* snow_get_string_type();
+typedef struct SnString {
+	SnObjectBase base;
+	char* data; // null terminated
+	uint32_t size;
+	uint32_t length;
+} SnString;
 
-typedef struct SnStringRef {
-	SnObject* obj;
-} SnStringRef;
+CAPI SnString* snow_create_string(const char* utf8);
+CAPI SnString* snow_create_string_with_size(const char* utf8, size_t size);
+CAPI SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf);
+CAPI SnString* snow_string_concat(const SnString* a, const SnString* b); // create new string
+CAPI SnString* snow_string_append(SnString* str, const SnString* other); // append to str
+CAPI struct SnArray* snow_string_split(const SnString* str, const SnString* separator);
 
-CAPI SnStringRef snow_create_string(SN_P, const char* utf8);
-CAPI SnStringRef snow_create_string_with_size(SN_P, const char* utf8, size_t size);
-CAPI SnStringRef snow_create_string_from_linkbuffer(SN_P, struct SnLinkBuffer* buf);
-CAPI SnStringRef snow_string_concat(SN_P, const SnStringRef a, const SnStringRef b);
+CAPI SnString* snow_string_format(const char* utf8_format, ...);
 
-CAPI const char* snow_string_cstr(const SnStringRef obj);
-CAPI size_t snow_string_size(const SnStringRef str);
-CAPI size_t snow_string_length(const SnStringRef str);
-
-CAPI bool snow_object_is_string(const SnObject* obj);
-CAPI SnStringRef snow_object_as_string(SnObject* obj);
-static inline struct SnObject* snow_string_as_object(SnStringRef str) { return str.obj; }
+static inline const char* snow_string_cstr(const SnString* str) { return str->data; }
+static inline uint32_t snow_string_size(const SnString* str) { return str->size; }
+static inline uint32_t snow_string_length(const SnString* str) { return str->length; }
 
 
 #endif /* end of include guard: STRING_H_OYTL2E1P */

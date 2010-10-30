@@ -1,7 +1,7 @@
 #pragma once
 #ifndef VM_INTERN_H_NAVDIA6L
 #define VM_INTERN_H_NAVDIA6L
-
+/*
 #include <llvm/ExecutionEngine/JIT.h>
 #include <llvm/ExecutionEngine/Interpreter.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
@@ -37,5 +37,6 @@ typedef struct SnVM {
 	llvm::Constant* true_constant;
 	llvm::Constant* false_constant;
 } SnVM;
+*/
 
 #endif /* end of include guard: VM_INTERN_H_NAVDIA6L */

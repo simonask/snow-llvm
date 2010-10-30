@@ -5,19 +5,29 @@
 #include "snow/value.h"
 #include "snow/symbol.h"
 
-struct SnType;
-struct SnProcess;
+struct SnImmediateMap;
+struct SnMap;
+struct SnArray;
+
+typedef struct SnObjectBase {
+	union {
+		SnType type;
+		void* _; // for alignment
+	};
+} SnObjectBase;
 
 typedef struct SnObject {
-	const struct SnType* type;
-	SN_P owner;
-	void* data;
+	SnObjectBase base;
+	struct SnObject* prototype;
+	struct SnMap* members;
+	struct SnMap* properties;
+	struct SnArray* included_modules;
 } SnObject;
 
 CAPI SnObject* snow_create_object(SN_P);
-CAPI VALUE snow_object_get_member(SN_P, SnObject* object, VALUE self /* for properties */, SnSymbol member);
-CAPI VALUE snow_object_set_member(SN_P, SnObject* object, VALUE self /* for properties */, SnSymbol member, VALUE val);
-
-CAPI const struct SnType* snow_get_object_type();
+CAPI VALUE snow_object_get_member(SnObject* object, VALUE self_for_properties, SnSymbol member);
+CAPI VALUE snow_object_set_member(SnObject* object, VALUE self_for_properties, SnSymbol member, VALUE val);
+CAPI void snow_object_set_property_getter(SnObject* object, SnSymbol member, VALUE getter);
+CAPI void snow_object_set_property_setter(SnObject* object, SnSymbol member, VALUE setter);
 
 #endif /* end of include guard: OBJECT_H_CCPHDYB5 */

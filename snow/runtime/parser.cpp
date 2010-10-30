@@ -35,7 +35,7 @@ namespace snow {
 	public:
 		typedef Lexer::iterator Pos;
 		
-		Parser(SN_P p, Pos pos) : _p(p), _pos(pos), _error_message(NULL) {}
+		Parser(Pos pos) : _pos(pos), _error_message(NULL) {}
 		~Parser() { free(_error_message); }
 		
 		AST* parse();
@@ -87,7 +87,6 @@ namespace snow {
 		class PrecedenceParser;
 		friend class PrecedenceParser;
 		
-		SN_P _p;
 		Pos _pos;
 		AST* ast;
 		jmp_buf _error_handler;
@@ -317,7 +316,7 @@ namespace snow {
 				MATCH_FAILED();
 			}
 			pos = p;
-			return ast->call(ast->member(a, snow_sym(_p, data)), NULL);
+			return ast->call(ast->member(a, snow_sym(data)), NULL);
 		}
 		return operand(pos);
 	}
@@ -791,7 +790,7 @@ namespace snow {
 		if (pos->type == Token::IDENTIFIER) {
 			GET_TOKEN_SZ(data, pos);
 			++pos;
-			MATCH_SUCCESS(ast->identifier(snow_sym(_p, data)));
+			MATCH_SUCCESS(ast->identifier(snow_sym(data)));
 		}
 		MATCH_FAILED();
 	}
@@ -819,9 +818,9 @@ namespace snow {
 			case Token::DQSTRING:
 				// TODO: Interpolation, escapes
 			case Token::SQSTRING: {
-				SnStringRef str = snow_create_string_with_size(_p, pos->begin, pos->length);
+				SnString* str = snow_create_string_with_size(pos->begin, pos->length);
 				++pos;
-				MATCH_SUCCESS(ast->literal(snow_string_as_object(str)));
+				MATCH_SUCCESS(ast->literal(str));
 			}
 			default:
 				return symbol(pos);
@@ -846,7 +845,7 @@ namespace snow {
 				// TODO: Run-time conversion
 				GET_TOKEN_SZ(data, pos);
 				++pos;
-				MATCH_SUCCESS(ast->literal(snow_vsym(_p, data)));
+				MATCH_SUCCESS(ast->literal(snow_vsym(data)));
 			}
 			
 			error(pos, "Expected identifier or string following symbol initiator '#', got %s.", get_token_name(pos->type));
@@ -916,17 +915,17 @@ namespace snow {
 	
 	SnAstNode* Parser::reduce_operation(SnAstNode* a, SnAstNode* b, Pos op) {
 		GET_TOKEN_SZ(op_str, op);
-		return ast->call(ast->member(a, snow_sym(_p, op_str)), ast->sequence(1, b));
+		return ast->call(ast->member(a, snow_sym(op_str)), ast->sequence(1, b));
 	}
 }
 
 
-CAPI SnAST* snow_parse(SN_P p, const char* buffer) {
+CAPI SnAST* snow_parse(const char* buffer) {
 	printf("LEXING\n");
 	snow::Lexer l(buffer);
 	l.tokenize();
 	printf("PARSING\n");
-	snow::Parser parser(p, l.begin());
+	snow::Parser parser(l.begin());
 	snow::AST* ast = parser.parse();
 	printf("PRINTING AST\n");
 	ast->print();

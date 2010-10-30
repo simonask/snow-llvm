@@ -279,7 +279,7 @@ namespace snow {
 	}
 }
 
-CAPI void snow_lex(SN_P p, const char* src) {
+CAPI void snow_lex(const char* src) {
 	printf("Tokenizing...\n");
 	snow::Lexer l(src);
 	l.tokenize();

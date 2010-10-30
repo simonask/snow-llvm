@@ -38,7 +38,6 @@ namespace snow {
 		SnAstNode* loop(SnAstNode* cond, SnAstNode* body);
 		SnAstNode* if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body);
 	private:
-		SnAstNode* _root;
 		LinkHeap<SnAstNode> _heap;
 
 		SnAstNode* create(SnSnAstNodeType type);

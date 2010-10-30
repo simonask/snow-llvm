@@ -3,20 +3,39 @@
 #define MAP_H_MXEPAZB9
 
 #include "snow/value.h"
+#include "snow/object.h"
 
-struct SnType;
 struct SnObject;
 
-CAPI const struct SnType* snow_get_map_type();
+typedef struct SnMap {
+	SnObjectBase base;
+	union {
+		/*
+			Snow Maps are adaptive. Below a certain threshold, they are a flat, associative list.
+			Above the threshold, they turn into full-blown hash maps.
+		*/
+		
+		struct {
+			VALUE* keys;
+			VALUE* values;
+			uint32_t size;
+			uint32_t alloc_size;
+		} flat;
+		
+		void* hash_map;
+	};
+	uint32_t flags;
+} SnMap;
 
-typedef struct SnMapRef {
-	struct SnObject* obj;
-} SnMapRef;
+CAPI SnMap* snow_create_map();
+CAPI SnMap* snow_create_map_with_immediate_keys();  // i.e., will never call .hash on keys
+CAPI SnMap* snow_create_map_with_insertion_order(); // i.e., will never be a full-blown hash map
+CAPI SnMap* snow_create_map_with_immediate_keys_and_insertion_order();
 
-CAPI SnMapRef snow_create_map(SN_P);
-CAPI size_t snow_map_size(SN_P, SnMapRef);
-CAPI VALUE snow_map_get(SN_P, SnMapRef, VALUE key);
-CAPI VALUE snow_map_set(SN_P, SnMapRef, VALUE key, VALUE value);
-CAPI VALUE snow_map_erase(SN_P, SnMapRef, VALUE key);
+CAPI size_t snow_map_size(const SnMap*);
+CAPI VALUE snow_map_get(const SnMap*, VALUE key);
+CAPI VALUE snow_map_set(SnMap*, VALUE key, VALUE value);
+CAPI VALUE snow_map_erase(SnMap*, VALUE key);
+CAPI void snow_map_reserve(SnMap*, size_t num_items);
 
 #endif /* end of include guard: MAP_H_MXEPAZB9 */

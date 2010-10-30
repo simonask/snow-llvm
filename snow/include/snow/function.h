@@ -2,42 +2,51 @@
 #ifndef FUNCTION_H_X576C5TP
 #define FUNCTION_H_X576C5TP
 
-#include "snow/array.h"
+#include "snow/basic.h"
 #include "snow/symbol.h"
+#include "snow/value.h"
+#include "snow/object.h"
 
-struct SnObject;
-struct SnType;
-struct SnFunctionSignature;
 
-CAPI const struct SnType* snow_get_function_type();
+struct SnFunctionCallContext;
+struct SnFunction;
+struct SnArguments;
 
-typedef struct SnFunctionRef {
-	struct SnObject* obj;
-} SnFunctionRef;
-
-CAPI SnFunctionRef snow_create_function(SN_P, void* jit_function);
-CAPI struct SnFunctionSignature* snow_function_get_signature(SN_P, SnFunctionRef ref);
-
-CAPI SnFunctionRef snow_object_as_function(struct SnObject* obj);
-CAPI struct SnObject* snow_function_as_object(SnFunctionRef ref);
-
-typedef struct SnFunctionParameter {
-	SnSymbol name;
-	struct SnType* expected_type;
-} SnFunctionParameter;
+typedef VALUE(*SnFunctionPtr)(struct SnFunctionCallContext* here, VALUE self, VALUE it);
 
 typedef struct SnFunctionSignature {
-	struct SnType* return_type;
+	SnType return_type;
 	size_t num_params;
-	SnFunctionParameter params[];
+	SnType* param_types;
+	SnSymbol* param_names;
 } SnFunctionSignature;
 
+typedef struct SnFunctionDescriptor {
+	int64_t ref_count;
+	void* jit_handle;
+	SnFunctionSignature* signature;
+	SnFunctionPtr ptr;
+	SnSymbol* local_names;
+	uint32_t num_locals;
+} SnFunctionDescriptor;
+
 typedef struct SnFunctionCallContext {
-	SnFunctionRef function;
+	SnObjectBase base;
+	struct SnFunction* function;
 	struct SnFunctionCallContext* caller;
-	struct SnFunctionCallContext* definition_context;
-	struct SnArguments* arguments;
 	VALUE self;
+	struct SnArguments* arguments;
+	VALUE* locals;
 } SnFunctionCallContext;
+
+typedef struct SnFunction {
+	SnObjectBase base;
+	SnFunctionDescriptor* descriptor;
+	SnFunctionCallContext* definition_context;
+} SnFunction;
+
+CAPI SnFunction* snow_create_function(SnFunctionDescriptor* descriptor);
+
+CAPI VALUE snow_function_call(SnFunction* function, VALUE self, struct SnArguments* args);
 
 #endif /* end of include guard: FUNCTION_H_X576C5TP */

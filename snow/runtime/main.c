@@ -25,7 +25,7 @@ static void print_version_info()
 }
 
 
-static void interactive_prompt(SN_P p)
+static void interactive_prompt()
 {
 	const char* global_prompt = "snow> ";
 	const char* unfinished_prompt = "snow*> ";
@@ -42,10 +42,10 @@ static void interactive_prompt(SN_P p)
 
 		//unfinished_expr = is_expr_unfinished(buffer.str());
 		if (!unfinished_expr) {
-			SnStringRef str = snow_create_string_from_linkbuffer(p, input_buffer);
-			VALUE result = snow_eval(p, snow_string_cstr(str));
+			SnString* str = snow_create_string_from_linkbuffer(input_buffer);
+			VALUE result = snow_eval(snow_string_cstr(str));
 			printf("Got a result: %p\n", result);
-			//snow_printf(p, "=> {0}\n", 1, snow_call_method(p, result, SN_SYM("inspect"), 0));
+			//snow_printf"=> {0}\n", 1, snow_call_methodresult, snow_sym("inspect"), 0));
 			snow_linkbuffer_clear(input_buffer);
 		}
 	}
@@ -54,13 +54,12 @@ static void interactive_prompt(SN_P p)
 int snow_main(int argc, char* const* argv)
 {
 	printf("main()\n");
-	SN_P p = snow_get_main_process();
 	
 	static int debug_mode = false;
 	static int verbose_mode = false;
 	static int interactive_mode = false;
 	
-	SnArrayRef require_files = snow_create_array(p);
+	SnArray* require_files = snow_create_array();
 	
 	while (true)
 	{
@@ -90,8 +89,8 @@ int snow_main(int argc, char* const* argv)
 			}
 			case 'r':
 			{
-				SnStringRef filename = snow_create_string(p, optarg);
-				snow_array_push(p, require_files, snow_string_as_object(filename));
+				SnString* filename = snow_create_string(optarg);
+				snow_array_push(require_files, filename);
 				break;
 			}
 			case 'i':
@@ -108,24 +107,26 @@ int snow_main(int argc, char* const* argv)
 	
 	// require first loose argument, unless -- was used
 	if (optind < argc && strcmp("--", argv[optind-1]) != 0) {
-		SnStringRef filename = snow_create_string(p, argv[optind++]);
-		snow_array_push(p, require_files, snow_string_as_object(filename));
+		SnString* filename = snow_create_string(argv[optind++]);
+		snow_array_push(require_files, filename);
 	}
 	
 	// stuff the rest in ARGV
-	SnArrayRef ARGV = snow_create_array(p);
+	SnArray* ARGV = snow_create_array_with_size(argc);
 	while (optind < argc) {
-		SnStringRef argument = snow_create_string(p, argv[optind++]);
-		snow_array_push(p, ARGV, snow_string_as_object(argument));
+		SnString* argument = snow_create_string(argv[optind++]);
+		snow_array_push(ARGV, argument);
 	}
-	snow_set_global(p, SN_SYM("ARGV"), snow_array_as_object(ARGV));
+	snow_set_global(snow_sym("ARGV"), ARGV);
 	
 	for (size_t i = 0; i < snow_array_size(require_files); ++i) {
-		snow_require(p, snow_string_cstr(snow_object_as_string(snow_array_get(require_files, i))));
+		VALUE vstr = snow_array_get(require_files, i);
+		ASSERT(snow_type_of(vstr) == SnStringType);
+		snow_require(snow_string_cstr((SnString*)vstr));
 	}
 	
 	if (interactive_mode) {
-		interactive_prompt(p);
+		interactive_prompt();
 	}
 	
 	return 0;

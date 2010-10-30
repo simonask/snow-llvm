@@ -4,7 +4,6 @@
 
 #include "snow/basic.h"
 
-struct SnType;
-CAPI const struct SnType* snow_get_nil_type();
+struct SnObject;
 
 #endif /* end of include guard: NIL_H_4M7SI64W */

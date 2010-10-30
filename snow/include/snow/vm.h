@@ -3,15 +3,30 @@
 #define VM_H_QGO3BPWD
 
 #include "snow/basic.h"
-#include "snow/function.h"
 
 struct SnProcess;
 struct SnAST;
-struct SnVM;
+struct SnFunctionDescriptor;
 
-CAPI void snow_vm_init(SN_P);
-CAPI struct SnFunctionRef snow_vm_load_precompiled_image(SN_P, const char* file);
-CAPI struct SnFunctionRef snow_vm_compile_ast(SN_P, const struct SnAST* ast, const char* source);
-CAPI VALUE snow_vm_call_function(SN_P, void* jit_func, SnFunctionRef function, VALUE self, struct SnArguments* args);
+typedef struct SnCompilationResult {
+	char* error_str; // freed by caller
+	void* jit_handle;
+} SnCompilationResult;
+
+typedef bool(*SnCompileASTFunc)(void* vm_state, const struct SnAST* ast_root, SnCompilationResult* out_result);
+typedef void(*SnFreeFunctionFunc)(void* vm_state, void* jit_handle);
+typedef void(*SnRealizeFunctionFunc)(void* vm_state, struct SnFunctionDescriptor* descriptor);
+
+typedef struct SnVM {
+	void* vm_state;
+	SnCompileASTFunc compile_ast;
+	SnFreeFunctionFunc free_function;
+	SnRealizeFunctionFunc realize_function;
+} SnVM;
+
+CAPI void* snow_vm_load_precompiled_image(const char* file);
+CAPI void snow_vm_compile_ast(const struct SnAST* ast, SnCompilationResult* out_result);
+CAPI void snow_vm_free_function(void* jit_handle);
+
 
 #endif /* end of include guard: VM_H_QGO3BPWD */

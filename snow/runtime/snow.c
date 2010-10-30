@@ -10,144 +10,143 @@
 #include "snow/str.h"
 #include "snow/parser.h"
 #include "snow/vm.h"
+#include "snow/function.h"
+#include "snow/map.h"
+#include "snow/arguments.h"
+#include "snow/exception.h"
 
 #include <stdarg.h>
 #include <string.h>
 
-void snow_lex(SN_P, const char*);
+void snow_lex(const char*);
 
 struct SnAstNode;
 
 static SnProcess main_process;
 static SnObject* immediate_prototypes[8];
 
-static SnObject* get_nearest_object(SN_P, VALUE);
+static SnObject* get_nearest_object(VALUE);
 
 SnProcess* snow_init(struct SnVM* vm) {
 	printf("snow_init()\n");
 	main_process.vm = vm;
-	main_process.immediate_prototypes = immediate_prototypes;
-	memset(immediate_prototypes, 0, sizeof(immediate_prototypes));
-	snow_vm_init(&main_process);
 	return &main_process;;
 }
 
-SnProcess* snow_get_main_process() {
+SnProcess* snow_get_process() {
 	return &main_process;
 }
 
-const SnType* snow_get_type(VALUE v) {
-	switch (snow_type_of(v)) {
-		case SnPointerType: return ((SnObject*)v)->type;
-		case SnNilType: return snow_get_nil_type();
-		case SnIntegerType: return snow_get_integer_type();
-		case SnFalseType: case SnTrueType: return snow_get_boolean_type();
-		case SnSymbolType: return snow_get_symbol_type();
-		case SnFloatType: return snow_get_float_type();
-		default: {
-			TRAP(); // ERROR: Unknown type?!?!
-			return NULL;
-		}
-	}
-}
-
-VALUE snow_eval(SN_P p, const char* source) {
-	VALUE f = snow_compile(p, source);
+VALUE snow_eval(const char* source) {
+	SnFunction* f = snow_compile(source);
 	if (f) {
+		SnArguments* args;
+		SN_ALLOC_ARGUMENTS(args, 0, f);
 		printf("calling compiled code...\n");
-		return snow_call(p, f, NULL);
+		return snow_call(f, NULL, args);
 	}
 	fprintf(stderr, "ERROR: Function is NULL.\n");
 	return NULL;
 }
 
-VALUE snow_compile(SN_P p, const char* source) {
+SnFunction* snow_compile(const char* source) {
 	printf("parsing...\n");
-	struct SnAST* ast = snow_parse(p, source);
-	if (ast) snow_vm_compile_ast(p, ast, source);
+	struct SnAST* ast = snow_parse(source);
+/*	if (ast) {
+		SnCompilationResult result;
+		if (snow_vm_compile_ast(ast, &result)) {
+			return result.function;
+		} else if (result.error_str) {
+			fprintf(stderr, "ERROR COMPILING FUNCTION: %s\n", result.error_str);
+			return NULL;
+		} else {
+			fprintf(stderr, "ERROR COMPILING FUNCTION: <UNKNOWN>\n");
+			return NULL;
+		}
+	}*/
 	return NULL;
-/*	SnParserInfo info;
-	struct SnAstNode* ast = snow_parse(p, source, &info);
-	if (!ast) return NULL;
-	printf("compiling...\n");
-	return snow_vm_compile_ast(p, ast, source).obj;*/
 }
 
-VALUE snow_compile_file(SN_P p, const char* path) {
+SnFunction* snow_compile_file(const char* path) {
 	return NULL;
 }
 
-VALUE snow_call(SN_P p, VALUE object, struct SnArguments* args) {
-	return snow_call_with_self(p, object, NULL, args);
-}
-
-VALUE snow_call_with_self(SN_P p, VALUE object, VALUE self, struct SnArguments* args) {
-	VALUE functor = object;
-	while (!snow_is_object(functor)) {
-		functor = snow_get_member(p, functor, SN_SYM("__call__"));
+VALUE snow_call(VALUE functor, VALUE self, struct SnArguments* args) {
+	VALUE f = functor;
+	while (snow_type_of(f) != SnFunctionType) {
+		f = snow_get_member(f, snow_sym("__call__"));
 	}
 	
-	SnObject* f = (SnObject*)functor;
-	return f->type->call(p, f, self, args);
+	SnFunction* function = (SnFunction*)f;
+	return snow_function_call(function, self, args);
 }
 
-VALUE snow_call_method(SN_P p, VALUE self, SnSymbol member, struct SnArguments* args) {
-	VALUE method = snow_get_member(p, self, member);
-	if (NULL == method) {
-		fprintf(stderr, "ERROR: Method '%s' not found on object.\n", snow_sym_to_cstr(p, member));
-		TRAP(); // TODO: Raise exception
+SnFunction* snow_get_method(VALUE object, SnSymbol member) {
+	// TODO: Support functor objects
+	VALUE f = snow_get_member(object, member);
+	if (snow_type_of(f) != SnFunctionType) {
+		snow_throw_exception_with_description("Method %s not found on object %p.", snow_sym_to_cstr(member), object);
 		return NULL;
 	}
-	return snow_call_with_self(p, method, self, args);
+	return (SnFunction*)f;
 }
 
-VALUE snow_get_member(SN_P p, VALUE self, SnSymbol member) {
-	const SnType* type = snow_get_type(self);
-	ASSERT(type != NULL);
-	return type->get_member(p, self, member);
-}
-
-VALUE snow_set_member(SN_P p, VALUE self, SnSymbol member, VALUE val) {
-	const SnType* type = snow_get_type(self);
-	ASSERT(type != NULL);
-	return type->set_member(p, self, member, val);
-}
-
-void snow_modify(SN_P p, SnObject* object) {
-	if (object && object->owner != p) {
-		TRAP(); // modified object owned by another process!
+VALUE snow_call_method_va(VALUE self, SnSymbol member, size_t num_args, ...) {
+	SnFunction* method = snow_get_method(self, member);
+	SnArguments* args;
+	SN_ALLOC_ARGUMENTS(args, num_args, method);
+	va_list ap;
+	va_start(ap, num_args);
+	for (size_t i = 0; i < num_args; ++i) {
+		snow_arguments_push(args, va_arg(ap, VALUE));
 	}
+	va_end(ap);
+	return snow_call_method(self, method, args);
 }
 
-static SnArrayRef get_global_storage(SN_P p) {
-	static SnObject* a = NULL;
-	if (!a) {
-		a = snow_create_array(p).obj;
-	}
-	return snow_object_as_array(a);
+VALUE snow_call_method(VALUE self, SnFunction* function, SnArguments* args) {
+	return snow_function_call(self, function, args);
 }
 
-VALUE snow_get_global(SN_P p, SnSymbol sym) {
+VALUE snow_get_member(VALUE self, SnSymbol member) {
 	return NULL;
 }
 
-void snow_set_global(SN_P p, SnSymbol sym, VALUE val) {
-	
+VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
+	return NULL;
 }
 
-VALUE snow_require(SN_P p, const char* file) {
+static SnMap** get_global_storage() {
+	static SnMap* a = NULL;
+	if (!a) {
+		a = snow_create_map();
+	}
+	return &a;
+}
+
+VALUE snow_get_global(SnSymbol sym) {
+	SnMap* storage = *get_global_storage();
+	return snow_map_get(storage, snow_symbol_to_value(sym));
+}
+
+void snow_set_global(SnSymbol sym, VALUE val) {
+	SnMap* storage = *get_global_storage();
+	snow_map_set(storage, snow_symbol_to_value(sym), val);
+}
+
+VALUE snow_require(const char* file) {
 	printf("(requiring file %s)\n", file);
 	return SN_NIL;
 }
 
-void snow_printf(SN_P p, const char* fmt, size_t num_args, ...) {
+void snow_printf(const char* fmt, size_t num_args, ...) {
 	va_list ap;
 	va_start(ap, num_args);
-	snow_vprintf(p, fmt, num_args, ap);
+	snow_vprintf(fmt, num_args, ap);
 	va_end(ap);
 }
 
-void snow_vprintf(SN_P p, const char* fmt, size_t num_args, va_list ap) {
+void snow_vprintf(const char* fmt, size_t num_args, va_list ap) {
 //	VALUE vstrs[num_args];
 	for (size_t i = 0; i < num_args; ++i) {
 	}
@@ -155,9 +154,9 @@ void snow_vprintf(SN_P p, const char* fmt, size_t num_args, va_list ap) {
 }
 
 
-SnObject* get_nearest_object(SN_P p, VALUE val) {
+SnObject* get_nearest_object(VALUE val) {
 	while (!snow_is_object(val)) {
-		val = snow_get_member(p, val, SN_SYM("__prototype__"));
+		val = snow_get_member(val, snow_sym("__prototype__"));
 	}
 	return (SnObject*)val;
 }

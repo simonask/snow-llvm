@@ -16,8 +16,8 @@ static inline int snow_value_to_integer(VALUE val) {
 	return (int)((intptr_t)val >> 1);
 }
 
-CAPI VALUE snow_big_integer_to_value(SN_P, const void* bytes, size_t n_bytes);
-CAPI void snow_extract_big_integer(SN_P, void* destination_bytes, size_t n_bytes, VALUE big_integer);
+CAPI VALUE snow_big_integer_to_value(const void* bytes, size_t n_bytes);
+CAPI void snow_extract_big_integer(void* destination_bytes, size_t n_bytes, VALUE big_integer);
 
 static inline VALUE snow_float_to_value(float f) {
 	uintptr_t n = *(uintptr_t*)&f;
@@ -29,9 +29,5 @@ static inline float snow_value_to_float(VALUE val) {
 	float* f = (float*)&n;
 	return *f;
 }
-
-struct SnType;
-CAPI const struct SnType* snow_get_integer_type();
-CAPI const struct SnType* snow_get_float_type();
 
 #endif /* end of include guard: NUMERIC_H_TFV19DYH */

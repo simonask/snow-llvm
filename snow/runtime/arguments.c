@@ -4,69 +4,65 @@
 #include <string.h>
 #include <stdlib.h>
 
-void snow_arguments_init(SN_P p, SnArguments* args, SnFunctionSignature* sig, VALUE* begin, VALUE* end) {
-	memset(args, 0, sizeof(SnArguments));
-	memset(begin, 0, sizeof(VALUE)*(end-begin));
-	args->values = begin;
-	args->size = end - begin;
-	args->signature = sig;
+void _snow_arguments_get_size_for_function(SnArguments* args, uint32_t req_size, SnFunction* function) {
+	args->signature = function->descriptor->signature;
+	size_t arity = args->signature->num_params;
+	args->size = req_size > arity ? req_size : arity;
 }
 
-size_t snow_arguments_size(SN_P p, const SnArguments* args) {
-	return args->size + args->extra_size;
+void _snow_arguments_init(SnArguments* args) {
+	int32_t known_named = args->signature->num_params;
+	memset(args->names + known_named, 0, args->size - known_named);
+	for (int32_t i = 0; i < known_named; ++i) {
+		args->names[i] = snow_symbol_to_value(args->signature->param_names[i]);
+	}
+	memset(args->values, 0, args->size * sizeof(VALUE));
 }
 
-VALUE snow_argument_get(SN_P p, const SnArguments* args, int idx) {
-	if (idx < args->size)
-		return args->values[idx];
-	idx -= args->size;
-	if (idx < args->extra_size)
-		return args->extra_values[idx];
-	return NULL;
-}
-
-VALUE snow_argument_get_named(SN_P p, const SnArguments* args, SnSymbol name) {
-	for (size_t i = 0; i < args->signature->num_params; ++i) {
-		if (args->signature->params[i].name == name) {
-			return args->values[i];
+void snow_arguments_set_named(SnArguments* args, SnSymbol name, VALUE val) {
+	VALUE vsym = snow_symbol_to_value(name);
+	for (size_t i = 0; i < args->size; ++i) {
+		if (args->names[i] == vsym) {
+			args->values[i] = val;
+			return;
 		}
 	}
-	for (size_t i = 0; i < args->extra_size; ++i) {
-		if (args->extra_names[i] == name) {
-			return args->extra_values[i];
+	
+	for (size_t i = args->signature->num_params; i < args->size; ++i) {
+		if (args->names[i] == NULL && args->values[i] == NULL) {
+			args->names[i] = vsym;
+			args->values[i] = val;
+			return;
 		}
 	}
-	return NULL;
+	
+	TRAP(); // Out of room in Arguments vector.
 }
 
-void snow_argument_push(SN_P p, SnArguments* args, VALUE val) {
+void snow_arguments_push(SnArguments* args, VALUE val) {
 	for (size_t i = 0; i < args->size; ++i) {
 		if (args->values[i] == NULL) {
 			args->values[i] = val;
 			return;
 		}
 	}
+	
+	TRAP(); // Out of room in Arguments vector.
 }
 
-void snow_argument_set_named(SN_P p, SnArguments* args, SnSymbol name, VALUE val) {
-	for (size_t i = 0; i < args->signature->num_params; ++i) {
-		if (args->signature->params[i].name == name) {
-			args->values[i] = val;
-			return;
-		}
+VALUE snow_arguments_get_named(const SnArguments* args, SnSymbol name) {
+	VALUE vsym = snow_symbol_to_value(name);
+	for (size_t i = 0; i < args->size; ++i) {
+		if (args->names[i] == vsym) return args->values[i];
 	}
-	
-	for (size_t i = 0; i < args->extra_size; ++i) {
-		if (args->extra_names[i] == name) {
-			args->extra_values[i] = val;
-			return;
-		}
-	}
-	
-	size_t i = args->extra_size;
-	args->extra_names = (SnSymbol*)realloc(args->extra_names, sizeof(SnSymbol)*(i+1));
-	args->extra_values = (VALUE*)realloc(args->extra_values, sizeof(VALUE)*(i+1));
-	args->extra_names[i] = name;
-	args->extra_values[i] = val;
-	args->extra_size++;
+	return NULL;
+}
+
+VALUE snow_arguments_get(const SnArguments* args, uint32_t idx) {
+	if (idx > args->size) return NULL;
+	return args->values[idx];
+}
+
+size_t snow_arguments_size(const SnArguments* args) {
+	return args->size;
 }

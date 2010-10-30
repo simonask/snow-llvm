@@ -1,140 +1,317 @@
 #include "snow/map.h"
-#include "snow/object.h"
 #include "snow/type.h"
+#include "snow/snow.h"
+#include "snow/numeric.h"
+#include "snow/boolean.h"
 #include "snow/gc.h"
-#include <google/dense_hash_map>
+#include "snow/exception.h"
 
-#define GET_DATA(VAR, OBJ) SnMapData* VAR = (SnMapData*)(OBJ)->data;
-#define GET_RDATA(VAR, REF) GET_DATA(VAR, (REF).obj)
+#include <google/dense_hash_map>
+#include <stdlib.h>
+#include <string.h>
+
 
 namespace {
-	struct SnMapData {
-		google::dense_hash_map<VALUE, VALUE> map;
+	// Use flat maps as long as the keys fit in 4 cache lines.
+	// TODO: Benchmark this to find a better threshold.
+	static const size_t FULL_HASH_THRESHOLD = 4 * SN_CACHE_LINE_SIZE / sizeof(VALUE);
+	
+	struct CallValueHash;
+	struct CallValueEquals;
+	
+	typedef google::dense_hash_map<VALUE, VALUE> ImmediateHashMap;
+	typedef google::dense_hash_map<VALUE, VALUE, CallValueHash, CallValueEquals> HashMap;
+	
+	enum MapFlags {
+		MAP_FLAT                      = 1, // currently flat, but might become non-flat as it grows
+		MAP_ALWAYS_FLAT               = 2, // never convert to non-flat -- fast get, slow insert/erase
+		MAP_MAINTAINS_INSERTION_ORDER = 4, // slow (linear) get, fast insert/erase
+		MAP_IMMEDIATE_KEYS            = 8, // all keys must be immediate values => fast comparison
 	};
 	
-	void map_initialize(SN_P p, SnObject* obj) {
-		GET_DATA(data, obj);
-		new(data) SnMapData;
-		data->map.set_deleted_key(NULL);
-		data->map.set_empty_key(SN_NIL);
-	}
+	inline bool map_is_flat(const SnMap* map) { return map->flags & MAP_FLAT; }
+	inline bool map_is_always_flat(const SnMap* map) { return map->flags & (MAP_ALWAYS_FLAT | MAP_MAINTAINS_INSERTION_ORDER); }
+	inline bool map_maintains_insertion_order(const SnMap* map) { return map->flags & MAP_ALWAYS_FLAT; }
+	inline bool map_has_immediate_keys(const SnMap* map) { return map->flags & MAP_IMMEDIATE_KEYS; }
 	
-	void map_finalize(SN_P p, SnObject* obj) {
-		GET_DATA(data, obj);
-		data->~SnMapData();
-	}
+	inline HashMap* hash_map(SnMap* map) { return reinterpret_cast<HashMap*>(map->hash_map); }
+	inline const HashMap* hash_map(const SnMap* map) { return reinterpret_cast<const HashMap*>(map->hash_map); }
+	inline ImmediateHashMap* immediate_hash_map(SnMap* map) { return reinterpret_cast<ImmediateHashMap*>(map->hash_map); }
+	inline const ImmediateHashMap* immediate_hash_map(const SnMap* map) { return reinterpret_cast<const ImmediateHashMap*>(map->hash_map); }
 	
-	void map_copy(SN_P p, SnObject* copy, const SnObject* original) {
-		GET_DATA(a, copy);
-		GET_DATA(b, original);
-		*a = *b;
-	}
+	struct CallValueHash {
+	public:
+		size_t operator()(VALUE v) const {
+			if (snow_is_object(v)) {
+				VALUE h = snow_call_method_va(v, snow_sym("hash"), 0);
+				ASSERT(snow_is_integer(h));
+				return (size_t)h;
+			} else {
+				return (size_t)v;
+			}
+		}
+	};
 	
-	void map_for_each_root(SN_P p, VALUE self, SnForEachRootCallbackFunc func, void* userdata) {
-		ASSERT(snow_is_object(self));
-		SnObject* obj = (SnObject*)self;
-		ASSERT(obj->type == snow_get_map_type());
-		GET_DATA(data, obj);
-		google::dense_hash_map<VALUE, VALUE>::iterator it;
-		for (it = data->map.begin(); it != data->map.end(); ++it) {
-			func(p, self, (VALUE*)&it->first, userdata);
-			func(p, self, &it->second, userdata);
+	struct CallValueEquals {
+	public:
+		bool operator()(const VALUE _a, const VALUE _b) const {
+			VALUE a = const_cast<VALUE>(_a);
+			VALUE b = const_cast<VALUE>(_b);
+			VALUE r = snow_call_method_va(a, snow_sym("="), 1, b);
+			return snow_value_to_boolean(r);
+		}
+	};
+	
+	void flat_map_reserve(SnMap* map, uint32_t new_alloc_size) {
+		ASSERT(map_is_flat(map));
+		if (new_alloc_size > map->flat.alloc_size) {
+			size_t n = new_alloc_size - map->flat.alloc_size;
+			map->flat.keys = (VALUE*)realloc(map->flat.keys, new_alloc_size*sizeof(VALUE));
+			memset(map->flat.keys + map->flat.alloc_size, 0, n);
+			map->flat.values = (VALUE*)realloc(map->flat.values, new_alloc_size*sizeof(VALUE));
+			memset(map->flat.values + map->flat.alloc_size, 0, n);
+			map->flat.alloc_size = new_alloc_size;
 		}
 	}
 	
-	void init_map_prototype(SN_P);
-	VALUE map_get_member_fast(SN_P, VALUE self, SnSymbol sym);
-	VALUE map_set_member_fast(SN_P, VALUE self, SnSymbol sym, VALUE val);
-	VALUE map_call_fast(SN_P, VALUE functor, VALUE self, struct SnArguments*);
-	
-	VALUE map_get_member(SN_P p, VALUE self, SnSymbol sym) {
-		init_map_prototype(p);
-		return map_get_member_fast(p, self, sym);
+	void convert_from_flat_to_full(SnMap* map) {
+		ASSERT(map_is_flat(map));
+		ASSERT(!map_maintains_insertion_order(map));
+		ASSERT(!map_is_always_flat(map));
+		if (map_has_immediate_keys(map)) {
+			ImmediateHashMap* hmap = new ImmediateHashMap;
+			hmap->set_empty_key(NULL);
+			hmap->set_deleted_key(SN_NIL);
+			for (uint32_t i = 0; i < map->flat.size; ++i) {
+				(*hmap)[map->flat.keys[i]] = map->flat.values[i];
+			}
+			free(map->flat.keys);
+			free(map->flat.values);
+			map->hash_map = hmap;
+		} else {
+			HashMap* hmap = new HashMap;
+			hmap->set_empty_key(NULL);
+			hmap->set_deleted_key(SN_NIL);
+			for (uint32_t i = 0; i < map->flat.size; ++i) {
+				(*hmap)[map->flat.keys[i]] = map->flat.values[i];
+			}
+			free(map->flat.keys);
+			free(map->flat.values);
+			map->hash_map = hmap;
+		}
+		map->flags &= ~MAP_FLAT;
 	}
 	
-	VALUE map_set_member(SN_P p, VALUE self, SnSymbol sym, VALUE val) {
-		init_map_prototype(p);
-		return map_set_member_fast(p, self, sym, val);
+	bool map_elements_are_equal(const SnMap* map, VALUE a, VALUE b) {
+		if (map_has_immediate_keys(map)) {
+			return a == b;
+		} else {
+			return CallValueEquals()(a, b);
+		}
 	}
 	
-	VALUE map_call(SN_P p, VALUE functor, VALUE self, struct SnArguments* args) {
-		init_map_prototype(p);
-		return map_call_fast(p, functor, self, args);
+	int compare_immediate_values(const void* a, const void* b) {
+		return (int)((int64_t)b - (int64_t)a);
 	}
 	
-	VALUE map_get_member_fast(SN_P p, VALUE self, SnSymbol sym) {
-		return SN_NIL;
+	int compare_objects(const void* _a, const void* _b) {
+		VALUE a = const_cast<VALUE>(_a);
+		VALUE b = const_cast<VALUE>(_b);
+		VALUE difference = snow_call_method_va(a, snow_sym("compare"), 1, b);
+		ASSERT(snow_is_integer(b));
+		return snow_value_to_integer(difference);
 	}
 	
-	VALUE map_set_member_fast(SN_P p, VALUE self, SnSymbol sym, VALUE value) {
-		return SN_NIL;
+	int32_t flat_find_index(const SnMap* map, VALUE key) {
+		ASSERT(map_is_flat(map));
+		if (map_maintains_insertion_order(map)) {
+			// linear search
+			for (int32_t i = 0; i < map->flat.size; ++i) {
+				if (map_elements_are_equal(map, key, map->flat.keys[i]))
+					return i;
+			}
+		} else {
+			// binary search
+			void* result = NULL;
+			
+			if (map_has_immediate_keys(map))
+				result = bsearch(key, map->flat.keys, map->flat.size, sizeof(VALUE), compare_immediate_values);
+			else
+				result = bsearch(key, map->flat.keys, map->flat.size, sizeof(VALUE), compare_objects);
+				
+			if (result)
+				return (int32_t)((VALUE*)result - map->flat.keys);
+		}
+		return -1; // not found
 	}
 	
-	VALUE map_call_fast(SN_P p, VALUE functor, VALUE self, struct SnArguments* args) {
-		return SN_NIL;
-	}
-
-	static SnType MapType;
-	
-	void init_map_prototype(SN_P p) {
-		MapType.get_member = map_get_member_fast;
-		MapType.set_member = map_set_member_fast;
-		MapType.call = map_call_fast;
+	int map_elements_compare(const SnMap* map, VALUE a, VALUE b) {
+		if (map_has_immediate_keys(map)) {
+			return compare_immediate_values(a, b);
+		} else {
+			return compare_objects(a, b);
+		}
 	}
 }
 
 CAPI {
-	const SnType* snow_get_map_type() {
-		static const SnType* type = NULL;
-		if (!type) {
-			MapType.size = sizeof(SnMapData);
-			MapType.initialize = map_initialize;
-			MapType.finalize = map_finalize;
-			MapType.copy = map_copy;
-			MapType.for_each_root = map_for_each_root;
-			MapType.get_member = map_get_member;
-			MapType.set_member = map_set_member;
-			MapType.call = map_call;
-			type = &MapType;
+	SnMap* snow_create_map() {
+		SnMap* map = (SnMap*)snow_gc_alloc_object(SnMapType);
+		memset(map, 0, sizeof(SnMap));
+		map->flags = MAP_FLAT;
+		return map;
+	}
+	
+	size_t snow_map_size(const SnMap* map) {
+		if (map_is_flat(map)) {
+			return map->flat.size;
+		} else if (map_has_immediate_keys(map)) {
+			return immediate_hash_map(map)->size();
+		} else {
+			return hash_map(map)->size();
 		}
-		return type;
 	}
 	
-	SnMapRef snow_create_map(SN_P p) {
-		SnObject* obj = snow_gc_create_object(p, snow_get_map_type());
-		SnMapRef ref;
-		ref.obj = obj;
-		return ref;
+	VALUE snow_map_get(const SnMap* map, VALUE key) {
+		if (map_is_flat(map)) {
+			int32_t i = flat_find_index(map, key);
+			if (i >= 0) return map->flat.values[i];
+			return NULL;
+		} else if (map_has_immediate_keys(map)) {
+			const ImmediateHashMap* hmap = immediate_hash_map(map);
+			ImmediateHashMap::const_iterator it = hmap->find(key);
+			if (it != hmap->end()) return NULL;
+			return it->second;
+		} else {
+			const HashMap* hmap = hash_map(map);
+			HashMap::const_iterator it = hmap->find(key);
+			if (it != hmap->end()) return NULL;
+			return it->second;
+		}
 	}
 	
-	size_t snow_map_size(SN_P p, SnMapRef r) {
-		GET_RDATA(data, r);
-		return data->map.size();
+	VALUE snow_map_set(SnMap* map, VALUE key, VALUE value) {
+		if (map_is_flat(map)) {
+			if (map_has_immediate_keys(map) && snow_is_object(key)) {
+				snow_throw_exception_with_description("Attempted to use an Object as key in an immediates-only hash map.");
+			}
+			
+			// see if the key already exists in the flat map
+			int32_t i = flat_find_index(map, key);
+			if (i >= 0) {
+				map->flat.values[i] = value;
+				return value;
+			}
+			
+			// no, then we need to insert it
+			// first, check if we need to convert to a full hash
+			if (!map_is_always_flat(map) && map->flat.size > FULL_HASH_THRESHOLD) {
+				convert_from_flat_to_full(map);
+				return snow_map_set(map, key, value); // no longer flat, should hit one of the full-hash cases
+			}
+			
+			// no, so insert it in the list
+			
+			flat_map_reserve(map, map->flat.size+1);
+			if (map_maintains_insertion_order(map)) {
+				// append at the end
+				uint32_t i = map->flat.size++;
+				map->flat.keys[i] = key;
+				map->flat.values[i] = value;
+				return value;
+			} else {
+				// insert in sorted order
+				// TODO: Use binary search for this
+				uint32_t insertion_point = 0;
+				while (insertion_point < map->flat.size && map_elements_compare(map, map->flat.keys[insertion_point], key) < 0) {
+					++insertion_point;
+				}
+				// shift all keys and values right
+				++map->flat.size;
+				for (uint32_t i = insertion_point + 1; i < map->flat.size; ++i) {
+					VALUE tmp;
+					
+					tmp = map->flat.keys[insertion_point];
+					map->flat.keys[insertion_point] = map->flat.keys[i];
+					map->flat.keys[i] = tmp;
+					
+					tmp = map->flat.values[insertion_point];
+					map->flat.values[insertion_point] = map->flat.keys[i];
+					map->flat.values[i] = tmp;
+				}
+				
+				map->flat.keys[insertion_point] = key;
+				map->flat.values[insertion_point] = value;
+				return value;
+			}
+		} else if (map_has_immediate_keys(map)) {
+			ImmediateHashMap* hmap = immediate_hash_map(map);
+			(*hmap)[key] = value;
+			return value;
+		} else {
+			HashMap* hmap = hash_map(map);
+			(*hmap)[key] = value;
+			return value;
+		}
 	}
 	
-	VALUE snow_map_get(SN_P p, SnMapRef r, VALUE key) {
-		GET_RDATA(data, r);
-		google::dense_hash_map<VALUE, VALUE>::iterator it = data->map.find(key);
-		if (it == data->map.end()) {
+	VALUE snow_map_erase(SnMap* map, VALUE key) {
+		// TODO: Consider if the map should be converted back into a flat map below the threshold?
+		
+		if (map_is_flat(map)) {
+			int32_t found_idx = -1;
+			for (int32_t i = 0; i < map->flat.size; ++i) {
+				if (map->flat.keys[i] == key) {
+					found_idx = i;
+					break;
+				}
+			}
+			
+			if (found_idx >= 0) {
+				// shift tail
+				VALUE v = map->flat.values[found_idx];
+				for (int32_t i = found_idx+1; i < map->flat.size; ++i) {
+					map->flat.keys[i-1] = map->flat.keys[i];
+					map->flat.values[i-1] = map->flat.values[i];
+				}
+				--map->flat.size;
+				return v;
+			}
+			return NULL;
+		} else if (map_has_immediate_keys(map)) {
+			ImmediateHashMap* hmap = immediate_hash_map(map);
+			ImmediateHashMap::iterator it = hmap->find(key);
+			if (it != hmap->end()) {
+				VALUE v = it->second;
+				hmap->erase(it);
+				return v;
+			}
+			return NULL;
+		} else {
+			HashMap* hmap = hash_map(map);
+			HashMap::iterator it = hmap->find(key);
+			if (it != hmap->end()) {
+				VALUE v = it->second;
+				hmap->erase(it);
+				return v;
+			}
 			return NULL;
 		}
-		return it->second;
 	}
 	
-	VALUE snow_map_set(SN_P p, SnMapRef r, VALUE key, VALUE value) {
-		GET_RDATA(data, r);
-		data->map[key] = value;
-		return value;
-	}
-	
-	VALUE snow_map_erase(SN_P p, SnMapRef r, VALUE key) {
-		GET_RDATA(data, r);
-		google::dense_hash_map<VALUE, VALUE>::iterator it = data->map.find(key);
-		if (it == data->map.end()) {
-			return NULL;
+	void snow_map_reserve(SnMap* map, size_t size) {
+		if (size > FULL_HASH_THRESHOLD) {
+			convert_from_flat_to_full(map);
 		}
-		VALUE val = it->second;
-		data->map.erase(it);
-		return val;
+		
+		if (map_is_flat(map)) {
+			flat_map_reserve(map, size);
+		} else if (map_has_immediate_keys(map)) {
+			ImmediateHashMap* hmap = immediate_hash_map(map);
+			hmap->resize(size);
+		} else {
+			HashMap* hmap = hash_map(map);
+			hmap->resize(size);
+		}
 	}
 }

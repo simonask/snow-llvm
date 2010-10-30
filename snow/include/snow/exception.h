@@ -5,7 +5,7 @@
 #include "snow/basic.h"
 #include "snow/value.h"
 
-CAPI void snow_throw_exception(SN_P, VALUE ex);
-CAPI void snow_throw_exception_with_description(SN_P, const char* fmt, ...);
+CAPI void snow_throw_exception(VALUE ex);
+CAPI void snow_throw_exception_with_description(const char* fmt, ...);
 
 #endif /* end of include guard: EXCEPTION_H_WC3FV11H */

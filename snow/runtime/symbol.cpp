@@ -16,11 +16,11 @@ static SymbolTable& symbol_table() {
 	return *t;
 }
 
-VALUE snow_vsym(SN_P p, const char* str) {
-	return snow_symbol_to_value(snow_sym(p, str));
+VALUE snow_vsym(const char* str) {
+	return snow_symbol_to_value(snow_sym(str));
 }
 
-SnSymbol snow_sym(SN_P p, const char* cstr) {
+SnSymbol snow_sym(const char* cstr) {
 	std::string str(cstr);
 	SymbolTable& t = symbol_table();
 	
@@ -33,7 +33,7 @@ SnSymbol snow_sym(SN_P p, const char* cstr) {
 	return it->second;
 }
 
-const char* snow_sym_to_cstr(SN_P p, SnSymbol sym) {
+const char* snow_sym_to_cstr(SnSymbol sym) {
 	SymbolTable& t = symbol_table();
 	SymbolTable::const_iterator it = t.begin();
 	for (SymbolTable::const_iterator it = t.begin(); it != t.end(); ++it) {
@@ -42,32 +42,4 @@ const char* snow_sym_to_cstr(SN_P p, SnSymbol sym) {
 		}
 	}
 	return NULL;
-}
-
-static VALUE symbol_get_member(SN_P p, VALUE self, SnSymbol member) {
-	return NULL;
-}
-
-static VALUE symbol_set_member(SN_P p, VALUE self, SnSymbol member, VALUE val) {
-	return NULL;
-}
-
-static VALUE symbol_call(SN_P p, VALUE functor, VALUE self, struct SnArguments* args) {
-	// TODO: Convert functor to symbol and call it as a member function on first argument
-	return functor;
-}
-
-
-static SnType SymbolType;
-
-const SnType* snow_get_symbol_type() {
-	static const SnType* type = NULL;
-	if (!type) {
-		snow_init_immediate_type(&SymbolType);
-		SymbolType.get_member = symbol_get_member;
-		SymbolType.set_member = symbol_set_member;
-		SymbolType.call = symbol_call;
-		type = &SymbolType;
-	}
-	return type;
 }

@@ -5,6 +5,6 @@
 #include "snow/basic.h"
 #include "snow/ast.h"
 
-CAPI struct SnAST* snow_parse(SN_P, const char* buffer);
+CAPI struct SnAST* snow_parse(const char* buffer);
 
 #endif /* end of include guard: PARSER_H_OX0F2RR9 */

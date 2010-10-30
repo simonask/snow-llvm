@@ -9,13 +9,9 @@ void snow_gc() {
 	TRAP();
 }
 
-SnObject* snow_gc_create_object(SnProcess* p, const SnType* type) {
+SnObjectBase* snow_gc_alloc_object(SnType type) {
 	// XXX: LEAKING STUB!!
-	byte* mem = (byte*)malloc(sizeof(SnObject) + type->size);
-	SnObject* obj = (SnObject*)mem;
+	SnObjectBase* obj = (SnObjectBase*)malloc(SN_CACHE_LINE_SIZE);
 	obj->type = type;
-	obj->owner = p;
-	obj->data = mem + sizeof(SnObject);
-	type->initialize(p, obj);
 	return obj;
 }

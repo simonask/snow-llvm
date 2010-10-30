@@ -127,7 +127,7 @@ namespace snow {
 				if (params) {
 					for (SnAstNode* x = params->sequence.head; x; x = x->next) {
 						ASSERT(x->type == SN_AST_PARAMETER);
-						printf("%s%s", snow_sym_to_cstr(NULL, x->parameter.name), x->next == NULL ? "" : ", ");
+						printf("%s%s", snow_sym_to_cstr(x->parameter.name), x->next == NULL ? "" : ", ");
 					}
 				}
 				printf(")\n");
@@ -147,7 +147,7 @@ namespace snow {
 				}
 				break;
 			}
-			case SN_AST_IDENTIFIER: { inprintf(indent, "IDENTIFIER: %s\n", snow_sym_to_cstr(NULL, n->identifier.name)); break; }
+			case SN_AST_IDENTIFIER: { inprintf(indent, "IDENTIFIER: %s\n", snow_sym_to_cstr(n->identifier.name)); break; }
 			case SN_AST_BREAK: { inprintf(indent, "BREAK\n"); break; }
 			case SN_AST_CONTINUE: { inprintf(indent, "CONTINUE\n"); break; }
 			case SN_AST_SELF: { inprintf(indent, "SELF\n"); break; }
@@ -163,7 +163,7 @@ namespace snow {
 			}
 			case SN_AST_MEMBER: {
 				inprintf(indent, "MEMBER:\n");
-				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(NULL, n->member.name));
+				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->member.name));
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->member.object, indent+2);
 				break;
@@ -201,7 +201,7 @@ namespace snow {
 			}
 			case SN_AST_NAMED_ARGUMENT: {
 				inprintf(indent, "NAMED ARGUMENT:\n");
-				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(NULL, n->named_argument.name));
+				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->named_argument.name));
 				inprintf(indent+1, "VALUE:\n");
 				print_r(n->named_argument.expr, indent+2);
 				break;

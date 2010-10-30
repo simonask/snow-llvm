@@ -7,7 +7,11 @@
 #include "snow/symbol.h"
 #include "snow/ast.h"
 
-struct SnAST {};
+struct SnAstNode;
+
+struct SnAST {
+	SnAstNode* _root;
+};
 
 enum SnSnAstNodeType {
 	SN_AST_SEQUENCE,
