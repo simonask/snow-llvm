@@ -16,6 +16,7 @@ namespace snow {
 	void init_vm(SnVM* vm, llvm::ExecutionEngine* ee);
 	
 	llvm::FunctionType* get_function_type();
+	llvm::Function* get_runtime_function(const char* name);
 }
 
 #endif /* end of include guard: VM_HPP_16FWWAY5 */

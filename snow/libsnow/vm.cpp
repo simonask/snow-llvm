@@ -41,6 +41,7 @@ bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_resu
 	snow::Codegen codegen(llvm::getGlobalContext());
 	if (codegen.compile_ast(ast)) {
 		ee->addModule(codegen.get_module());
+		llvm::outs() << *codegen.get_module() << '\n';
 		out_result->jit_handle = codegen.get_entry_function();
 		out_result->error_str = NULL;
 		return true;

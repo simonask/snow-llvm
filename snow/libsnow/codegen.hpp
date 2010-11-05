@@ -31,16 +31,18 @@ namespace snow {
 	};
 	
 	struct FunctionCompilerInfo {
+		FunctionCompilerInfo* parent;
 		llvm::BasicBlock* function_exit;
 		std::map<llvm::BasicBlock*, llvm::Value*> return_points;
 		
-		llvm::BasicBlock* current_block;
 		llvm::Value* last_value;
 		llvm::Value* here;
 		llvm::Value* self;
 		llvm::Value* it;
+		llvm::Value* locals_array;
 		
 		std::vector<SnSymbol> local_names;
+		bool needs_context;
 	};
 	
 	class Codegen {
@@ -54,10 +56,17 @@ namespace snow {
 	private:
 		Codegen(llvm::LLVMContext& c, llvm::Module* module);
 		
-		bool compile_function_body(const SnAstNode* seq);
-		bool compile_ast_node(const SnAstNode* node, FunctionCompilerInfo& info);
+		bool compile_function_body(const SnAstNode* seq, FunctionCompilerInfo* static_parent = NULL);
+		bool compile_ast_node(const SnAstNode* node, llvm::IRBuilder<>& builder, FunctionCompilerInfo& info);
+		
+		bool find_local(SnSymbol name, FunctionCompilerInfo& info, int& out_level, int& out_index);
 		
 		llvm::Value* value_constant(llvm::IRBuilder<>& builder, const VALUE constant);
+		llvm::Value* symbol_constant(llvm::IRBuilder<>& builder, const SnSymbol constant);
+		llvm::CallInst* method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args);
+		llvm::CallInst* call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, llvm::Value* self, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args);
+		
+		llvm::CallInst* tail_call(llvm::CallInst* inst) { inst->setTailCall(true); return inst; }
 		
 		llvm::LLVMContext& _context;
 		llvm::Module* _module;

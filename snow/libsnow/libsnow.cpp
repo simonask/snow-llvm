@@ -104,4 +104,14 @@ namespace snow {
 		}
 		return FT;
 	}
+	
+	llvm::Function* get_runtime_function(const char* name) {
+		ASSERT(runtime != NULL); // runtime must be loaded
+		llvm::Function* F = runtime->getFunction(name);
+		if (!F) {
+			fprintf(stderr, "ERROR: Function '%s' not found in runtime! Codegen wants it.\n", name);
+			exit(1);
+		}
+		return F;
+	}
 }
