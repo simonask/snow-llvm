@@ -32,9 +32,8 @@ static const VALUE SN_NIL = (VALUE)SnNilType;
 static const VALUE SN_FALSE = (VALUE)SnFalseType;
 static const VALUE SN_TRUE = (VALUE)SnTrueType;
 
-
-
 CAPI SnType snow_type_of(VALUE val);
 CAPI bool snow_is_object(VALUE val);
+CAPI bool snow_eval_truth(VALUE val);
 
 #endif /* end of include guard: VALUE_H_ATXVBTXI */

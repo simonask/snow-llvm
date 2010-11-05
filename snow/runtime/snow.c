@@ -160,3 +160,7 @@ SnObject* get_nearest_object(VALUE val) {
 	}
 	return (SnObject*)val;
 }
+
+bool snow_eval_truth(VALUE val) {
+	return val != NULL && val != SN_NIL && val != SN_FALSE;
+}
