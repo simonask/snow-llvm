@@ -1,5 +1,6 @@
 #include "vm.hpp"
 #include "codegen.hpp"
+#include "symbol.hpp"
 
 #include <llvm/LLVMContext.h>
 #include <llvm/Module.h>
@@ -32,6 +33,9 @@ namespace snow {
 		vm->compile_ast = compile_ast;
 		vm->free_function = free_function;
 		vm->realize_function = realize_function;
+		
+		vm->symbol = snow::symbol;
+		vm->symbol_to_cstr = snow::symbol_to_cstr;
 	}
 }
 

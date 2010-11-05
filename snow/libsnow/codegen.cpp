@@ -1,5 +1,6 @@
 #include "codegen.hpp"
 #include "vm.hpp"
+#include "symbol.hpp"
 
 #include <algorithm>
 
@@ -212,7 +213,7 @@ namespace snow {
 							if (!compile_ast_node(target->association.object, builder, info)) return false;
 							Value* assoc_target = info.last_value;
 							std::vector<SnSymbol> arg_names;
-							info.last_value = method_call(builder, info, assoc_target, 0 /* __assoc_set__ */, arg_names, args);
+							info.last_value = method_call(builder, info, assoc_target, snow::symbol("__index_set__"), arg_names, args);
 							break;
 						}
 						case SN_AST_MEMBER: {
@@ -336,7 +337,7 @@ namespace snow {
 					args.push_back(info.last_value);
 				}
 				std::vector<SnSymbol> arg_names;
-				info.last_value = method_call(builder, info, object, 0 /* __index_get__ */, arg_names, args);
+				info.last_value = method_call(builder, info, object, snow::symbol("__index_get__"), arg_names, args);
 				break;
 			}
 			case SN_AST_AND: {
