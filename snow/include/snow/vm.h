@@ -13,7 +13,7 @@ typedef struct SnCompilationResult {
 	void* jit_handle;
 } SnCompilationResult;
 
-typedef bool(*SnCompileASTFunc)(void* vm_state, const struct SnAST* ast_root, SnCompilationResult* out_result);
+typedef bool(*SnCompileASTFunc)(void* vm_state, const struct SnAST* ast, SnCompilationResult* out_result);
 typedef void(*SnFreeFunctionFunc)(void* vm_state, void* jit_handle);
 typedef void(*SnRealizeFunctionFunc)(void* vm_state, struct SnFunctionDescriptor* descriptor);
 
@@ -25,7 +25,8 @@ typedef struct SnVM {
 } SnVM;
 
 CAPI void* snow_vm_load_precompiled_image(const char* file);
-CAPI void snow_vm_compile_ast(const struct SnAST* ast, SnCompilationResult* out_result);
+CAPI bool snow_vm_compile_ast(const struct SnAST* ast, SnCompilationResult* out_result);
+CAPI void snow_vm_realize_function(struct SnFunctionDescriptor* descriptor);
 CAPI void snow_vm_free_function(void* jit_handle);
 
 

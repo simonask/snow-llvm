@@ -17,6 +17,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 
 void snow_lex(const char*);
 
@@ -52,18 +53,19 @@ VALUE snow_eval(const char* source) {
 SnFunction* snow_compile(const char* source) {
 	printf("parsing...\n");
 	struct SnAST* ast = snow_parse(source);
-/*	if (ast) {
+	if (ast) {
 		SnCompilationResult result;
 		if (snow_vm_compile_ast(ast, &result)) {
-			return result.function;
+			return NULL; // TODO! Make a real function
 		} else if (result.error_str) {
 			fprintf(stderr, "ERROR COMPILING FUNCTION: %s\n", result.error_str);
+			free(result.error_str);
 			return NULL;
 		} else {
 			fprintf(stderr, "ERROR COMPILING FUNCTION: <UNKNOWN>\n");
 			return NULL;
 		}
-	}*/
+	}
 	return NULL;
 }
 
@@ -78,7 +80,7 @@ VALUE snow_call(VALUE functor, VALUE self, struct SnArguments* args) {
 	}
 	
 	SnFunction* function = (SnFunction*)f;
-	return snow_function_call(function, self, args);
+	return SN_NIL;//snow_function_call(function, self, args);
 }
 
 SnFunction* snow_get_method(VALUE object, SnSymbol member) {
@@ -105,7 +107,7 @@ VALUE snow_call_method_va(VALUE self, SnSymbol member, size_t num_args, ...) {
 }
 
 VALUE snow_call_method(VALUE self, SnFunction* function, SnArguments* args) {
-	return snow_function_call(self, function, args);
+	return SN_NIL;//snow_function_call(self, function, args);
 }
 
 VALUE snow_get_member(VALUE self, SnSymbol member) {
