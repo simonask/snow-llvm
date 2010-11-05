@@ -60,7 +60,9 @@ namespace snow {
 		info.here->setName("here");
 		info.self->setName("self");
 		info.it->setName("it");
-		info.needs_context = false;
+		info.needs_context = static_parent ? false : true;
+		
+		gather_info_pass(seq, info);
 		
 		// Function entry
 		IRBuilder<> builder(entry_bb);
@@ -126,16 +128,15 @@ namespace snow {
 			}
 			case SN_AST_IDENTIFIER: {
 				// get local
-				int level;
-				int index;
-				if (find_local(node->identifier.name, info, level, index)) {
-					if (level == 0) {
+				int level, adjusted_level, index;
+				if (find_local(node->identifier.name, info, level, adjusted_level, index)) {
+					if (adjusted_level == 0) {
 						// get from current scope
 						// last_value = here->locals[index]
 						info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index*sizeof(VALUE)));
 					} else {
 						// get from other scope
-						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(level), builder.getInt32(index)));
+						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index)));
 					}
 				} else {
 					// try globals
@@ -148,7 +149,6 @@ namespace snow {
 				break;
 			}
 			case SN_AST_HERE: {
-				info.needs_context = true;
 				info.last_value = builder.CreateBitCast(info.here, builder.getInt8PtrTy());
 				break;
 			}
@@ -228,21 +228,19 @@ namespace snow {
 								tail_call(builder.CreateCall2(snow::get_runtime_function("snow_set_global"), symbol_constant(builder, target->identifier.name), assign_value));
 							} else {
 								// set local
-								int level;
-								int index;
-								if (!find_local(target->identifier.name, info, level, index)) {
+								int level, adjusted_level, index;
+								if (!find_local(target->identifier.name, info, level, adjusted_level, index)) {
 									// make a new local in current scope
 									level = 0;
 									index = info.local_names.size();
 									info.local_names.push_back(target->identifier.name);
-									info.needs_context = true;
 								}
 								
-								if (level == 0) {
+								if (adjusted_level == 0) {
 									// set in current scope
 									builder.CreateStore(assign_value, builder.CreateConstGEP1_32(info.locals_array, index*sizeof(VALUE)));
 								} else {
-									tail_call(builder.CreateCall4(snow::get_runtime_function("snow_set_local"), info.here, builder.getInt32(level), builder.getInt32(index), assign_value));
+									tail_call(builder.CreateCall4(snow::get_runtime_function("snow_set_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), assign_value));
 								}
 							}
 							info.last_value = assign_value;
@@ -539,19 +537,24 @@ namespace snow {
 		return true;
 	}
 	
-	bool Codegen::find_local(SnSymbol name, FunctionCompilerInfo& info, int& out_level, int& out_index) {
+	bool Codegen::find_local(SnSymbol name, FunctionCompilerInfo& info, int& out_level, int& out_adjusted_level, int& out_index) {
 		FunctionCompilerInfo* ci = &info;
+		out_level = 0;
+		out_adjusted_level = 0;
+		out_index = -1;
 		int level = 0;
 		while (ci) {
 			for (int i = 0; i < (int)ci->local_names.size(); ++i) {
 				if (ci->local_names[i] == name) {
-					out_level = level;
 					out_index = i;
 					return true;
 				}
 			}
 			
-			++level;
+			++out_level;
+			if (ci->needs_context) {
+				++out_adjusted_level;
+			}
 			ci = ci->parent;
 		}
 		return false;
@@ -615,5 +618,114 @@ namespace snow {
 		if (!self) self = value_constant(builder, NULL);
 		Value* it = args.size() ? args[0] : value_constant(builder, NULL);
 		return tail_call(builder.CreateCall4(snow::get_runtime_function("snow_function_call"), function, call_context, self, it));
+	}
+	
+	void Codegen::gather_info_pass(const SnAstNode* node, FunctionCompilerInfo& info) {
+		if (!node) return;
+		
+		// The only thing gather_info_pass does for now is check if a function needs a
+		// scope context. If we already determined that it does, don't do anything further.
+		if (info.needs_context) return;
+		
+		switch (node->type) {
+			case SN_AST_SEQUENCE: {
+				for (SnAstNode* x = node->sequence.head; x; x = x->next) {
+					gather_info_pass(node, info);
+				}
+				break;
+			}
+			case SN_AST_LITERAL: {
+				break;
+			}
+			case SN_AST_CLOSURE: {
+				break;
+			}
+			case SN_AST_PARAMETER: {
+				gather_info_pass(node->parameter.default_value, info);
+				break;
+			}
+			case SN_AST_RETURN: {
+				gather_info_pass(node->return_expr.value, info);
+				break;
+			}
+			case SN_AST_IDENTIFIER: {
+				break;
+			}
+			case SN_AST_BREAK: {
+				break;
+			}
+			case SN_AST_CONTINUE: {
+				break;
+			}
+			case SN_AST_SELF: {
+				break;
+			}
+			case SN_AST_HERE: {
+				info.needs_context = true;
+				break;
+			}
+			case SN_AST_IT: {
+				break;
+			}
+			case SN_AST_ASSIGN: {
+				if (node->assign.target->type == SN_AST_IDENTIFIER) {
+					if (std::find(info.local_names.begin(), info.local_names.end(), node->assign.target->identifier.name) != info.local_names.end()) {
+						// the local is most likely a parameter
+						info.needs_context = true;
+					} else {
+						int level, adjusted_level, index;
+						if (!find_local(node->assign.target->identifier.name, info, level, adjusted_level, index)) {
+							// the local was not found, so it's defined here
+							info.needs_context = true;
+						}
+					}
+				}
+				
+				gather_info_pass(node->assign.target, info);
+				gather_info_pass(node->assign.value, info);
+				break;
+			}
+			case SN_AST_MEMBER: {
+				gather_info_pass(node->member.object, info);
+				break;
+			}
+			case SN_AST_CALL: {
+				gather_info_pass(node->call.object, info);
+				gather_info_pass(node->call.args, info);
+				break;
+			}
+			case SN_AST_ASSOCIATION: {
+				gather_info_pass(node->association.object, info);
+				gather_info_pass(node->association.args, info);
+				break;
+			}
+			case SN_AST_NAMED_ARGUMENT: {
+				gather_info_pass(node->named_argument.expr, info);
+				break;
+			}
+			case SN_AST_AND:
+			case SN_AST_OR:
+			case SN_AST_XOR:
+			{
+				gather_info_pass(node->logic_and.left, info);
+				gather_info_pass(node->logic_and.right, info);
+				break;
+			}
+			case SN_AST_NOT: {
+				gather_info_pass(node->logic_not.expr, info);
+				break;
+			}
+			case SN_AST_LOOP: {
+				gather_info_pass(node->loop.cond, info);
+				gather_info_pass(node->loop.body, info);
+				break;
+			}
+			case SN_AST_IF_ELSE: {
+				gather_info_pass(node->if_else.cond, info);
+				gather_info_pass(node->if_else.body, info);
+				gather_info_pass(node->if_else.else_body, info);
+				break;
+			}
+		}
 	}
 }

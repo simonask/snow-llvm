@@ -59,7 +59,20 @@ namespace snow {
 		bool compile_function_body(const SnAstNode* seq, FunctionCompilerInfo* static_parent = NULL);
 		bool compile_ast_node(const SnAstNode* node, llvm::IRBuilder<>& builder, FunctionCompilerInfo& info);
 		
-		bool find_local(SnSymbol name, FunctionCompilerInfo& info, int& out_level, int& out_index);
+		void gather_info_pass(const SnAstNode* node, FunctionCompilerInfo& info);
+		
+		/*
+			find_local usage:
+			
+			name = name of local
+			info = the compilation info for the current scope
+			out_level = the number of scopes to go up to find the local
+			out_adjusted_level = the number of scopes to go up, adjusted for scope elimination
+			out_index = the index of the local in the designated scope
+			
+			returns true if a local named `name` was found, otherwise false
+		*/
+		bool find_local(SnSymbol name, FunctionCompilerInfo& info, int& out_level, int& out_adjusted_level, int& out_index);
 		
 		llvm::Value* value_constant(llvm::IRBuilder<>& builder, const VALUE constant);
 		llvm::Value* symbol_constant(llvm::IRBuilder<>& builder, const SnSymbol constant);
