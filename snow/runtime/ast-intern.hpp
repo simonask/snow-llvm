@@ -46,6 +46,7 @@ namespace snow {
 
 	inline SnAstNode* AST::sequence(unsigned int n, ...) {
 		SnAstNode* seq = create(SN_AST_SEQUENCE);
+		seq->sequence.length = 0;
 		seq->sequence.head = seq->sequence.tail = NULL;
 		
 		va_list ap;
@@ -60,6 +61,7 @@ namespace snow {
 	
 	inline void AST::sequence_push(SnAstNode* seq, SnAstNode* n) {
 		ASSERT(seq->type == SN_AST_SEQUENCE);
+		++seq->sequence.length;
 		if (!seq->sequence.head) { seq->sequence.head = seq->sequence.tail = n; }
 		else { seq->sequence.tail->next = n; seq->sequence.tail = n; }
 	}
