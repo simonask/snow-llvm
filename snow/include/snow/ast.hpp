@@ -42,7 +42,7 @@ struct SnAstNode {
 	SnSnAstNodeType type;
 	SnAstNode* next; // implicit linked list for sequences -- NULL otherwise
 	union {
-		struct { SnAstNode *head, *tail; }             sequence;
+		struct { SnAstNode *head, *tail; size_t length; } sequence;
 		struct { VALUE value; }                        literal;
 		struct { SnAstNode *parameters, *body; }       closure;
 		struct { SnSymbol name; SnAstNode *id_type, *default_value; } parameter;
