@@ -5,9 +5,10 @@
 #include "snow/vm.h"
 #include "snow/function.h"
 
-SnFunction* snow_create_function(SnFunctionDescriptor* descriptor) {
+SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunctionCallContext* definition_context) {
 	SnFunction* obj = (SnFunction*)snow_gc_alloc_object(SnFunctionType);
 	obj->descriptor = descriptor;
+	obj->definition_context = definition_context;
 	return obj;
 }
 
@@ -17,7 +18,7 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	SnFunctionCallContext* context = (SnFunctionCallContext*)snow_gc_alloc_object(SnFunctionCallContextType);
 	context->function = callee;
 	context->caller = caller;
-	// TODO!
+	// TODO! Set arguments etc.
 	return context;
 }
 
@@ -35,8 +36,5 @@ void snow_finalize_function_call_context(SnFunctionCallContext* context) {
 }
 
 VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it) {
-	if (!function->descriptor->ptr) {
-		snow_vm_realize_function(function->descriptor);
-	}
 	return function->descriptor->ptr(context, self, it);
 }

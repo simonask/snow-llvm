@@ -89,6 +89,10 @@ namespace snow {
 		return gv_ret.IntVal.getSExtValue();
 	}
 	
+	const llvm::StructType* get_runtime_struct_type(const char* name) {
+		ASSERT(runtime != NULL);
+		return llvm::cast<const llvm::StructType>(runtime->getTypeByName(name));
+	}
 	
 	llvm::FunctionType* get_function_type() {
 		static llvm::FunctionType* FT = NULL;

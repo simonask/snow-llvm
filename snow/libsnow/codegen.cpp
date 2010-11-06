@@ -7,51 +7,186 @@
 namespace {
 	using namespace llvm;
 	
-	struct ValueSymbolPairCompare {
-		typedef std::pair<Value*, SnSymbol> Pair;
-		bool operator()(const Pair& a, const Pair& b) const {
-			return a.second < b.second;
-		}
+	template <typename A, typename B, int N> struct PairComparison;
+	template <typename A, typename B> struct PairComparison<A, B, 1> {
+		typedef typename std::pair<A, B> Pair;
+		bool operator()(const Pair& a, const Pair& b) const { return a.first < b.first; }
 	};
+	template <typename A, typename B> struct PairComparison<A, B, 2> {
+		typedef typename std::pair<A, B> Pair;
+		bool operator()(const Pair& a, const Pair& b) const { return a.second < b.second; }
+	};
+	
+	typedef PairComparison<Value*, SnSymbol, 2> ValueSymbolPairCompare;
 }
 
 namespace snow {
-	Codegen::Codegen(llvm::LLVMContext& context) : _context(context), _module(NULL), _function(NULL), _error_string(NULL) {
+	Codegen::Codegen(llvm::LLVMContext& context) : _context(context), _module(NULL), _entry_descriptor(NULL), _error_string(NULL) {
 		_module = new llvm::Module("Compiled Snow Code", _context);
 	}
 	
-	Codegen::Codegen(llvm::LLVMContext& context, llvm::Module* module) : _context(context), _module(module), _function(NULL), _error_string(NULL) {}
+	llvm::GlobalVariable* Codegen::descriptor_for_info(const FunctionCompilerInfo& info) {
+		using namespace llvm;
+		const StructType* descriptor_type = snow::get_runtime_struct_type("struct.SnFunctionDescriptor");
+		
+		/*
+			typedef struct SnFunctionDescriptor {
+				SnFunctionPtr ptr;
+				SnType return_type;
+				size_t num_params;
+				SnType* param_types;
+				SnSymbol* param_names;
+				int it_index;
+				SnSymbol* local_names;
+				uint32_t num_locals;
+				bool needs_context;
+			} SnFunctionDescriptor;
+		*/
+		
+		const IntegerType* itype8 = IntegerType::get(_context, 8);
+		const IntegerType* itype32 = IntegerType::get(_context, 32);
+		const IntegerType* itype64 = IntegerType::get(_context, 64);
+		const IntegerType* sym_type = IntegerType::get(_context, 64);
+		const IntegerType* size_type = sizeof(size_t) == 4 ? itype32 : itype64;
+		Constant* zero32 = ConstantInt::get(itype32, 0);
+		Constant* zeroes[2] = { zero32, zero32 };
+		
+		std::vector<Constant*> param_types;
+		param_types.reserve(info.param_types.size());
+		for (size_t i = 0; i < info.param_types.size(); ++i) {
+			param_types.push_back(ConstantInt::get(itype32, info.param_types[i]));
+		}
+		Constant* param_types_array = ConstantArray::get(ArrayType::get(itype32, param_types.size()), param_types);
+		GlobalVariable* param_types_var = new GlobalVariable(*_module, param_types_array->getType(), true, GlobalValue::InternalLinkage, param_types_array, info.function->getName() + "_param_types");
+		
+		std::vector<Constant*> param_names;
+		param_names.reserve(info.param_names.size());
+		for (size_t i = 0; i < info.param_names.size(); ++i) {
+			param_names.push_back(ConstantInt::get(sym_type, info.param_names[i]));
+		}
+		Constant* param_names_array = ConstantArray::get(ArrayType::get(sym_type, param_names.size()), param_names);
+		GlobalVariable* param_names_var = new GlobalVariable(*_module, param_names_array->getType(), true, GlobalValue::InternalLinkage, param_names_array, info.function->getName() + "_param_names");
+		
+		ASSERT(param_types.size() == param_names.size());
+		
+		std::vector<Constant*> local_names;
+		local_names.reserve(info.local_names.size());
+		for (size_t i = 0; i < info.local_names.size(); ++i) {
+			local_names.push_back(ConstantInt::get(sym_type, info.local_names[i]));
+		}
+		Constant* local_names_array = ConstantArray::get(ArrayType::get(sym_type, local_names.size()), local_names);
+		GlobalVariable* local_names_var = new GlobalVariable(*_module, local_names_array->getType(), true, GlobalValue::InternalLinkage, local_names_array, info.function->getName() + "_local_names");
+		
+		
+		std::vector<Constant*> values(9);
+		values[0] = info.function;
+		values[1] = ConstantInt::get(itype32, SnAnyType);
+		values[2] = ConstantInt::get(size_type, param_names.size());
+		values[3] = ConstantExpr::getInBoundsGetElementPtr(param_types_var, zeroes, 2);
+		values[4] = ConstantExpr::getInBoundsGetElementPtr(param_names_var, zeroes, 2);
+		values[5] = ConstantInt::get(itype32, 0); // it_index
+		values[6] = ConstantExpr::getInBoundsGetElementPtr(local_names_var, zeroes, 2);
+		values[7] = ConstantInt::get(itype32, local_names.size());
+		values[8] = info.needs_context ? ConstantInt::get(itype8, 1) : ConstantInt::get(itype8, 0);
+		
+		Constant* descriptor_value = ConstantStruct::get(descriptor_type, values);
+		return new GlobalVariable(*_module, descriptor_value->getType(), true, GlobalValue::InternalLinkage, descriptor_value, info.function->getName() + "_descriptor");
+	}
 	
 	bool Codegen::compile_ast(const SnAST* ast) {
 		ASSERT(_module != NULL);
-		_function = new JITFunction;
-		_function->signature.return_type = SnAnyType;
-		_function->signature.num_params = 0;
-		_function->signature.param_types = NULL;
-		_function->signature.param_names = NULL;
-		_function->function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, "snow_module_entry", _module);
 		
-		return compile_function_body(ast->_root);
+		FunctionCompilerInfo info;
+		info.parent = NULL;
+		info.function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, "snow_module_entry", _module);
+		info.function_exit = NULL;
+		info.last_value = NULL;
+		info.here = NULL;
+		info.self = NULL;
+		info.it = NULL;
+		info.locals_array = NULL;
+		info.it_index = 0;
+		info.needs_context = false;
+		
+		gather_info_pass(ast->_root, info);
+		
+		if (!compile_function_body(ast->_root, info)) return false;
+		
+		_entry_descriptor = descriptor_for_info(info);
+		return true;
 	}
 	
-	bool Codegen::compile_function_body(const SnAstNode* seq, FunctionCompilerInfo* static_parent) {
+	llvm::GlobalVariable* Codegen::compile_function(const SnAstNode* node, FunctionCompilerInfo& static_parent_info) {
+		ASSERT(_module != NULL);
+		ASSERT(node->type == SN_AST_CLOSURE);
+		
+		static int function_count = 0;
+		
+		FunctionCompilerInfo info;
+		info.parent = &static_parent_info;
+		
+		// TODO: Determine more helpful function names
+		char* function_name;
+		asprintf(&function_name, "snow_function_%d", function_count++);
+		info.function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, function_name, _module);
+		free(function_name);
+		info.function_exit = NULL;
+		info.last_value = NULL;
+		info.here = NULL;
+		info.self = NULL;
+		info.it = NULL;
+		info.locals_array = NULL;
+		info.it_index = 0;
+		info.needs_context = false;
+		
+		std::vector<std::pair<SnSymbol, SnAstNode*> > params;
+		if (node->closure.parameters) {
+			params.reserve(node->closure.parameters->sequence.length);
+			for (SnAstNode* x = node->closure.parameters->sequence.head; x; x = x->next) {
+				params.push_back(std::pair<SnSymbol, SnAstNode*>(x->parameter.name, x->parameter.id_type));
+			}
+		}
+		
+		if (params.size() > 0) {
+			// Parameters need to be sorted by symbol value
+			SnSymbol first_name = params[0].first;
+			std::sort(params.begin(), params.end(), PairComparison<SnSymbol, SnAstNode*, 1>());
+			for (int i = 0; i < (int)params.size(); ++i) {
+				if (params[i].first == first_name) {
+					info.it_index = i;
+					break;
+				}
+			}
+		}
+		
+		info.local_names.reserve(params.size());
+		info.param_names.reserve(params.size());
+		info.param_types.reserve(params.size());
+		for (size_t i = 0; i < params.size(); ++i) {
+			// function arguments are the first locals
+			info.local_names.push_back(params[i].first);
+			info.param_names.push_back(params[i].first);
+			info.param_types.push_back(SnAnyType); // TODO!!
+		}
+		
+		gather_info_pass(node->closure.body, info);
+		if (!compile_function_body(node->closure.body, info)) return NULL;
+		
+		return descriptor_for_info(info);
+	}
+	
+	bool Codegen::compile_function_body(const SnAstNode* seq, FunctionCompilerInfo& info) {
 		using namespace llvm;
 		
 		ASSERT(seq->type == SN_AST_SEQUENCE);
 		
-		Function* F = _function->function;
+		Function* F = info.function;
 		ASSERT(F);
 		
 		// Prepare to compile function
 		BasicBlock* entry_bb = BasicBlock::Create(_context, "entry", F);
 		BasicBlock* exit_bb = BasicBlock::Create(_context, "exit", F);
 		
-		FunctionCompilerInfo info;
-		info.parent = static_parent;
-		// function arguments are the first locals
-		for (size_t i = 0; i < _function->signature.num_params; ++i) {
-			info.local_names.push_back(_function->signature.param_names[i]);
-		}
 		info.function_exit = exit_bb;
 		Function::arg_iterator arg_it = F->arg_begin();
 		info.here = arg_it++;
@@ -60,9 +195,6 @@ namespace snow {
 		info.here->setName("here");
 		info.self->setName("self");
 		info.it->setName("it");
-		info.needs_context = static_parent ? false : true;
-		
-		gather_info_pass(seq, info);
 		
 		// Function entry
 		IRBuilder<> builder(entry_bb);
@@ -95,7 +227,7 @@ namespace snow {
 	
 	bool Codegen::compile_ast_node(const SnAstNode* node, llvm::IRBuilder<>& builder, FunctionCompilerInfo& info) {
 		using namespace llvm;
-		Function* F = _function->function;
+		Function* F = info.function;
 		
 		switch (node->type) {
 			case SN_AST_SEQUENCE: {
@@ -110,6 +242,10 @@ namespace snow {
 				break;
 			}
 			case SN_AST_CLOSURE: {
+				Constant* descriptor = compile_function(node, info);
+				if (!descriptor) return false;
+				Value* new_function = builder.CreateCall2(snow::get_runtime_function("snow_create_function"), descriptor, info.here, "closure");
+				info.last_value = builder.CreateBitCast(new_function, builder.getInt8PtrTy(), "closure");
 				break;
 			}
 			case SN_AST_RETURN: {

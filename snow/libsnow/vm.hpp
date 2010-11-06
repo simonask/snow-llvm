@@ -17,6 +17,7 @@ namespace snow {
 	
 	llvm::FunctionType* get_function_type();
 	llvm::Function* get_runtime_function(const char* name);
+	const llvm::StructType* get_runtime_struct_type(const char* name);
 }
 
 #endif /* end of include guard: VM_HPP_16FWWAY5 */

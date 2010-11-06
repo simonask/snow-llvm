@@ -23,25 +23,24 @@
 #include <bits/stl_pair.h>
 
 namespace snow {
-	struct JITFunction {
-		SnFunctionSignature signature;
-		llvm::Function* function;
-		SnSymbol* local_names;
-		size_t num_locals;
-	};
-	
 	struct FunctionCompilerInfo {
 		FunctionCompilerInfo* parent;
+		
+		llvm::Function* function;
 		llvm::BasicBlock* function_exit;
 		std::map<llvm::BasicBlock*, llvm::Value*> return_points;
 		
 		llvm::Value* last_value;
+		
 		llvm::Value* here;
 		llvm::Value* self;
 		llvm::Value* it;
 		llvm::Value* locals_array;
 		
+		std::vector<SnSymbol> param_names;
+		std::vector<SnType> param_types;
 		std::vector<SnSymbol> local_names;
+		int it_index;
 		bool needs_context;
 	};
 	
@@ -51,12 +50,13 @@ namespace snow {
 		bool compile_ast(const SnAST* ast);
 		
 		llvm::Module* get_module() const { return _module; }
-		JITFunction* get_entry_function() const { return _function; }
+		llvm::Constant* get_entry_descriptor() const { return _entry_descriptor; }
 		char* get_error_string() const { return _error_string; }
 	private:
-		Codegen(llvm::LLVMContext& c, llvm::Module* module);
+		llvm::GlobalVariable* descriptor_for_info(const FunctionCompilerInfo& info);
 		
-		bool compile_function_body(const SnAstNode* seq, FunctionCompilerInfo* static_parent = NULL);
+		llvm::GlobalVariable* compile_function(const SnAstNode* closure, FunctionCompilerInfo& static_parent_info);
+		bool compile_function_body(const SnAstNode* seq, FunctionCompilerInfo& info);
 		bool compile_ast_node(const SnAstNode* node, llvm::IRBuilder<>& builder, FunctionCompilerInfo& info);
 		
 		void gather_info_pass(const SnAstNode* node, FunctionCompilerInfo& info);
@@ -83,7 +83,7 @@ namespace snow {
 		
 		llvm::LLVMContext& _context;
 		llvm::Module* _module;
-		JITFunction* _function;
+		llvm::Constant* _entry_descriptor;
 		char* _error_string;
 	};
 }

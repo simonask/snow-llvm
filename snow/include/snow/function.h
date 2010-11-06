@@ -14,20 +14,15 @@ struct SnArguments;
 
 typedef VALUE(*SnFunctionPtr)(struct SnFunctionCallContext* here, VALUE self, VALUE it);
 
-typedef struct SnFunctionSignature {
+typedef struct SnFunctionDescriptor {
+	SnFunctionPtr ptr;
 	SnType return_type;
 	size_t num_params;
 	SnType* param_types;
 	SnSymbol* param_names;
-	int it_index; // index for the `it` argument -- necessary because param_names 
-} SnFunctionSignature;
-
-typedef struct SnFunctionDescriptor {
-	void* jit_handle;
-	SnFunctionSignature* signature;
-	SnFunctionPtr ptr;
+	int it_index; // index for the `it` argument -- necessary because param_names
 	SnSymbol* local_names;
-	uint32_t num_locals;
+	uint32_t num_locals; // num_locals >= num_params (locals include arguments)
 	bool needs_context;
 } SnFunctionDescriptor;
 
@@ -56,11 +51,11 @@ typedef struct SnFunctionCallContext {
 
 typedef struct SnFunction {
 	SnObjectBase base;
-	SnFunctionDescriptor* descriptor;
+	const SnFunctionDescriptor* descriptor;
 	SnFunctionCallContext* definition_context;
 } SnFunction;
 
-CAPI SnFunction* snow_create_function(SnFunctionDescriptor* descriptor);
+CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunctionCallContext* definition_context);
 CAPI SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);
 CAPI SnFunction* snow_value_to_function(VALUE val);
 
