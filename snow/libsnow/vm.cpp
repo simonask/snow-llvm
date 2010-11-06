@@ -44,41 +44,27 @@ bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_resu
 	ASSERT(ee);
 	snow::Codegen codegen(llvm::getGlobalContext());
 	if (codegen.compile_ast(ast)) {
-		ee->addModule(codegen.get_module());
-		llvm::outs() << *codegen.get_module() << '\n';
-		out_result->jit_handle = codegen.get_entry_function();
+		llvm::Module* m = codegen.get_module();
+		ee->addModule(m);
+		llvm::outs() << *m << '\n';
+		ee->runStaticConstructorsDestructors(m, false);
+		ee->runJITOnFunction(m->getFunction("snow_module_entry"));
+		llvm::GlobalVariable* entry = codegen.get_entry_descriptor();
+		SnFunctionDescriptor* descriptor = (SnFunctionDescriptor*)ee->getPointerToGlobal(entry);
+		out_result->entry_descriptor = descriptor;
 		out_result->error_str = NULL;
 		return true;
 	} else {
-		out_result->jit_handle = NULL;
+		out_result->entry_descriptor = NULL;
 		out_result->error_str = codegen.get_error_string();
 		return false;
 	}
 }
 
 void free_function(void* vm_state, void* jit_handle) {
-	snow::JITFunction* jitf = (snow::JITFunction*)jit_handle;
-	if (jitf) {
-		llvm::ExecutionEngine* ee = (llvm::ExecutionEngine*)vm_state;
-		ASSERT(ee);
-		ee->freeMachineCodeForFunction(jitf->function);
-		delete[] jitf->signature.param_types;
-		delete[] jitf->signature.param_names;
-		delete jitf;
-	}
+
 }
 
 void realize_function(void* vm_state, SnFunctionDescriptor* descriptor) {
 	// TODO: Run JIT on a separate thread?
-	
-	if (descriptor->ptr != NULL) return; // already realized
-	snow::JITFunction* jitf = (snow::JITFunction*)descriptor->jit_handle;
-	ASSERT(jitf);
-	ASSERT(jitf->function);
-	descriptor->signature = &jitf->signature;
-	llvm::ExecutionEngine* ee = (llvm::ExecutionEngine*)vm_state;
-	ASSERT(ee);
-	llvm::MachineCodeInfo info;
-	ee->runJITOnFunction(jitf->function, &info);
-	descriptor->ptr = (SnFunctionPtr)info.address();
 }

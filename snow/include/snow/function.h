@@ -27,6 +27,7 @@ typedef struct SnFunctionDescriptor {
 } SnFunctionDescriptor;
 
 typedef struct SnFunctionCallContext {
+	// XXX: Order matters -- codegen depends on this specific ordering of members.
 	SnObjectBase base;
 	struct SnFunction* function;
 	struct SnFunctionCallContext* caller;

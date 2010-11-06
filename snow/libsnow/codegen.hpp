@@ -50,7 +50,7 @@ namespace snow {
 		bool compile_ast(const SnAST* ast);
 		
 		llvm::Module* get_module() const { return _module; }
-		llvm::Constant* get_entry_descriptor() const { return _entry_descriptor; }
+		llvm::GlobalVariable* get_entry_descriptor() const { return _entry_descriptor; }
 		char* get_error_string() const { return _error_string; }
 	private:
 		llvm::GlobalVariable* descriptor_for_info(const FunctionCompilerInfo& info);
@@ -83,8 +83,9 @@ namespace snow {
 		
 		llvm::LLVMContext& _context;
 		llvm::Module* _module;
-		llvm::Constant* _entry_descriptor;
+		llvm::GlobalVariable* _entry_descriptor;
 		char* _error_string;
+		std::map<std::string, llvm::Function*> _imported_functions;
 	};
 }
 

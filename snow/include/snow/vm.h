@@ -11,7 +11,7 @@ struct SnFunctionDescriptor;
 
 typedef struct SnCompilationResult {
 	char* error_str; // freed by caller
-	void* jit_handle;
+	struct SnFunctionDescriptor* entry_descriptor;
 } SnCompilationResult;
 
 typedef bool(*SnCompileASTFunc)(void* vm_state, const struct SnAST* ast, SnCompilationResult* out_result);

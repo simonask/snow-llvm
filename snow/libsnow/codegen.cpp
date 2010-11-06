@@ -77,7 +77,6 @@ namespace snow {
 		Constant* local_names_array = ConstantArray::get(ArrayType::get(sym_type, local_names.size()), local_names);
 		GlobalVariable* local_names_var = new GlobalVariable(*_module, local_names_array->getType(), true, GlobalValue::InternalLinkage, local_names_array, info.function->getName() + "_local_names");
 		
-		
 		std::vector<Constant*> values(9);
 		values[0] = info.function;
 		values[1] = ConstantInt::get(itype32, SnAnyType);
@@ -95,6 +94,7 @@ namespace snow {
 	
 	bool Codegen::compile_ast(const SnAST* ast) {
 		ASSERT(_module != NULL);
+		ASSERT(_entry_descriptor == NULL);
 		
 		FunctionCompilerInfo info;
 		info.parent = NULL;
@@ -106,11 +106,13 @@ namespace snow {
 		info.it = NULL;
 		info.locals_array = NULL;
 		info.it_index = 0;
-		info.needs_context = false;
+		info.needs_context = true;
 		
 		gather_info_pass(ast->_root, info);
 		
 		if (!compile_function_body(ast->_root, info)) return false;
+		
+		//if (verifyModule(*_module, PrintMessageAction)) exit(1);
 		
 		_entry_descriptor = descriptor_for_info(info);
 		return true;
@@ -137,7 +139,6 @@ namespace snow {
 		info.it = NULL;
 		info.locals_array = NULL;
 		info.it_index = 0;
-		info.needs_context = false;
 		
 		std::vector<std::pair<SnSymbol, SnAstNode*> > params;
 		if (node->closure.parameters) {
@@ -169,6 +170,8 @@ namespace snow {
 			info.param_types.push_back(SnAnyType); // TODO!!
 		}
 		
+		info.needs_context = params.size() > 1;
+		
 		gather_info_pass(node->closure.body, info);
 		if (!compile_function_body(node->closure.body, info)) return NULL;
 		
@@ -199,7 +202,8 @@ namespace snow {
 		// Function entry
 		IRBuilder<> builder(entry_bb);
 		info.last_value = value_constant(builder, SN_NIL);
-		info.locals_array = builder.CreateLoad(builder.CreateConstGEP1_32(info.here, offsetof(SnFunctionCallContext, locals)));
+		// locals_array = here->locals; // locals is the 5th member of SnFunctionCallContext
+		info.locals_array = builder.CreateLoad(builder.CreateConstGEP2_32(info.here, 0, 4), "locals");
 		
 		// Function body
 		if (!compile_ast_node(seq, builder, info)) return false;
@@ -264,19 +268,20 @@ namespace snow {
 			}
 			case SN_AST_IDENTIFIER: {
 				// get local
+				std::string local_name = std::string("local_") + snow::symbol_to_cstr(node->identifier.name);
 				int level, adjusted_level, index;
 				if (find_local(node->identifier.name, info, level, adjusted_level, index)) {
 					if (adjusted_level == 0) {
 						// get from current scope
 						// last_value = here->locals[index]
-						info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index*sizeof(VALUE)));
+						info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index*sizeof(VALUE)), local_name);
 					} else {
 						// get from other scope
-						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index)));
+						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), local_name));
 					}
 				} else {
 					// try globals
-					info.last_value = tail_call(builder.CreateCall(snow::get_runtime_function("snow_get_global"), symbol_constant(builder, node->identifier.name)));
+					info.last_value = tail_call(builder.CreateCall(snow::get_runtime_function("snow_get_global"), symbol_constant(builder, node->identifier.name), local_name));
 				}
 				break;
 			}
