@@ -12,7 +12,6 @@
 #include "snow/vm.h"
 #include "snow/function.h"
 #include "snow/map.h"
-#include "snow/arguments.h"
 #include "snow/exception.h"
 
 #include <stdarg.h>
@@ -41,10 +40,8 @@ SnProcess* snow_get_process() {
 VALUE snow_eval(const char* source) {
 	SnFunction* f = snow_compile(source);
 	if (f) {
-		SnArguments* args;
-		SN_ALLOC_ARGUMENTS(args, 0, f);
 		printf("calling compiled code...\n");
-		return snow_call(f, NULL, args);
+		return snow_call(f, NULL, NULL);
 	}
 	fprintf(stderr, "ERROR: Function is NULL.\n");
 	return NULL;
@@ -73,7 +70,7 @@ SnFunction* snow_compile_file(const char* path) {
 	return NULL;
 }
 
-VALUE snow_call(VALUE functor, VALUE self, struct SnArguments* args) {
+VALUE snow_call(VALUE functor, VALUE self, VALUE a) {
 	VALUE f = functor;
 	while (snow_type_of(f) != SnFunctionType) {
 		f = snow_get_member(f, snow_sym("__call__"));
@@ -95,18 +92,10 @@ SnFunction* snow_get_method(VALUE object, SnSymbol member) {
 
 VALUE snow_call_method_va(VALUE self, SnSymbol member, size_t num_args, ...) {
 	SnFunction* method = snow_get_method(self, member);
-	SnArguments* args;
-	SN_ALLOC_ARGUMENTS(args, num_args, method);
-	va_list ap;
-	va_start(ap, num_args);
-	for (size_t i = 0; i < num_args; ++i) {
-		snow_arguments_push(args, va_arg(ap, VALUE));
-	}
-	va_end(ap);
-	return snow_call_method(self, method, args);
+	return snow_call_method(self, method, NULL);
 }
 
-VALUE snow_call_method(VALUE self, SnFunction* function, SnArguments* args) {
+VALUE snow_call_method(VALUE self, SnFunction* function, VALUE a) {
 	return SN_NIL;//snow_function_call(self, function, args);
 }
 
