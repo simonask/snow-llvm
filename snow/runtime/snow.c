@@ -41,19 +41,18 @@ VALUE snow_eval(const char* source) {
 	SnFunction* f = snow_compile(source);
 	if (f) {
 		printf("calling compiled code...\n");
-		return snow_call(f, NULL, NULL);
+		return snow_call(f, NULL, 0, NULL);
 	}
 	fprintf(stderr, "ERROR: Function is NULL.\n");
 	return NULL;
 }
 
 SnFunction* snow_compile(const char* source) {
-	printf("parsing...\n");
 	struct SnAST* ast = snow_parse(source);
 	if (ast) {
 		SnCompilationResult result;
 		if (snow_vm_compile_ast(ast, &result)) {
-			return NULL; // TODO! Make a real function
+			return snow_create_function(result.entry_descriptor, NULL);
 		} else if (result.error_str) {
 			fprintf(stderr, "ERROR COMPILING FUNCTION: %s\n", result.error_str);
 			free(result.error_str);
@@ -70,33 +69,50 @@ SnFunction* snow_compile_file(const char* path) {
 	return NULL;
 }
 
-VALUE snow_call(VALUE functor, VALUE self, VALUE a) {
-	VALUE f = functor;
-	while (snow_type_of(f) != SnFunctionType) {
-		f = snow_get_member(f, snow_sym("__call__"));
+VALUE snow_call(VALUE functor, VALUE self, size_t num_args, VALUE* args) {
+	SnFunction* function = snow_value_to_function(functor);
+	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, 0, NULL, num_args, args);
+	return snow_function_call(function, context, self, num_args ? args[0] : NULL);
+}
+
+struct named_arg { SnSymbol name; VALUE value; };
+
+static int named_arg_cmp(const void* _a, const void* _b) {
+	const struct named_arg* a = (struct named_arg*)_a;
+	const struct named_arg* b = (struct named_arg*)_b;
+	return (int)((int64_t)b->name - (int64_t)a->name);
+}
+
+VALUE snow_call_with_named_arguments(VALUE functor, VALUE self, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args) {
+	ASSERT(num_names <= num_args);
+	VALUE it = num_args ? args[0] : NULL;
+	if (num_names) {
+		// TODO: Sort names in-place.
+		struct named_arg* tuples = alloca(sizeof(struct named_arg)*num_names);
+		for (size_t i = 0; i < num_names; ++i) { tuples[i].name = names[i]; tuples[i].value = args[i]; }
+		qsort(tuples, num_names, sizeof(struct named_arg), named_arg_cmp);
+		for (size_t i = 0; i < num_names; ++i) { names[i] = tuples[i].name; args[i] = tuples[i].value; }
+		it = args[0];
 	}
 	
-	SnFunction* function = (SnFunction*)f;
-	return SN_NIL;//snow_function_call(function, self, args);
+	SnFunction* function = snow_value_to_function(functor);
+	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, num_names, names, num_args, args);
+	return snow_function_call(function, context, self, it);
 }
 
 SnFunction* snow_get_method(VALUE object, SnSymbol member) {
+	printf("snow_get_method: %p.%s\n", object, snow_sym_to_cstr(member));
 	// TODO: Support functor objects
 	VALUE f = snow_get_member(object, member);
+	if (!f) {
+		snow_throw_exception_with_description("Member '%s' of object %p does not exist.", snow_sym_to_cstr(member), object);
+		return NULL;
+	}
 	if (snow_type_of(f) != SnFunctionType) {
-		snow_throw_exception_with_description("Method %s not found on object %p.", snow_sym_to_cstr(member), object);
+		snow_throw_exception_with_description("Method '%s' of object %p is not a function.", snow_sym_to_cstr(member), object);
 		return NULL;
 	}
 	return (SnFunction*)f;
-}
-
-VALUE snow_call_method_va(VALUE self, SnSymbol member, size_t num_args, ...) {
-	SnFunction* method = snow_get_method(self, member);
-	return snow_call_method(self, method, NULL);
-}
-
-VALUE snow_call_method(VALUE self, SnFunction* function, VALUE a) {
-	return SN_NIL;//snow_function_call(self, function, args);
 }
 
 VALUE snow_get_member(VALUE self, SnSymbol member) {
