@@ -630,7 +630,7 @@ namespace snow {
 		switch (node->type) {
 			case SN_AST_SEQUENCE: {
 				for (SnAstNode* x = node->sequence.head; x; x = x->next) {
-					gather_info_pass(node, info);
+					gather_info_pass(x, info);
 				}
 				break;
 			}
