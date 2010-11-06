@@ -1,4 +1,6 @@
 #include "snow/exception.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 void snow_throw_exception(VALUE ex) {
 	// TODO!!! Implement exceptions
@@ -6,6 +8,12 @@ void snow_throw_exception(VALUE ex) {
 }
 
 void snow_throw_exception_with_description(const char* fmt, ...) {
-	// TODO!!! Implement exceptions
-	TRAP(); // exception
+	va_list ap;
+	va_start(ap, fmt);
+	char* text;
+	vasprintf(&text, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, "EXCEPTION: %s\n", text);
+	free(text);
+	exit(1);
 }
