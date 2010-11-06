@@ -726,7 +726,7 @@ namespace snow {
 			bool first = true;
 			while (p->type != Token::BRACKET_END) {
 				if (!first) {
-					if (!p->type != Token::COMMA) {
+					if (p->type != Token::COMMA) {
 						error(p, "Expected COMMA in parameter list, got %s.", get_token_name(p->type));
 						MATCH_FAILED();
 					}
