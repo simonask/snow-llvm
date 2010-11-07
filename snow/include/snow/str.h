@@ -12,9 +12,11 @@ typedef struct SnString {
 	char* data; // null terminated
 	uint32_t size;
 	uint32_t length;
+	bool constant; // never to be deleted
 } SnString;
 
 CAPI SnString* snow_create_string(const char* utf8);
+CAPI SnString* snow_create_string_constant(const char* utf8);
 CAPI SnString* snow_create_string_with_size(const char* utf8, size_t size);
 CAPI SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf);
 CAPI SnString* snow_string_concat(const SnString* a, const SnString* b); // create new string

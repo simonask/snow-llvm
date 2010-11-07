@@ -12,13 +12,21 @@ SnString* snow_create_string(const char* utf8) {
 	return snow_create_string_with_size(utf8, strlen(utf8));
 }
 
+SnString* snow_create_string_constant(const char* utf8) {
+	// TODO!
+	return snow_create_string(utf8);
+}
+
 SnString* snow_create_string_with_size(const char* utf8, size_t size) {
 	SnString* obj = (SnString*)snow_gc_alloc_object(SnStringType);
 	obj->size = size;
 	obj->length = size; // TODO: UTF-8 length
 	obj->data = size ? (char*)malloc(size+1) : NULL;
-	memcpy(obj->data, utf8, size);
-	obj->data[size] = '\0';
+	obj->constant = false;
+	if (size) {
+		memcpy(obj->data, utf8, size);
+		obj->data[size] = '\0';
+	}
 	return obj;
 }
 
@@ -28,8 +36,10 @@ SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 	obj->size = s;
 	obj->length = s; // TODO: UTF-8 length
 	obj->data = s ? (char*)malloc(s+1) : NULL;
-	snow_linkbuffer_copy_data(buf, obj->data, s);
-	obj->data[s] = '\0';
+	if (s) {
+		snow_linkbuffer_copy_data(buf, obj->data, s);
+		obj->data[s] = '\0';
+	}
 	return obj;
 }
 
