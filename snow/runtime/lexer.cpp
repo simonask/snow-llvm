@@ -109,7 +109,6 @@ namespace {
 
 namespace snow {
 	void Lexer::tokenize() {
-		printf("tokenzing input of length: %lu\n", _input_length);
 		_buffer.clear();
 		
 		const char* p = _input;

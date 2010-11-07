@@ -44,17 +44,13 @@ static void interactive_prompt()
 		if (!unfinished_expr) {
 			SnString* str = snow_create_string_from_linkbuffer(input_buffer);
 			VALUE result = snow_eval(snow_string_cstr(str));
-			printf("Got a result: %p\n", result);
-			//snow_printf"=> {0}\n", 1, snow_call_methodresult, snow_sym("inspect"), 0));
+			printf("=> %s\n", snow_string_cstr((SnString*)snow_call(snow_get_method(result, snow_sym("inspect")), result, 0, NULL)));
 			snow_linkbuffer_clear(input_buffer);
 		}
 	}
 }
 
-int snow_main(int argc, char* const* argv)
-{
-	printf("main()\n");
-	
+int snow_main(int argc, char* const* argv) {
 	static int debug_mode = false;
 	static int verbose_mode = false;
 	static int interactive_mode = false;

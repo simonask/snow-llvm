@@ -28,7 +28,6 @@ static SnObject* immediate_prototypes[8];
 static SnObject* get_nearest_object(VALUE);
 
 SnProcess* snow_init(struct SnVM* vm) {
-	printf("snow_init()\n");
 	main_process.vm = vm;
 	return &main_process;;
 }
@@ -39,10 +38,8 @@ SnProcess* snow_get_process() {
 
 VALUE snow_eval(const char* source) {
 	SnFunction* f = snow_compile(source);
-	if (f) {
-		printf("calling compiled code...\n");
+	if (f)
 		return snow_call(f, NULL, 0, NULL);
-	}
 	fprintf(stderr, "ERROR: Function is NULL.\n");
 	return NULL;
 }
@@ -101,7 +98,6 @@ VALUE snow_call_with_named_arguments(VALUE functor, VALUE self, size_t num_names
 }
 
 SnFunction* snow_get_method(VALUE object, SnSymbol member) {
-	printf("snow_get_method: %p.%s\n", object, snow_sym_to_cstr(member));
 	// TODO: Support functor objects
 	VALUE f = snow_get_member(object, member);
 	if (!f) {
@@ -150,22 +146,8 @@ void snow_set_global(SnSymbol sym, VALUE val) {
 }
 
 VALUE snow_require(const char* file) {
-	printf("(requiring file %s)\n", file);
+	// TODO!
 	return SN_NIL;
-}
-
-void snow_printf(const char* fmt, size_t num_args, ...) {
-	va_list ap;
-	va_start(ap, num_args);
-	snow_vprintf(fmt, num_args, ap);
-	va_end(ap);
-}
-
-void snow_vprintf(const char* fmt, size_t num_args, va_list ap) {
-//	VALUE vstrs[num_args];
-	for (size_t i = 0; i < num_args; ++i) {
-	}
-	printf("%s", fmt);
 }
 
 bool snow_eval_truth(VALUE val) {

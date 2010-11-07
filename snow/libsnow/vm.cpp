@@ -46,7 +46,7 @@ bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_resu
 	if (codegen.compile_ast(ast)) {
 		llvm::Module* m = codegen.get_module();
 		ee->addModule(m);
-		llvm::outs() << *m << '\n';
+		//llvm::outs() << *m << '\n';
 		ee->runStaticConstructorsDestructors(m, false);
 		ee->runJITOnFunction(m->getFunction("snow_module_entry"));
 		llvm::GlobalVariable* entry = codegen.get_entry_descriptor();

@@ -921,13 +921,10 @@ namespace snow {
 
 
 CAPI SnAST* snow_parse(const char* buffer) {
-	printf("LEXING\n");
 	snow::Lexer l(buffer);
 	l.tokenize();
-	printf("PARSING\n");
 	snow::Parser parser(l.begin());
 	snow::AST* ast = parser.parse();
-	printf("PRINTING AST\n");
-	ast->print();
+	//ast->print();
 	return ast;
 }
