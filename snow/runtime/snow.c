@@ -115,12 +115,20 @@ SnFunction* snow_get_method(VALUE object, SnSymbol member) {
 	return (SnFunction*)f;
 }
 
+static SnObject* get_nearest_object(VALUE value) {
+	SnType type = snow_type_of(value);
+	if (type == SnObjectType) return (SnObject*)value;
+	return snow_get_prototype_for_type(type);
+}
+
 VALUE snow_get_member(VALUE self, SnSymbol member) {
-	return NULL;
+	SnObject* prototype = get_nearest_object(self);
+	return snow_object_get_member(prototype, self, member);
 }
 
 VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
-	return NULL;
+	SnObject* prototype = get_nearest_object(self);
+	return snow_object_set_member(prototype, self, member, val);
 }
 
 static SnMap** get_global_storage() {
@@ -158,14 +166,6 @@ void snow_vprintf(const char* fmt, size_t num_args, va_list ap) {
 	for (size_t i = 0; i < num_args; ++i) {
 	}
 	printf("%s", fmt);
-}
-
-
-SnObject* get_nearest_object(VALUE val) {
-	while (!snow_is_object(val)) {
-		val = snow_get_member(val, snow_sym("__prototype__"));
-	}
-	return (SnObject*)val;
 }
 
 bool snow_eval_truth(VALUE val) {

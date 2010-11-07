@@ -3,6 +3,7 @@
 #include "snow/gc.h"
 #include "snow/linkbuffer.h"
 #include "snow/type.h"
+#include "snow/function.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,4 +56,26 @@ SnString* snow_string_concat(const SnString* a, const SnString* b) {
 	memcpy(obj->data + size_a, snow_string_cstr(b), size_b);
 	obj->data[s] = '\0';
 	return obj;
+}
+
+static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnStringType);
+	SnString* s = (SnString*)self;
+	char* buffer = alloca(s->size + 3);
+	memcpy(buffer+1, s->data, s->size);
+	buffer[0] = '"';
+	buffer[s->size + 1] = '"';
+	buffer[s->size + 2] = '\0';
+	return snow_create_string(buffer);
+}
+
+static VALUE string_to_string(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return self;
+}
+
+SnObject* snow_create_string_prototype() {
+	SnObject* proto = snow_create_object(NULL);
+	SN_DEFINE_METHOD(proto, "inspect", string_inspect, 0);
+	SN_DEFINE_METHOD(proto, "to_string", string_to_string, 0);
+	return proto;
 }

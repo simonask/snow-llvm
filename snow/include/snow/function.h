@@ -62,4 +62,9 @@ CAPI SnFunction* snow_value_to_function(VALUE val);
 
 CAPI VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it);
 
+// Convenience for C bindings
+CAPI SnFunction* snow_create_method(SnFunctionPtr function, size_t num_args);
+
+#define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_object_set_member(PROTO, PROTO, snow_sym(NAME), snow_create_method(PTR, NUM_ARGS))
+
 #endif /* end of include guard: FUNCTION_H_X576C5TP */

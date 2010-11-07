@@ -24,7 +24,7 @@ typedef struct SnObject {
 	struct SnArray* included_modules;
 } SnObject;
 
-CAPI SnObject* snow_create_object(SN_P);
+CAPI SnObject* snow_create_object(SnObject* prototype);
 CAPI VALUE snow_object_get_member(SnObject* object, VALUE self_for_properties, SnSymbol member);
 CAPI VALUE snow_object_set_member(SnObject* object, VALUE self_for_properties, SnSymbol member, VALUE val);
 CAPI void snow_object_set_property_getter(SnObject* object, SnSymbol member, VALUE getter);

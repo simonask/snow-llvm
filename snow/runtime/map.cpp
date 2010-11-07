@@ -5,6 +5,8 @@
 #include "snow/boolean.h"
 #include "snow/gc.h"
 #include "snow/exception.h"
+#include "snow/function.h"
+#include "snow/str.h"
 
 #include <google/dense_hash_map>
 #include <stdlib.h>
@@ -328,4 +330,32 @@ CAPI {
 			hmap->resize(size);
 		}
 	}
+	
+
+}
+
+
+static VALUE map_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	char buffer[100];
+	snprintf(buffer, 100, "[Map@%p]", self);
+	return snow_create_string(buffer);
+}
+
+static VALUE map_index_get(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnMapType);
+	return snow_map_get((SnMap*)self, it);
+}
+
+static VALUE map_index_set(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnMapType);
+	return snow_map_set((SnMap*)self, it, here->locals[1]);
+}
+
+CAPI SnObject* snow_create_map_prototype() {
+	SnObject* proto = snow_create_object(NULL);
+	SN_DEFINE_METHOD(proto, "inspect", map_inspect, 0);
+	SN_DEFINE_METHOD(proto, "to_string", map_inspect, 0);
+	SN_DEFINE_METHOD(proto, "__index_get__", map_index_get, 1);
+	SN_DEFINE_METHOD(proto, "__index_set__", map_index_set, 2);
+	return proto;
 }
