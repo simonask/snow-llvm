@@ -403,7 +403,7 @@ namespace snow {
 			}
 			case SN_AST_CALL: {
 				std::vector<std::pair<Value*, SnAstNode*> > args;
-				size_t num_args = node->call.args->sequence.length;
+				size_t num_args = node->call.args ? node->call.args->sequence.length : 0;
 				args.reserve(num_args);
 				
 				/*
@@ -413,14 +413,16 @@ namespace snow {
 					the following herp derp.
 				*/
 				size_t num_named_args = 0;
-				for (SnAstNode* x = node->call.args->sequence.head; x; x = x->next) {
-					SnAstNode* expr = x;
-					if (x->type == SN_AST_NAMED_ARGUMENT) {
-						++num_named_args;
-						expr = expr->named_argument.expr;
+				if (num_args) {
+					for (SnAstNode* x = node->call.args->sequence.head; x; x = x->next) {
+						SnAstNode* expr = x;
+						if (x->type == SN_AST_NAMED_ARGUMENT) {
+							++num_named_args;
+							expr = expr->named_argument.expr;
+						}
+						if (!compile_ast_node(expr, builder, info)) return false;
+						args.push_back(std::pair<Value*, SnAstNode*>(info.last_value, x));
 					}
-					if (!compile_ast_node(expr, builder, info)) return false;
-					args.push_back(std::pair<Value*, SnAstNode*>(info.last_value, x));
 				}
 				
 				// Split the arguments into named and unnamed
