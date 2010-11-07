@@ -12,7 +12,7 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 	return obj;
 }
 
-SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args) {
+SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
 	SnFunctionCallContext* context = (SnFunctionCallContext*)snow_gc_alloc_object(SnFunctionCallContextType);

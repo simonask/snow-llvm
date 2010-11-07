@@ -69,7 +69,7 @@ SnFunction* snow_compile_file(const char* path) {
 	return NULL;
 }
 
-VALUE snow_call(VALUE functor, VALUE self, size_t num_args, VALUE* args) {
+VALUE snow_call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
 	SnFunction* function = snow_value_to_function(functor);
 	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, 0, NULL, num_args, args);
 	return snow_function_call(function, context, self, num_args ? args[0] : NULL);

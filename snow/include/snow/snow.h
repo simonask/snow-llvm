@@ -24,7 +24,7 @@ CAPI VALUE snow_eval(const char* str);
 CAPI struct SnFunction* snow_compile(const char* str);
 CAPI struct SnFunction* snow_compile_file(const char* path);
 
-CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, VALUE* args);
+CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, const VALUE* args);
 CAPI VALUE snow_call_with_named_arguments(VALUE function, VALUE self, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);
 CAPI struct SnFunction* snow_get_method(VALUE self, SnSymbol member);
 
