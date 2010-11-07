@@ -8,6 +8,10 @@ static inline bool snow_is_integer(VALUE val) {
 	return ((intptr_t)val & 1) != 0;
 }
 
+static inline bool snow_is_float(VALUE val) {
+	return ((intptr_t)val & SnTypeMask) == SnFloatType;
+}
+
 static inline VALUE snow_integer_to_value(int n) {
 	return (VALUE)(((intptr_t)n << 1) | 1);
 }
