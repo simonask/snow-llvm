@@ -110,16 +110,26 @@ namespace {
 		}
 	}
 	
-	int compare_immediate_values(const void* a, const void* b) {
-		return (int)((int64_t)b - (int64_t)a);
+	int compare_immediate_values(const void* _a, const void* _b) {
+		const VALUE* a = (const VALUE*)_a;
+		const VALUE* b = (const VALUE*)_b;
+		return (int)((intptr_t)*a - (intptr_t)*b);
 	}
 	
 	int compare_objects(const void* _a, const void* _b) {
-		VALUE a = const_cast<VALUE>(_a);
-		VALUE b = const_cast<VALUE>(_b);
-		VALUE difference = snow_call(snow_get_method(a, snow_sym("compare")), a, 1, &b);
-		ASSERT(snow_is_integer(b));
+		const VALUE* a = (const VALUE*)_a;
+		const VALUE* b = (const VALUE*)_b;
+		VALUE difference = snow_call(snow_get_method(*a, snow_sym("compare")), *a, 1, b);
+		ASSERT(snow_is_integer(difference));
 		return snow_value_to_integer(difference);
+	}
+	
+	int map_elements_compare(const SnMap* map, VALUE a, VALUE b) {
+		if (map_has_immediate_keys(map)) {
+			return compare_immediate_values(&a, &b);
+		} else {
+			return compare_objects(&a, &b);
+		}
 	}
 	
 	int32_t flat_find_index(const SnMap* map, VALUE key) {
@@ -132,25 +142,17 @@ namespace {
 			}
 		} else {
 			// binary search
-			void* result = NULL;
+			VALUE* result;
 			
 			if (map_has_immediate_keys(map))
-				result = bsearch(key, map->flat.keys, map->flat.size, sizeof(VALUE), compare_immediate_values);
+				result = (VALUE*)bsearch(&key, map->flat.keys, map->flat.size, sizeof(VALUE), compare_immediate_values);
 			else
-				result = bsearch(key, map->flat.keys, map->flat.size, sizeof(VALUE), compare_objects);
+				result = (VALUE*)bsearch(&key, map->flat.keys, map->flat.size, sizeof(VALUE), compare_objects);
 				
 			if (result)
 				return (int32_t)((VALUE*)result - map->flat.keys);
 		}
 		return -1; // not found
-	}
-	
-	int map_elements_compare(const SnMap* map, VALUE a, VALUE b) {
-		if (map_has_immediate_keys(map)) {
-			return compare_immediate_values(a, b);
-		} else {
-			return compare_objects(a, b);
-		}
 	}
 }
 
@@ -159,6 +161,24 @@ CAPI {
 		SnMap* map = (SnMap*)snow_gc_alloc_object(SnMapType);
 		memset(map, 0, sizeof(SnMap));
 		map->flags = MAP_FLAT;
+		return map;
+	}
+	
+	SnMap* snow_create_map_with_immediate_keys() {
+		SnMap* map = snow_create_map();
+		map->flags |= MAP_IMMEDIATE_KEYS;
+		return map;
+	}
+	
+	SnMap* snow_create_map_with_insertion_order() {
+		SnMap* map = snow_create_map();
+		map->flags |= MAP_MAINTAINS_INSERTION_ORDER;
+		return map;
+	}
+	
+	SnMap* snow_create_map_with_immediate_keys_and_insertion_order() {
+		SnMap* map = snow_create_map_with_immediate_keys();
+		map->flags |= MAP_MAINTAINS_INSERTION_ORDER;
 		return map;
 	}
 	
@@ -227,21 +247,15 @@ CAPI {
 					++insertion_point;
 				}
 				// shift all keys and values right
-				++map->flat.size;
-				for (uint32_t i = insertion_point + 1; i < map->flat.size; ++i) {
-					VALUE tmp;
-					
-					tmp = map->flat.keys[insertion_point];
-					map->flat.keys[insertion_point] = map->flat.keys[i];
-					map->flat.keys[i] = tmp;
-					
-					tmp = map->flat.values[insertion_point];
-					map->flat.values[insertion_point] = map->flat.keys[i];
-					map->flat.values[i] = tmp;
+				size_t to_move = map->flat.size - insertion_point;
+				if (to_move) {
+					memmove(map->flat.keys + insertion_point + 1, map->flat.keys + insertion_point, to_move*sizeof(VALUE));
+					memmove(map->flat.values + insertion_point + 1, map->flat.values + insertion_point, to_move*sizeof(VALUE));
 				}
-				
+				++map->flat.size;
 				map->flat.keys[insertion_point] = key;
 				map->flat.values[insertion_point] = value;
+				
 				return value;
 			}
 		} else if (map_has_immediate_keys(map)) {
