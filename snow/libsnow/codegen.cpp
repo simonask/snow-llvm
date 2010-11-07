@@ -457,11 +457,11 @@ namespace snow {
 					SnAstNode* member = node->call.object;
 					if (!compile_ast_node(member->member.object, builder, info)) return false;
 					Value* object = info.last_value;
-					return method_call(builder, info, object, member->member.name, arg_names, arg_values);
+					info.last_value = method_call(builder, info, object, member->member.name, arg_names, arg_values);
 				} else {
 					if (!compile_ast_node(node->call.object, builder, info)) return false;
 					Value* object = info.last_value;
-					return call(builder, info, object, NULL, arg_names, arg_values);
+					info.last_value = call(builder, info, object, NULL, arg_names, arg_values);
 				}
 				break;
 			}
