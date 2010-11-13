@@ -26,6 +26,7 @@
 static bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_result);
 static void free_function(void* vm_state, void* jit_handle);
 static void realize_function(void* vm_state, SnFunctionDescriptor* descriptor);
+static int get_name_of(void* vm_state, void* ptr, char* buffer, int maxlength);
 
 namespace snow {
 	void init_vm(SnVM* vm, llvm::ExecutionEngine* ee) {
@@ -33,6 +34,7 @@ namespace snow {
 		vm->compile_ast = compile_ast;
 		vm->free_function = free_function;
 		vm->realize_function = realize_function;
+		vm->get_name_of = get_name_of;
 		
 		vm->symbol = snow::symbol;
 		vm->symbol_to_cstr = snow::symbol_to_cstr;
@@ -50,7 +52,7 @@ bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_resu
 		ee->runStaticConstructorsDestructors(m, false);
 		ee->runJITOnFunction(m->getFunction("snow_module_entry"));
 		llvm::GlobalVariable* entry = codegen.get_entry_descriptor();
-		SnFunctionDescriptor* descriptor = (SnFunctionDescriptor*)ee->getPointerToGlobal(entry);
+		SnFunctionDescriptor* descriptor = (SnFunctionDescriptor*)ee->getOrEmitGlobalVariable(entry);
 		out_result->entry_descriptor = descriptor;
 		out_result->error_str = NULL;
 		return true;
@@ -67,4 +69,18 @@ void free_function(void* vm_state, void* jit_handle) {
 
 void realize_function(void* vm_state, SnFunctionDescriptor* descriptor) {
 	// TODO: Run JIT on a separate thread?
+}
+
+int get_name_of(void* vm_state, void* ptr, char* buffer, int maxlen) {
+	llvm::ExecutionEngine* ee = (llvm::ExecutionEngine*)vm_state;
+	if (ee->isSymbolSearchingDisabled()) return 0;
+	const llvm::GlobalValue* gv = ee->getGlobalValueAtAddress(ptr);
+	if (gv) {
+		llvm::StringRef name = gv->getName();
+		int copy = name.size();
+		copy = copy > maxlen ? maxlen : copy;
+		memcpy(buffer, gv->getName().data(), copy);
+		return copy;
+	}
+	return 0;
 }

@@ -79,10 +79,10 @@ namespace snow {
 		class SnowJITEventListener : public llvm::JITEventListener {
 		public:
 			void NotifyFunctionEmitted(const Function& f, void* code, size_t code_size, const JITEvent_EmittedFunctionDetails& details) {
-				//fprintf(stderr, "Emitting function %s\n", demangle_cxx_name(f.getName().data()));
-				/*const MachineFunction* mf = details.MF;
+				const MachineFunction* mf = details.MF;
 				byte* bytes = (byte*)code;
-				_function_map[InstructionRange(bytes, bytes+code_size)] = &f;
+				//fprintf(stderr, "Emitting function %s at %p\n", demangle_cxx_name(f.getName().data()), bytes);
+				/*_function_map[InstructionRange(bytes, bytes+code_size)] = &f;
 				
 				FunctionLineStartMap::iterator inserted = _function_line_start_map.insert(FunctionLineStartMap::value_type(&f, LineStartMap())).first;
 				LineStartMap& lsm = inserted->second;

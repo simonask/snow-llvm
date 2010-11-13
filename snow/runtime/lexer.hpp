@@ -8,6 +8,10 @@
 #include <string.h>
 
 namespace snow {
+	struct SourceLocation {
+		
+	};
+	
 	struct Token {
 		enum Type {
 			#define TOKEN(X) X,
