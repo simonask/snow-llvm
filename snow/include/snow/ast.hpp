@@ -13,7 +13,7 @@ struct SnAST {
 	SnAstNode* _root;
 };
 
-enum SnSnAstNodeType {
+enum SnAstNodeType {
 	SN_AST_SEQUENCE,
 	SN_AST_LITERAL,
 	SN_AST_CLOSURE,
@@ -39,7 +39,7 @@ enum SnSnAstNodeType {
 };
 
 struct SnAstNode {
-	SnSnAstNodeType type;
+	SnAstNodeType type;
 	SnAstNode* next; // implicit linked list for sequences -- NULL otherwise
 	union {
 		struct { SnAstNode *head, *tail; size_t length; } sequence;

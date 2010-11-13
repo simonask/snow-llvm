@@ -40,7 +40,7 @@ namespace snow {
 	private:
 		LinkHeap<SnAstNode> _heap;
 
-		SnAstNode* create(SnSnAstNodeType type);
+		SnAstNode* create(SnAstNodeType type);
 		void print_r(SnAstNode* n, int indent) const;
 	};
 
@@ -171,7 +171,7 @@ namespace snow {
 		return n;
 	}
 
-	inline SnAstNode* AST::create(SnSnAstNodeType type) {
+	inline SnAstNode* AST::create(SnAstNodeType type) {
 		SnAstNode* n = _heap.alloc();
 		n->type = type;
 		n->next = NULL;
