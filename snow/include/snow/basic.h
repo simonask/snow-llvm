@@ -24,6 +24,7 @@ typedef unsigned char byte;
 #endif
 
 static const size_t SN_CACHE_LINE_SIZE = 64; // XXX: x86 default.
+static const size_t SN_OBJECT_MAX_SIZE = SN_CACHE_LINE_SIZE;
 static const size_t SN_MEMORY_PAGE_SIZE = 4096; // XXX: x86 default.
 
 #define QUOTEME_(X) #X

@@ -10,7 +10,7 @@
 #include <string.h>
 
 SnArray* snow_create_array() {
-	SnArray* array = (SnArray*)snow_gc_alloc_object(SnArrayType);
+	SnArray* array = SN_GC_ALLOC_OBJECT(SnArray);
 	array->data = NULL;
 	array->alloc_size = 0;
 	array->size = 0;
@@ -18,7 +18,7 @@ SnArray* snow_create_array() {
 }
 
 SnArray* snow_create_array_with_size(size_t sz) {
-	SnArray* array = (SnArray*)snow_gc_alloc_object(SnArrayType);
+	SnArray* array = SN_GC_ALLOC_OBJECT(SnArray);
 	array->data = (VALUE*)malloc(sz * sizeof(VALUE));
 	array->alloc_size = (uint32_t)sz;
 	array->size = 0;

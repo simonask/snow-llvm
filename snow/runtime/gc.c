@@ -9,9 +9,10 @@ void snow_gc() {
 	TRAP();
 }
 
-SnObjectBase* snow_gc_alloc_object(SnType type) {
+SnObjectBase* snow_gc_alloc_object(size_t sz, SnType type) {
 	// XXX: LEAKING STUB!!
-	SnObjectBase* obj = (SnObjectBase*)malloc(SN_CACHE_LINE_SIZE);
+	sz = sz > SN_OBJECT_MAX_SIZE ? sz : SN_OBJECT_MAX_SIZE;
+	SnObjectBase* obj = (SnObjectBase*)malloc(sz);
 	obj->type = type;
 	return obj;
 }

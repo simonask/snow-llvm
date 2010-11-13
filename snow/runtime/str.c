@@ -19,7 +19,7 @@ SnString* snow_create_string_constant(const char* utf8) {
 }
 
 SnString* snow_create_string_with_size(const char* utf8, size_t size) {
-	SnString* obj = (SnString*)snow_gc_alloc_object(SnStringType);
+	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
 	obj->size = size;
 	obj->length = size; // TODO: UTF-8 length
 	obj->data = size ? (char*)malloc(size+1) : NULL;
@@ -33,7 +33,7 @@ SnString* snow_create_string_with_size(const char* utf8, size_t size) {
 
 SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 	size_t s = snow_linkbuffer_size(buf);
-	SnString* obj = (SnString*)snow_gc_alloc_object(SnStringType);
+	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
 	obj->size = s;
 	obj->length = s; // TODO: UTF-8 length
 	obj->data = s ? (char*)malloc(s+1) : NULL;
@@ -45,7 +45,7 @@ SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 }
 
 SnString* snow_string_concat(const SnString* a, const SnString* b) {
-	SnString* obj = (SnString*)snow_gc_alloc_object(SnStringType);
+	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
 	size_t size_a = snow_string_size(a);
 	size_t size_b = snow_string_size(b);
 	size_t s = size_a + size_b;

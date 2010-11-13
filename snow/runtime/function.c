@@ -7,7 +7,7 @@
 #include "snow/str.h"
 
 SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunctionCallContext* definition_context) {
-	SnFunction* obj = (SnFunction*)snow_gc_alloc_object(SnFunctionType);
+	SnFunction* obj = SN_GC_ALLOC_OBJECT(SnFunction);
 	obj->descriptor = descriptor;
 	obj->definition_context = definition_context;
 	return obj;
@@ -16,7 +16,7 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
-	SnFunctionCallContext* context = (SnFunctionCallContext*)snow_gc_alloc_object(SnFunctionCallContextType);
+	SnFunctionCallContext* context = SN_GC_ALLOC_OBJECT(SnFunctionCallContext);
 	context->function = callee;
 	context->caller = caller;
 	// TODO! Set arguments etc.

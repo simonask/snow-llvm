@@ -11,7 +11,7 @@
 struct SnArguments;
 
 SnObject* snow_create_object(SnObject* prototype) {
-	SnObject* obj = (SnObject*)snow_gc_alloc_object(SnObjectType);
+	SnObject* obj = SN_GC_ALLOC_OBJECT(SnObject);
 	obj->prototype = prototype;
 	obj->members = NULL;
 	obj->properties = NULL;
