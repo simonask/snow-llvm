@@ -13,6 +13,7 @@
 #include "snow/function.h"
 #include "snow/map.h"
 #include "snow/exception.h"
+#include "globals.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -29,6 +30,9 @@ static SnObject* get_nearest_object(VALUE);
 
 SnProcess* snow_init(struct SnVM* vm) {
 	main_process.vm = vm;
+	
+	snow_init_globals();
+	
 	return &main_process;;
 }
 
@@ -130,7 +134,7 @@ VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
 static SnMap** get_global_storage() {
 	static SnMap* a = NULL;
 	if (!a) {
-		a = snow_create_map();
+		a = snow_create_map_with_immediate_keys();
 	}
 	return &a;
 }

@@ -57,6 +57,7 @@ SnObject* snow_create_integer_prototype() {
 	SN_DEFINE_METHOD(proto, "+", numeric_add, 1);
 	SN_DEFINE_METHOD(proto, "-", numeric_subtract, 1);
 	SN_DEFINE_METHOD(proto, "inspect", numeric_inspect, 0);
+	SN_DEFINE_METHOD(proto, "to_string", numeric_inspect, 0);
 	return proto;
 }
 
@@ -64,5 +65,6 @@ SnObject* snow_create_float_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "+", numeric_add, 1);
 	SN_DEFINE_METHOD(proto, "inspect", numeric_inspect, 0);
+	SN_DEFINE_METHOD(proto, "to_string", numeric_inspect, 0);
 	return proto;
 }
