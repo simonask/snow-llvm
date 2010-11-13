@@ -203,7 +203,7 @@ namespace snow {
 		IRBuilder<> builder(entry_bb);
 		info.last_value = value_constant(builder, SN_NIL);
 		// locals_array = here->locals; // locals is the 5th member of SnFunctionCallContext
-		info.locals_array = builder.CreateLoad(builder.CreateConstGEP2_32(info.here, 0, 4), "locals");
+		info.locals_array = builder.CreateLoad(builder.CreateConstGEP2_32(info.here, 0, 4), ":locals");
 		
 		// Function body
 		if (!compile_ast_node(seq, builder, info)) return false;
@@ -268,20 +268,20 @@ namespace snow {
 			}
 			case SN_AST_IDENTIFIER: {
 				// get local
-				std::string local_name = std::string("local_") + snow::symbol_to_cstr(node->identifier.name);
+				std::string local_name = snow::symbol_to_cstr(node->identifier.name);
 				int level, adjusted_level, index;
 				if (find_local(node->identifier.name, info, level, adjusted_level, index)) {
 					if (adjusted_level == 0) {
 						// get from current scope
 						// last_value = here->locals[index]
-						info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index*sizeof(VALUE)), local_name);
+						info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index), local_name);
 					} else {
 						// get from other scope
 						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), local_name));
 					}
 				} else {
 					// try globals
-					info.last_value = tail_call(builder.CreateCall(snow::get_runtime_function("snow_get_global"), symbol_constant(builder, node->identifier.name), local_name));
+					info.last_value = tail_call(builder.CreateCall(snow::get_runtime_function("snow_get_global"), symbol_constant(builder, node->identifier.name), std::string("global:") + local_name));
 				}
 				break;
 			}
@@ -379,7 +379,7 @@ namespace snow {
 								
 								if (adjusted_level == 0) {
 									// set in current scope
-									builder.CreateStore(assign_value, builder.CreateConstGEP1_32(info.locals_array, index*sizeof(VALUE)));
+									builder.CreateStore(assign_value, builder.CreateConstGEP1_32(info.locals_array, index));
 								} else {
 									tail_call(builder.CreateCall4(snow::get_runtime_function("snow_set_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), assign_value));
 								}
@@ -713,7 +713,8 @@ namespace snow {
 	}
 	
 	llvm::CallInst* Codegen::method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args) {
-		llvm::Value* function = builder.CreateCall2(snow::get_runtime_function("snow_get_method"), object, symbol_constant(builder, method), "method");
+		std::string method_name = object->getName().str() + "." + snow::symbol_to_cstr(method);
+		llvm::Value* function = builder.CreateCall2(snow::get_runtime_function("snow_get_method"), object, symbol_constant(builder, method), method_name);
 		return call(builder, info, function, object, arg_names, args);
 	}
 	
@@ -723,7 +724,7 @@ namespace snow {
 		if (function->getType() == builder.getInt8PtrTy()) {
 			// function is a value, not a SnFunction*, so we need to find out which function to call
 			faux_self = function;
-			function = builder.CreateCall(snow::get_runtime_function("snow_value_to_function"), function, "function");
+			function = builder.CreateCall(snow::get_runtime_function("snow_value_to_function"), function, function->getName() + ":function");
 		}
 		
 		Value* null_array = builder.CreateCast(llvm::Instruction::IntToPtr, builder.getInt64(0), PointerType::getUnqual(builder.getInt8PtrTy()));
@@ -734,7 +735,7 @@ namespace snow {
 		Value* arg_names_array;
 		if (num_arg_names == 0) arg_names_array = builder.CreateCast(llvm::Instruction::IntToPtr, builder.getInt64(0), PointerType::getUnqual(builder.getInt64Ty()));
 		else {
-			arg_names_array = builder.CreateAlloca(builder.getInt64Ty(), builder.getInt64(num_arg_names), "arg_names_array");
+			arg_names_array = builder.CreateAlloca(builder.getInt64Ty(), builder.getInt64(num_arg_names), function->getName() + ":arg_names");
 			for (size_t i = 0; i < num_arg_names; ++i) {
 				builder.CreateStore(symbol_constant(builder, arg_names[i]), builder.CreateConstGEP1_32(arg_names_array, i));
 			}
@@ -743,7 +744,7 @@ namespace snow {
 		Value* args_array;
 		if (num_args == 0) args_array = builder.CreateCast(llvm::Instruction::IntToPtr, builder.getInt64(0), PointerType::getUnqual(builder.getInt8PtrTy()));
 		else {
-			args_array = builder.CreateAlloca(builder.getInt8PtrTy(), builder.getInt64(num_args), "args_array");
+			args_array = builder.CreateAlloca(builder.getInt8PtrTy(), builder.getInt64(num_args), function->getName() + ":args");
 			for (size_t i = 0; i < num_args; ++i) {
 				builder.CreateStore(args[i], builder.CreateConstGEP1_32(args_array, i));
 			}
@@ -757,7 +758,7 @@ namespace snow {
 		v[4] = builder.getInt64(num_args);
 		v[5] = args_array;
 		
-		Value* call_context = builder.CreateCall(snow::get_runtime_function("snow_create_function_call_context"), v + 0, v + 6, "call_context");
+		Value* call_context = builder.CreateCall(snow::get_runtime_function("snow_create_function_call_context"), v + 0, v + 6, function->getName() + ":call_context");
 		if (!self) self = value_constant(builder, NULL);
 		Value* it = args.size() ? args[0] : value_constant(builder, NULL);
 		return tail_call(builder.CreateCall4(snow::get_runtime_function("snow_function_call"), function, call_context, self, it));
