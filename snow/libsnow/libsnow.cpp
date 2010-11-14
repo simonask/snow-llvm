@@ -5,6 +5,7 @@
 #include "debugger.hpp"
 #include "modulepass.hpp"
 #include "functionpass.hpp"
+#include "symbol-inline-pass.hpp"
 
 #include <llvm/LLVMContext.h>
 #include <llvm/Module.h>
@@ -47,18 +48,30 @@ namespace snow {
 			}
 		}
 		
-		engine = llvm::EngineBuilder(runtime).create();
-		engine->RegisterJITEventListener(snow::debugger::jit_event_listener());
+		if (runtime->MaterializeAllPermanently(&error)) {
+			fprintf(stderr, "ERROR: Could not materialize runtime module! (error: %s)", error.c_str());
+			exit(1);
+		}
 		
-		//PassManager pm(m);
-		//pm.add(new TargetData(*engine->getTargetData()));
+		engine = llvm::EngineBuilder(runtime).create();
+		
+		//llvm::PassManager pm;
+		SymbolInlinePass sip(runtime->getFunction("snow_sym"));
+		for (llvm::Module::iterator f_it = runtime->begin(); f_it != runtime->end(); ++f_it) {
+			if (f_it->isDeclaration()) continue;
+			sip.runOnFunction(*f_it);
+		}
+		//pm.add(new llvm::TargetData(*engine->getTargetData()));
 		//createStandardFunctionPasses(&pm, optimization_level);
 		//createStandardModulePasses(&pm, optimization_level, false, false, false, true, false, NULL);
 		//createStandardLTOPasses(&pm, false, true, true);
 		//pm.add(createStripSymbolsPass(true));
 		//pm.add(new SnowModulePass);
 		//pm.add(new SnowFunctionPass);
-		//pm.run(*m);
+		//pm.run(*runtime);
+		
+
+		engine->RegisterJITEventListener(snow::debugger::jit_event_listener());
 		
 		snow::init_vm(&vm, engine);
 		
