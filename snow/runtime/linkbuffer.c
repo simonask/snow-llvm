@@ -4,6 +4,8 @@
 #include <string.h>
 
 
+// TODO: Use snow::LinkBuffer<T>
+
 typedef struct SnLinkBufferPage {
 	struct SnLinkBufferPage* next;
 	size_t offset;
