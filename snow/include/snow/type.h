@@ -7,6 +7,8 @@
 
 struct SnObject;
 
+CAPI SnType snow_type_of(VALUE val);
+
 CAPI struct SnObject** snow_get_prototypes();
 CAPI struct SnObject* snow_get_prototype_for_type(SnType type);
 
