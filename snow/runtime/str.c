@@ -31,6 +31,15 @@ SnString* snow_create_string_with_size(const char* utf8, size_t size) {
 	return obj;
 }
 
+SnString* snow_create_string_take_ownership(char* utf8) {
+	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	obj->size = strlen(utf8);
+	obj->length = obj->size;
+	obj->data = utf8;
+	obj->constant = false;
+	return obj;
+}
+
 SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 	size_t s = snow_linkbuffer_size(buf);
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);

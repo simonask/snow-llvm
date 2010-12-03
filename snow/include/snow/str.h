@@ -18,6 +18,7 @@ typedef struct SnString {
 CAPI SnString* snow_create_string(const char* utf8);
 CAPI SnString* snow_create_string_constant(const char* utf8);
 CAPI SnString* snow_create_string_with_size(const char* utf8, size_t size);
+CAPI SnString* snow_create_string_take_ownership(char* utf8);
 CAPI SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf);
 CAPI SnString* snow_string_concat(const SnString* a, const SnString* b); // create new string
 CAPI SnString* snow_string_append(SnString* str, const SnString* other); // append to str
