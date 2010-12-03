@@ -15,16 +15,6 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 	return obj;
 }
 
-static void ensure_extra_args(SnFunctionCallContext* context, size_t max_num_names, VALUE* named_args) {
-	if (!context->extra) {
-		context->extra = (SnFunctionCallContextExtraArguments*)malloc(sizeof(SnFunctionCallContextExtraArguments));
-		context->extra->names = max_num_names ? (SnSymbol*)malloc(sizeof(SnSymbol)*max_num_names) : NULL; // heuristic maximum
-		context->extra->named_args = named_args;
-		context->extra->unnamed_args = NULL; // unknowable at this point
-		context->extra->num_names = context->extra->num_args = 0; // unknowable at this point
-	}
-}
-
 SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	ASSERT(num_names <= num_args);
 	if (!callee->descriptor->needs_context) return callee->definition_context;
@@ -33,22 +23,17 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	context->function = callee;
 	context->caller = caller;
 	context->self = NULL; // set in snow_function_call
-	context->extra = NULL;
-	
 	const SnFunctionDescriptor* descriptor = callee->descriptor;
 	
-	size_t num_params = descriptor->num_params;
-	
-	// allocate space for more locals than needed, to avoid multiple allocations and ensure linear runtime
-	// TODO: Improve this heuristic.
-	size_t max_num_locals = descriptor->num_locals + num_args;
-	
-	VALUE* locals = (VALUE*)malloc(sizeof(VALUE) * max_num_locals);
-	memset(locals, 0, sizeof(VALUE) * max_num_locals);
+	num_args = num_args < descriptor->num_params ? descriptor->num_params : num_args;
+	size_t num_locals = descriptor->num_locals;
+	VALUE* locals = num_locals ? (VALUE*)malloc(sizeof(VALUE) * num_locals) : NULL;
+	memset(locals, 0, sizeof(VALUE) * num_locals);
 	context->locals = locals;
 	
-	VALUE* extra_named_args = context->locals + descriptor->num_locals;
-	// extra_unnamed_args depends on the number of extra named args, which we don't know yet
+	VALUE* param_args = (VALUE*)alloca(descriptor->num_params * sizeof(SnSymbol));
+	SnSymbol* extra_names = (SnSymbol*)alloca(num_names*sizeof(SnSymbol));
+	VALUE* extra_args = (VALUE*)alloca(num_args*sizeof(VALUE));
 	
 	size_t num_extra_names = 0;
 	size_t num_extra_args = 0;
@@ -63,16 +48,14 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 		while (arg_i < num_names) {
 			if (names[arg_i] == descriptor->param_names[param_i]) {
 				found = true;
-				locals[param_i] = args[arg_i];
+				param_args[param_i] = args[arg_i];
 				++arg_i;
 				break;
 			} else {
 				// named argument, but not part of the function definition.
-				// Add it to the extra args.
-				ensure_extra_args(context, num_names, extra_named_args);
 				
-				extra_named_args[num_extra_names] = args[arg_i];
-				context->extra->names[num_extra_names] = names[arg_i];
+				extra_args[num_extra_names] = args[arg_i];
+				extra_names[num_extra_names] = names[arg_i];
 				++num_extra_names;
 				++num_extra_args;
 				++arg_i;
@@ -81,7 +64,7 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 		
 		if (!found) {
 			// take an unnamed arg
-			locals[param_i] = args[arg_i];
+			param_args[param_i] = args[arg_i];
 			++arg_i;
 		}
 		
@@ -89,38 +72,50 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	}
 	
 	// Extra named args
-	if (arg_i < num_args)
-		ensure_extra_args(context, num_names, extra_named_args);
-	while (arg_i < num_names) {
-		context->extra->names[num_extra_names] = names[arg_i];
-		context->extra->named_args[num_extra_args] = args[arg_i];
-		++arg_i;
-		++num_extra_names;
-		++num_extra_args;
+	if (arg_i < num_names) {
+		memcpy(extra_names + num_extra_names, names + arg_i, (num_names - arg_i)*sizeof(SnSymbol));
+		memcpy(extra_args + num_extra_args, args + arg_i, (num_names - arg_i)*sizeof(VALUE));
+		num_extra_names += num_names - arg_i;
+		num_extra_args += num_names - arg_i;
+		arg_i = num_names;
 	}
-	// Extra unnamed args
 	if (arg_i < num_args) {
-		context->extra->num_names = num_extra_names;
-		context->extra->unnamed_args = context->extra->named_args + num_extra_names;
+		memcpy(extra_args + num_extra_args, args + arg_i, (num_args - arg_i)*sizeof(VALUE));
+		num_extra_args += num_args - arg_i;
+		arg_i = num_args;
 	}
-	while (arg_i < num_args) {
-		context->extra->unnamed_args[num_extra_args++] = args[arg_i++];
-		context->extra->num_args = num_extra_args;
-	}
+	
+	context->arguments = snow_create_arguments(num_extra_names, num_args);
+	context->arguments->descriptor = descriptor;
+	memcpy(context->arguments->data, param_args, descriptor->num_params*sizeof(VALUE));
+	memcpy(context->arguments->data + descriptor->num_params, extra_args, num_extra_args*sizeof(VALUE));
+	memcpy(context->arguments->extra_names, extra_names, num_extra_names*sizeof(SnSymbol));
 	
 	// PHEW! The worst is over.
 	
-	/*printf("locals array:\n");
-	for (size_t i = 0; i < max_num_locals; ++i) {
-		if (i < descriptor->num_params) {
-			printf("%s\t", snow_sym_to_cstr(descriptor->param_names[i]));
-		} else {
-			printf("\t\t");
-		}
-		printf("%lu:\t%p\n", i, context->locals[i]);
-	}*/
-	
 	return context;
+}
+
+void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE merge_in)
+{
+	SnType type = snow_type_of(merge_in);
+	switch (type) {
+		case SnArrayType: {
+			SnArray* array = (SnArray*)merge_in;
+			size_t n = snow_array_size(array);
+			if (n) {
+				
+			}
+			break;
+		}
+		case SnMapType: {
+			break;
+		}
+		default: {
+			fprintf(stderr, "WARNING: Splat argument '%p' is not a map or array.\n", merge_in);
+			break;
+		}
+	}
 }
 
 SnFunction* snow_value_to_function(VALUE val) {
@@ -134,10 +129,6 @@ void snow_finalize_function(SnFunction* func) {
 
 void snow_finalize_function_call_context(SnFunctionCallContext* context) {
 	free(context->locals);
-	if (context->extra) {
-		free(context->extra->names);
-		free(context->extra);
-	}
 }
 
 VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it) {
