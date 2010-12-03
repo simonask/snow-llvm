@@ -58,6 +58,15 @@ SnString* snow_string_concat(const SnString* a, const SnString* b) {
 	return obj;
 }
 
+SnString* snow_string_format(const char* utf8_format, ...) {
+	va_list ap;
+	va_start(ap, utf8_format);
+	char* str;
+	vasprintf(&str, utf8_format, ap);
+	va_end(ap);
+	return snow_create_string(str);
+}
+
 static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnStringType);
 	SnString* s = (SnString*)self;
