@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #define NO_INLINE __attribute__((noinline))
 #define HIDDEN __attribute__((visibility("hidden")))
