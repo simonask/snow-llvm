@@ -354,7 +354,8 @@ namespace snow {
 							if (!compile_ast_node(target->association.object, builder, info)) return false;
 							Value* assoc_target = info.last_value;
 							std::vector<SnSymbol> arg_names;
-							info.last_value = method_call(builder, info, assoc_target, snow::symbol("__index_set__"), arg_names, args);
+							std::vector<Value*> splat_args;
+							info.last_value = method_call(builder, info, assoc_target, snow::symbol("__index_set__"), arg_names, args, splat_args);
 							break;
 						}
 						case SN_AST_MEMBER: {
@@ -430,11 +431,24 @@ namespace snow {
 				named_args.reserve(num_named_args);
 				std::vector<Value*> unnamed_args;
 				unnamed_args.reserve(num_args - num_named_args);
+				std::vector<Value*> splat_args;
+				splat_args.reserve(num_args - num_named_args);
+				
 				for (std::vector<std::pair<Value*, SnAstNode*> >::iterator it = args.begin(); it != args.end(); ++it) {
 					if (it->second->type == SN_AST_NAMED_ARGUMENT) {
 						named_args.push_back(std::pair<Value*, SnSymbol>(it->first, it->second->named_argument.name));
 					} else {
-						unnamed_args.push_back(it->first);
+						SnAstNode* n = it->second;
+						// Recognize splat arguments, which look like this:
+						// call(member(expr, '*'), 0 args)
+						if (n->type == SN_AST_CALL
+						    && n->call.object->type == SN_AST_MEMBER
+						    && (!n->call.args || (n->call.args->sequence.length == 0))
+						    && n->call.object->member.name == snow::symbol("*")) {
+							splat_args.push_back(it->first);
+						} else {
+							unnamed_args.push_back(it->first);
+						}
 					}
 				}
 				
@@ -459,11 +473,11 @@ namespace snow {
 					SnAstNode* member = node->call.object;
 					if (!compile_ast_node(member->member.object, builder, info)) return false;
 					Value* object = info.last_value;
-					info.last_value = method_call(builder, info, object, member->member.name, arg_names, arg_values);
+					info.last_value = method_call(builder, info, object, member->member.name, arg_names, arg_values, splat_args);
 				} else {
 					if (!compile_ast_node(node->call.object, builder, info)) return false;
 					Value* object = info.last_value;
-					info.last_value = call(builder, info, object, NULL, arg_names, arg_values);
+					info.last_value = call(builder, info, object, NULL, arg_names, arg_values, splat_args);
 				}
 				break;
 			}
@@ -478,7 +492,8 @@ namespace snow {
 					args.push_back(info.last_value);
 				}
 				std::vector<SnSymbol> arg_names;
-				info.last_value = method_call(builder, info, object, snow::symbol("__index_get__"), arg_names, args);
+				std::vector<Value*> splat_args;
+				info.last_value = method_call(builder, info, object, snow::symbol("__index_get__"), arg_names, args, splat_args);
 				break;
 			}
 			case SN_AST_AND: {
@@ -712,13 +727,13 @@ namespace snow {
 		return builder.getInt64(constant);
 	}
 	
-	llvm::CallInst* Codegen::method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args) {
+	llvm::CallInst* Codegen::method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args, const std::vector<llvm::Value*>& splat_args) {
 		std::string method_name = object->getName().str() + "." + snow::symbol_to_cstr(method);
 		llvm::Value* function = builder.CreateCall2(snow::get_runtime_function("snow_get_method"), object, symbol_constant(builder, method), method_name);
-		return call(builder, info, function, object, arg_names, args);
+		return call(builder, info, function, object, arg_names, args, splat_args);
 	}
 	
-	llvm::CallInst* Codegen::call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* function, llvm::Value* self, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args) {
+	llvm::CallInst* Codegen::call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* function, llvm::Value* self, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args, const std::vector<llvm::Value*>& splat_args) {
 		using namespace llvm;
 		Value* faux_self = NULL;
 		if (function->getType() == builder.getInt8PtrTy()) {
@@ -759,6 +774,12 @@ namespace snow {
 		v[5] = args_array;
 		
 		Value* call_context = builder.CreateCall(snow::get_runtime_function("snow_create_function_call_context"), v + 0, v + 6, function->getName() + ":call_context");
+		
+		// merge splat arguments
+		for (size_t i = 0; i < splat_args.size(); ++i) {
+			builder.CreateCall2(snow::get_runtime_function("snow_merge_splat_arguments"), call_context, splat_args[i]);
+		}
+		
 		if (!self) self = value_constant(builder, NULL);
 		Value* it = args.size() ? args[0] : value_constant(builder, NULL);
 		return tail_call(builder.CreateCall4(snow::get_runtime_function("snow_function_call"), function, call_context, self, it));
