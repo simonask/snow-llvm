@@ -176,3 +176,8 @@ SnObject* snow_create_function_prototype() {
 	SN_DEFINE_METHOD(proto, "to_string", function_inspect, -1);
 	return proto;
 }
+
+SnObject* snow_create_function_call_context_prototype() {
+	SnObject* proto = snow_create_object(NULL);
+	return proto;
+}
