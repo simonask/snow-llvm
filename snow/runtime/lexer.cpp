@@ -16,7 +16,7 @@ namespace {
 		// TODO: UTF-8
 		out_char_len = 1;
 		char c = *utf8;
-		return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+		return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) || (c == '_') || (c == '@');
 	}
 	
 	inline bool is_operator_character(const char* utf8, size_t& out_char_len) {
