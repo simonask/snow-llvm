@@ -98,19 +98,26 @@ static VALUE array_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 		complete_size += inspected[i]->size;
 	}
 	
-	char* str = malloc(complete_size+4);
+	complete_size += array->size ? (array->size-1) * 2 : 0;
+	
+	char* str = malloc(complete_size + 4);
 	str[0] = '@';
 	str[1] = '(';
 	char* p = str + 2;
 	for (size_t i = 0; i < array->size; ++i) {
 		memcpy(p, inspected[i]->data, inspected[i]->size);
 		p += inspected[i]->size;
+		if (i != array->size - 1) {
+			p[0] = ',';
+			p[1] = ' ';
+			p += 2;
+		}
 	}
 	*p = ')';
 	++p;
 	*p = '\0';
 	
-	return snow_create_string(str);
+	return snow_create_string_take_ownership(str);
 }
 
 static VALUE array_index_get(SnFunctionCallContext* here, VALUE self, VALUE it) {
