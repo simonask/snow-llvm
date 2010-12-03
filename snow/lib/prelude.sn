@@ -1,0 +1,75 @@
+
+__class_prototype__: __make_object__(nil)
+__class_prototype__.__call__: {
+	obj: __make_object__(.instance_prototype)
+	obj.initialize(*here.arguments)
+	obj
+}
+__class_prototype__.initialize: [super] {
+	.super: super
+}
+
+class: [super_or_block, block] {
+	if block
+		prototype: super_or_block.instance_prototype
+		definition: block
+	else
+		prototype: __object_prototype__
+		definition: super_or_block
+	end
+	
+	klass: Class(super)
+	klass.instance_prototype: __make_object__(prototype)
+	definition.call_with_self(klass.instance_prototype, klass)
+	klass
+}
+
+Class: __make_object__(__class_prototype__)
+Class.instance_prototype: __class_prototype__
+
+Object: __make_object__(__class_prototype__)
+Object.instance_prototype: __object_prototype__
+
+Array: __make_object__(__class_prototype__)
+Array.instance_prototype: __array_prototype__
+Array.instance_prototype.instance_eval {
+	.each: [block] {
+		i, n: 0, .size
+		while i < n
+			block(self[i], i)
+		end
+	}
+	
+	.each_pair: [block] {
+		i, n: 0, .size
+		while i < n
+			block(i, self[i])
+		end
+	}
+}
+Array.__call__: __make_array__
+@: Array
+
+Map: __make_object__(__class_prototype__)
+Map.instance_prototype: __map_prototype__
+Map.__call__: __make_map__
+
+Integer: __make_object__(__class_prototype__)
+Integer.instance_prototype: __integer_prototype__
+Integer.__call__: [n] { n }
+
+Float: __make_object__(__class_prototype__)
+Float.instance_prototype: __float_prototype__
+Float.__call__: [f] { f }
+
+String: __make_object__(__class_prototype__)
+String.instance_prototype: __string_prototype__
+String.__call__: __make_string__
+
+Boolean: __make_object__(__class_prototype__)
+Boolean.instance_prototype: __boolean_prototype__
+Boolean.__call__: __make_boolean__
+
+Symbol: __make_object__(__class_prototype__)
+Symbol.instance_prototype: __symbol_prototype__
+Symbol.__call__: __make_symbol__

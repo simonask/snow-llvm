@@ -16,4 +16,17 @@ static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 
 void snow_init_globals() {
 	snow_set_global(snow_sym("puts"), snow_create_method(global_puts, -1));
+	
+	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
+	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));
+	snow_set_global(snow_sym("__boolean_prototype__"), snow_get_prototype_for_type(SnTrueType));
+	snow_set_global(snow_sym("__symbol_prototype__"), snow_get_prototype_for_type(SnSymbolType));
+	snow_set_global(snow_sym("__float_prototype__"), snow_get_prototype_for_type(SnFloatType));
+	snow_set_global(snow_sym("__object_prototype__"), snow_get_prototype_for_type(SnObjectType));
+	snow_set_global(snow_sym("__string_prototype__"), snow_get_prototype_for_type(SnStringType));
+	snow_set_global(snow_sym("__array_prototype__"), snow_get_prototype_for_type(SnArrayType));
+	snow_set_global(snow_sym("__map_prototype__"), snow_get_prototype_for_type(SnMapType));
+	snow_set_global(snow_sym("__function_prototype__"), snow_get_prototype_for_type(SnFunctionType));
+	snow_set_global(snow_sym("__function_call_context_prototype__"), snow_get_prototype_for_type(SnFunctionCallContextType));
+	//snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
 }
