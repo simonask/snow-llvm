@@ -133,11 +133,17 @@ static VALUE array_index_set(SnFunctionCallContext* here, VALUE self, VALUE it) 
 	return snow_array_set((SnArray*)self, snow_value_to_integer(it), val);
 }
 
+static VALUE array_multiply_or_splat(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (!it) return self;
+	return self; // TODO: Something useful?
+}
+
 SnObject* snow_create_array_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", array_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", array_inspect, 0);
 	SN_DEFINE_METHOD(proto, "__index_get__", array_index_get, 1);
 	SN_DEFINE_METHOD(proto, "__index_set__", array_index_set, 2);
+	SN_DEFINE_METHOD(proto, "*", array_multiply_or_splat, 1);
 	return proto;
 }

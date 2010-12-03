@@ -96,19 +96,32 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	return context;
 }
 
-void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE merge_in)
-{
+void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE merge_in) {
 	SnType type = snow_type_of(merge_in);
+	SnArguments* args = callee_context->arguments;
+	
 	switch (type) {
 		case SnArrayType: {
 			SnArray* array = (SnArray*)merge_in;
 			size_t n = snow_array_size(array);
 			if (n) {
-				
+				size_t offset = 0;
+				for (size_t i = 0; (i < args->size) && (offset < n); ++i) {
+					if (!args->data[i]) {
+						args->data[i] = array->data[offset++];
+					}
+				}
+				size_t old_size = args->size;
+				snow_arguments_grow_by(args, 0, n - offset);
+				memcpy(args->data + old_size, array->data + offset, (n-offset)*sizeof(VALUE));
 			}
 			break;
 		}
 		case SnMapType: {
+			// TODO!!
+			break;
+		}
+		case SnArgumentsType: {
 			break;
 		}
 		default: {
