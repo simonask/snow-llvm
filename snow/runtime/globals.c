@@ -3,6 +3,7 @@
 #include "snow/function.h"
 #include "snow/str.h"
 #include "snow/type.h"
+#include "snow/array.h"
 
 static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->arguments->size; ++i) {
@@ -14,7 +15,12 @@ static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
+static VALUE global_make_array(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
+}
+
 void snow_init_globals() {
+	snow_set_global(snow_sym("@"), snow_create_method(global_make_array, -1));
 	snow_set_global(snow_sym("puts"), snow_create_method(global_puts, -1));
 	
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
