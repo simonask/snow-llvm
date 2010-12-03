@@ -44,6 +44,10 @@ SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 	return obj;
 }
 
+void snow_finalize_string(SnString* str) {
+	free(str->data);
+}
+
 SnString* snow_string_concat(const SnString* a, const SnString* b) {
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
 	size_t size_a = snow_string_size(a);

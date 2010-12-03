@@ -29,5 +29,6 @@ static inline const char* snow_string_cstr(const SnString* str) { return str->da
 static inline uint32_t snow_string_size(const SnString* str) { return str->size; }
 static inline uint32_t snow_string_length(const SnString* str) { return str->length; }
 
+CAPI void snow_finalize_string(SnString*);
 
 #endif /* end of include guard: STRING_H_OYTL2E1P */

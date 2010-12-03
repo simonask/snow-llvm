@@ -15,6 +15,7 @@ namespace snow {
 		size_t size() const;
 		void clear();
 		T& push(const T& = T());
+		void push_range(const T* begin, const T* end);
 		size_t extract(T* destination, size_t n) const;
 		void modify(size_t offset, size_t len, const T* new_data);
 		

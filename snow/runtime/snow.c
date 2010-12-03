@@ -13,6 +13,7 @@
 #include "snow/function.h"
 #include "snow/map.h"
 #include "snow/exception.h"
+#include "snow/gc.h"
 #include "globals.h"
 
 #include <stdarg.h>
@@ -31,6 +32,8 @@ static SnObject* get_nearest_object(VALUE);
 SnProcess* snow_init(struct SnVM* vm) {
 	main_process.vm = vm;
 	
+	const void* stk;
+	snow_init_gc(&stk);
 	snow_init_globals();
 	
 	return &main_process;;
@@ -131,7 +134,7 @@ VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
 	return snow_object_set_member(prototype, self, member, val);
 }
 
-static SnMap** get_global_storage() {
+SnMap** _snow_get_global_storage() {
 	static SnMap* a = NULL;
 	if (!a) {
 		a = snow_create_map_with_immediate_keys();
@@ -140,20 +143,16 @@ static SnMap** get_global_storage() {
 }
 
 VALUE snow_get_global(SnSymbol sym) {
-	SnMap* storage = *get_global_storage();
+	SnMap* storage = *_snow_get_global_storage();
 	return snow_map_get(storage, snow_symbol_to_value(sym));
 }
 
 void snow_set_global(SnSymbol sym, VALUE val) {
-	SnMap* storage = *get_global_storage();
+	SnMap* storage = *_snow_get_global_storage();
 	snow_map_set(storage, snow_symbol_to_value(sym), val);
 }
 
 VALUE snow_require(const char* file) {
 	// TODO!
 	return SN_NIL;
-}
-
-bool snow_eval_truth(VALUE val) {
-	return val != NULL && val != SN_NIL && val != SN_FALSE;
 }

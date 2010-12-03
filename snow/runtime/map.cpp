@@ -331,7 +331,45 @@ CAPI {
 		}
 	}
 	
-
+	void snow_map_for_each_gc_root(SnMap* map, SnMapForEachGCRootCallback callback) {
+		if (map_is_flat(map)) {
+			if (map_has_immediate_keys(map)) {
+				// only callback for values
+				for (uint32_t i = 0; i < map->flat.size; ++i) {
+					callback(map->flat.values[i]);
+				}
+			} else {
+				for (uint32_t i = 0; i < map->flat.size; ++i) {
+					callback(map->flat.keys[i]);
+					callback(map->flat.values[i]);
+				}
+			}
+		} else if (map_has_immediate_keys(map)) {
+			ImmediateHashMap* hmap = immediate_hash_map(map);
+			ImmediateHashMap::iterator it;
+			for (it = hmap->begin(); it != hmap->end(); ++it) {
+				callback(it->second);
+			}
+		} else {
+			HashMap* hmap = hash_map(map);
+			HashMap::iterator it;
+			for (it = hmap->begin(); it != hmap->end(); ++it) {
+				callback(it->first);
+				callback(it->second);
+			}
+		}
+	}
+	
+	void snow_finalize_map(SnMap* map) {
+		if (map_is_flat(map)) {
+			free(map->flat.keys);
+			free(map->flat.values);
+		} else if (map_has_immediate_keys(map)) {
+			delete immediate_hash_map(map);
+		} else {
+			delete hash_map(map);
+		}
+	}
 }
 
 

@@ -33,6 +33,10 @@ SnArray* snow_create_array_from_range(VALUE* begin, VALUE* end) {
 	return array;
 }
 
+void snow_finalize_array(SnArray* a) {
+	free(a->data);
+}
+
 size_t snow_array_size(const SnArray* array) {
 	return array->size;
 }

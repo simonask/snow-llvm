@@ -24,4 +24,6 @@ CAPI SnArray* snow_array_push(SnArray* array, VALUE val);
 CAPI SnArray* snow_array_push_range(SnArray* array, VALUE* begin, VALUE* end);
 CAPI SnArray* snow_array_concatenate(SnArray* a, SnArray* b);
 
+CAPI void snow_finalize_array(SnArray* a);
+
 #endif /* end of include guard: ARRAY_H_XVGE8JQI */

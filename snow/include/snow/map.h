@@ -38,4 +38,9 @@ CAPI VALUE snow_map_set(SnMap*, VALUE key, VALUE value);
 CAPI VALUE snow_map_erase(SnMap*, VALUE key);
 CAPI void snow_map_reserve(SnMap*, size_t num_items);
 
+// Used by the GC
+typedef void(*SnMapForEachGCRootCallback)(VALUE);
+CAPI void snow_map_for_each_gc_root(SnMap*, SnMapForEachGCRootCallback callback);
+CAPI void snow_finalize_map(SnMap*);
+
 #endif /* end of include guard: MAP_H_MXEPAZB9 */
