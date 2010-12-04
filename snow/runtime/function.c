@@ -87,6 +87,7 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	
 	context->arguments = snow_create_arguments(num_extra_names, num_args);
 	context->arguments->descriptor = descriptor;
+	memcpy(locals, param_args, descriptor->num_params*sizeof(VALUE));
 	memcpy(context->arguments->data, param_args, descriptor->num_params*sizeof(VALUE));
 	memcpy(context->arguments->data + descriptor->num_params, extra_args, num_extra_args*sizeof(VALUE));
 	memcpy(context->arguments->extra_names, extra_names, num_extra_names*sizeof(SnSymbol));
