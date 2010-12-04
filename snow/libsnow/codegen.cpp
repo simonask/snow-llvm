@@ -374,6 +374,7 @@ namespace snow {
 								if (!find_local(target->identifier.name, info, level, adjusted_level, index)) {
 									// make a new local in current scope
 									level = 0;
+									adjusted_level = 0;
 									index = info.local_names.size();
 									info.local_names.push_back(target->identifier.name);
 								}
