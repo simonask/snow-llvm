@@ -4,6 +4,21 @@
 #include "snow/str.h"
 #include "snow/type.h"
 #include "snow/array.h"
+#include "snow/module.h"
+
+static VALUE get_load_paths(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_get_load_paths();
+}
+
+SnObject* snow_get_vm_interface() {
+	static SnObject* Snow = NULL;
+	if (!Snow) {
+		Snow = snow_create_object(NULL);
+		snow_object_set_member(Snow, Snow, snow_sym("version"), snow_create_string(snow_version()));
+		SN_DEFINE_PROPERTY(Snow, "load_paths", get_load_paths, NULL);
+	}
+	return Snow;
+}
 
 static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->arguments->size; ++i) {
@@ -19,10 +34,18 @@ static VALUE global_make_array(SnFunctionCallContext* here, VALUE self, VALUE it
 	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
 }
 
+static VALUE global_make_object(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnObjectType);
+	return snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
+}
+
 void snow_init_globals() {
+	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
+	
 	snow_set_global(snow_sym("@"), snow_create_method(global_make_array, -1));
 	snow_set_global(snow_sym("puts"), snow_create_method(global_puts, -1));
 	
+	snow_set_global(snow_sym("__make_object__"), snow_create_method(global_make_object, -1));
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
 	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));
 	snow_set_global(snow_sym("__boolean_prototype__"), snow_get_prototype_for_type(SnTrueType));
