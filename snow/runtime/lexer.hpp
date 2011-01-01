@@ -56,7 +56,7 @@ namespace snow {
 	};
 	
 	inline Lexer::Lexer(const char* input_stream, size_t l) : _input(input_stream), _input_length(l) {}
-	inline Lexer::Lexer(const char* input_stream) : _input(input_stream), _input_length(strlen(_input)) {}
+	inline Lexer::Lexer(const char* input_stream) : _input(input_stream), _input_length(_input ? strlen(_input) : 0) {}
 }
 
 #endif /* end of include guard: LEXER_HPP_S9CRBPS5 */
