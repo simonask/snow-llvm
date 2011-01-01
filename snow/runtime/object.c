@@ -139,9 +139,15 @@ static VALUE object_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_create_string(buffer);
 }
 
+static VALUE object_instance_eval(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	VALUE functor = it;
+	return snow_call(functor, self, 0, NULL);
+}
+
 SnObject* snow_create_object_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", object_inspect, 0);
+	SN_DEFINE_METHOD(proto, "instance_eval", object_instance_eval, 1);
 	return proto;
 }
