@@ -13,6 +13,7 @@ CAPI SnObject* snow_create_array_prototype();
 CAPI SnObject* snow_create_map_prototype();
 CAPI SnObject* snow_create_function_prototype();
 CAPI SnObject* snow_create_function_call_context_prototype();
+CAPI SnObject* snow_create_arguments_prototype();
 CAPI SnObject* snow_create_pointer_prototype();
 
 static SnObject* prototypes[SnNumTypes];
@@ -42,6 +43,7 @@ SnObject* snow_get_prototype_for_type(SnType type) {
 			case SnMapType:      prototypes[type] = snow_create_map_prototype(); break;
 			case SnFunctionType: prototypes[type] = snow_create_function_prototype(); break;
 			case SnFunctionCallContextType: prototypes[type] = snow_create_function_call_context_prototype(); break;
+			case SnArgumentsType: prototypes[type] = snow_create_arguments_prototype(); break;
 			//case SnPointerType:  prototypes[type] = snow_create_pointer_prototype(); break; // TODO
 			default: {
 				ASSERT(false && "Requested prototype for invalid type.");

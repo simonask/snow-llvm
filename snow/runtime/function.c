@@ -97,11 +97,17 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	return context;
 }
 
+struct named_arg { SnSymbol name; VALUE value; };
+static int named_arg_cmp(const void* _a, const void* _b) {
+	const struct named_arg* a = (struct named_arg*)_a;
+	const struct named_arg* b = (struct named_arg*)_b;
+	return (int)((int64_t)b->name - (int64_t)a->name);
+}
+
 void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE merge_in) {
-	SnType type = snow_type_of(merge_in);
 	SnArguments* args = callee_context->arguments;
 	
-	switch (type) {
+	switch (snow_type_of(merge_in)) {
 		case SnArrayType: {
 			SnArray* array = (SnArray*)merge_in;
 			size_t n = snow_array_size(array);
@@ -123,6 +129,135 @@ void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE mer
 			break;
 		}
 		case SnArgumentsType: {
+			SnArguments* src = (SnArguments*)merge_in;
+			
+			// Warning: This gets complicated fast. Hold tight.
+			// The following is similar to, but *not quite* the same as,
+			// the function snow_create_function_call_context above.
+			struct named_arg* extra_named_args = (struct named_arg*)alloca((src->size + args->num_extra_names)*sizeof(struct named_arg));
+			size_t num_extra_named_args = 0;
+			VALUE* extra_unnamed_args = (VALUE*)alloca((src->size + args->size)*sizeof(VALUE));
+			size_t num_extra_unnamed_args = 0;
+			
+			// First, check the target arguments' described named args against the source's
+			// described named args.
+			fprintf(stderr, "Merge SnArguments, step 1\n");
+			size_t param_i = 0;
+			size_t src_param_i = 0;
+			size_t src_unnamed_i = src->descriptor->num_params + src->num_extra_names;
+			while (param_i < args->descriptor->num_params) {
+				bool found = false;
+				while (src_param_i < src->descriptor->num_params) {
+					if (args->descriptor->param_names[param_i] == src->descriptor->param_names[src_param_i]) {
+						args->data[param_i] = src->data[src_param_i];
+						found = true;
+						++src_param_i;
+						break;
+					} else {
+						extra_named_args[num_extra_named_args].name = src->descriptor->param_names[src_param_i];
+						extra_named_args[num_extra_named_args].value = src->data[src_param_i];
+						++num_extra_named_args;
+						++src_param_i;
+					}
+				}
+				
+				if (!found) {
+					// no name matched, so pick an unnamed arg, if AND ONLY IF the
+					// target args don't already have something at that spot! This is
+					// an important difference to snow_create_function_call_context.
+					if (args->data[param_i] == NULL && src_unnamed_i < src->size) {
+						args->data[param_i] = src->data[src_unnamed_i++];
+					}
+				}
+				
+				param_i++;
+			}
+			
+			// Add remaining described named args as extra args
+			while (src_param_i < src->descriptor->num_params) {
+				extra_named_args[num_extra_named_args].name = src->descriptor->param_names[src_param_i];
+				extra_named_args[num_extra_named_args].value = src->data[src_param_i];
+				++num_extra_named_args;
+				++src_param_i;
+			}
+			
+			// Second, check the target arguments' describe named args against the source's
+			// extra named args.
+						fprintf(stderr, "Merge SnArguments, step 2\n");
+			param_i = 0;
+			size_t src_extra_i = 0;
+			while (param_i < args->descriptor->num_params) {
+				bool found = false;
+				while (src_extra_i < src->num_extra_names) {
+					const size_t src_extra_data_i = src->descriptor->num_params + src_extra_i;
+					if (args->descriptor->param_names[param_i] == src->extra_names[src_extra_i]) {
+						args->data[param_i] = src->data[src_extra_i];
+						found = true;
+						++src_extra_i;
+						break;
+					} else {
+						extra_named_args[num_extra_named_args].name = src->extra_names[src_extra_i];
+						extra_named_args[num_extra_named_args].value = src->data[src_extra_data_i];
+						num_extra_named_args++;
+						++src_extra_i;
+					}
+				}
+				
+				if (!found) {
+					// no name matched, so pick an unnamed arg, as above.
+					if (args->data[param_i] == NULL && src_unnamed_i < src->size) {
+						args->data[param_i] = src->data[src_unnamed_i++];
+					}
+				}
+			}
+			
+			// Add remaining extra named args as extra args
+			while (src_extra_i < src->num_extra_names) {
+				const size_t src_extra_data_i = src->descriptor->num_params + src_extra_i;
+				extra_named_args[num_extra_named_args].name = src->extra_names[src_extra_i];
+				extra_named_args[num_extra_named_args].value = src->data[src_extra_data_i];
+				++num_extra_named_args;
+				++src_extra_i;
+			}
+			
+			// Third, put remaining unnamed args in extra_unnamed_args
+						fprintf(stderr, "Merge SnArguments, step 3\n");
+			for (size_t i = args->descriptor->num_params + args->num_extra_names; i < args->size; ++i) {
+				extra_unnamed_args[num_extra_unnamed_args++] = args->data[i];
+			}
+			while (src_unnamed_i < src->size) {
+				extra_unnamed_args[num_extra_unnamed_args++] = src->data[src_unnamed_i++];
+			}
+			
+			// Fourth, do the merging!
+			// The target described args are in good shape, we just need to
+			// properly sort the extra named args, and append the unnamed args.
+						fprintf(stderr, "Merge SnArguments, step 4\n");
+			const size_t grow_by_names = num_extra_named_args;
+			const size_t grow_by_args = grow_by_names + (src->size - src_unnamed_i);
+			// Add existing extra named args to the pool, so they can be sorted together
+			for (size_t i = 0; i < args->num_extra_names; ++i) {
+				const size_t args_extra_data_i = args->descriptor->num_params + i;
+				extra_named_args[num_extra_named_args].name = args->extra_names[i];
+				extra_named_args[num_extra_named_args].value = args->data[args_extra_data_i];
+				++num_extra_named_args;
+			}
+			
+						fprintf(stderr, "Merge SnArguments, step 5\n");
+			qsort(extra_named_args, num_extra_named_args, sizeof(struct named_arg), named_arg_cmp);
+			
+						fprintf(stderr, "Merge SnArguments, step 6\n");
+			snow_arguments_grow_by(args, grow_by_names, grow_by_args);
+			for (size_t i = 0; i < num_extra_named_args; ++i) {
+				const size_t args_extra_data_i = args->descriptor->num_params + i;
+				args->extra_names[i] = extra_named_args[i].name;
+				args->data[args_extra_data_i] = extra_named_args[i].value;
+			}
+			for (size_t i = 0; i < num_extra_unnamed_args; ++i) {
+				const size_t args_extra_data_i = args->descriptor->num_params + args->num_extra_names;
+				args->data[args_extra_data_i] = extra_unnamed_args[i];
+			}
+			
 			break;
 		}
 		default: {
