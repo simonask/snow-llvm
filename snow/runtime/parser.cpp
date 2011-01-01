@@ -466,7 +466,55 @@ namespace snow {
 	}
 	
 	SnAstNode* Parser::condition(Pos& pos) {
-		// TODO!!
+		/*
+			basic_condition := (IF | UNLESS) operation (THEN | separator) sequence (ELSE separator sequence)? END
+			condition := (IF | UNLESS)
+		*/
+		
+		SnAstNode* toplevel_condition = NULL;
+		SnAstNode** place_last_here = &toplevel_condition;
+		
+		while (pos->type == Token::IF || pos->type == Token::UNLESS) {
+			Token::Type type = pos->type;
+			SnAstNode* condition = operation(++pos);
+			if (!condition) {
+				error(pos, "Expected expression for conditional, got %s.", get_token_name(pos->type));
+				MATCH_FAILED();
+			}
+			if (type == Token::UNLESS) { condition = ast->logic_not(condition); }
+			
+			if (pos->type == Token::THEN || skip_end_of_statement(pos)) {
+				while (skip_end_of_statement(pos)); // skip additional ends
+				SnAstNode* body = sequence(pos);
+				
+				if (pos->type == Token::END) {
+					*place_last_here = ast->if_else(condition, body, NULL);
+					MATCH_SUCCESS(toplevel_condition);
+				} else if (pos->type == Token::ELSE) {
+					if ((pos+1)->type == Token::IF) {
+						++pos;
+						// else if: let's go again!
+						*place_last_here = ast->if_else(condition, body, NULL);
+						place_last_here = &(*place_last_here)->if_else.else_body;
+					} else {
+						SnAstNode* else_body = sequence(++pos);
+						if (pos->type != Token::END) {
+							error(pos, "Expected END of conditional, got %s.", get_token_name(pos->type));
+							MATCH_FAILED();
+						}
+						++pos;
+						
+						*place_last_here = ast->if_else(condition, body, else_body);
+						MATCH_SUCCESS(toplevel_condition);
+					}
+				}
+
+			} else {
+				error(pos, "Expected THEN or end of statement, got %s.", get_token_name(pos->type));
+				MATCH_FAILED();
+			}
+		}
+		
 		MATCH_FAILED();
 	}
 	
@@ -476,18 +524,18 @@ namespace snow {
 		*/
 		Token::Type type = pos->type;
 		if (type == Token::WHILE || type == Token::UNTIL) {
-			SnAstNode* op = operation(pos);
+			SnAstNode* op = operation(++pos);
 			if (!op) {
 				error(pos, "Expected expression for loop condition, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
 			}
+			if (type == Token::UNTIL) { op = ast->logic_not(op); }
 			
 			if (pos->type == Token::DO || skip_end_of_statement(pos)) {
 				while (skip_end_of_statement(pos)); // skip additional ends
 				SnAstNode* body = sequence(pos);
 				if (pos->type == Token::END) {
 					++pos;
-					if (type == Token::UNTIL) { op = ast->logic_not(op); }
 					SnAstNode* loop = ast->loop(op, body);
 					MATCH_SUCCESS(loop);
 				} else {

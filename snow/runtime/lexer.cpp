@@ -149,6 +149,7 @@ namespace snow {
 				Token::Type type;
 				
 				RECOGNIZE_KEYWORD("do", DO)
+				else RECOGNIZE_KEYWORD("then", THEN)
 				else RECOGNIZE_KEYWORD("end", END)
 				else RECOGNIZE_KEYWORD("if", IF)
 				else RECOGNIZE_KEYWORD("else", ELSE)
