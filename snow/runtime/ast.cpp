@@ -14,6 +14,7 @@ CAPI void snow_ast_free(SnAST* _ast) {
 
 CAPI SnAST* snow_ast_copy(SnAST* ast) {
 	TRAP(); // NIY
+	return NULL;
 }
 
 
