@@ -14,8 +14,12 @@ SnString* snow_create_string(const char* utf8) {
 }
 
 SnString* snow_create_string_constant(const char* utf8) {
-	// TODO!
-	return snow_create_string(utf8);
+	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	obj->size = strlen(utf8);
+	obj->length = obj->size;
+	obj->data = (char*)utf8;
+	obj->constant = true;
+	return obj;
 }
 
 SnString* snow_create_string_with_size(const char* utf8, size_t size) {
@@ -46,6 +50,7 @@ SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 	obj->size = s;
 	obj->length = s; // TODO: UTF-8 length
 	obj->data = s ? (char*)malloc(s+1) : NULL;
+	obj->constant = false;
 	if (s) {
 		snow_linkbuffer_copy_data(buf, obj->data, s);
 		obj->data[s] = '\0';
@@ -54,7 +59,8 @@ SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 }
 
 void snow_finalize_string(SnString* str) {
-	free(str->data);
+	if (!str->constant)
+		free(str->data);
 }
 
 SnString* snow_string_concat(const SnString* a, const SnString* b) {
@@ -69,6 +75,42 @@ SnString* snow_string_concat(const SnString* a, const SnString* b) {
 	memcpy(obj->data + size_a, snow_string_cstr(b), size_b);
 	obj->data[s] = '\0';
 	return obj;
+}
+
+void snow_string_append(SnString* self, const SnString* other) {
+	size_t combined_size = snow_string_size(self) + snow_string_size(other);
+	
+	if (self->constant) {
+		char* data = (char*)malloc(combined_size + 1);
+		memcpy(data, self->data, self->size);
+		self->data = data;
+		self->constant = false;
+	} else {
+		self->data = (char*)realloc(self->data, combined_size + 1);
+	}
+	
+	memcpy(self->data + self->size, other->data, other->size);
+	self->data[combined_size] = '\0';
+	self->size = combined_size;
+	self->length = combined_size;
+}
+
+void snow_string_append_cstr(SnString* self, const char* utf8) {
+	size_t s = strlen(utf8);
+	size_t combined_size = snow_string_size(self) + s;
+	if (self->constant) {
+		char* data = (char*)malloc(combined_size + 1);
+		memcpy(data, self->data, self->size);
+		self->data = data;
+		self->constant = false;
+	} else {
+		self->data = (char*)realloc(self->data, combined_size + 1);
+	}
+	
+	memcpy(self->data + self->size, utf8, s);
+	self->data[combined_size] = '\0';
+	self->size = combined_size;
+	self->length = combined_size;
 }
 
 SnString* snow_string_format(const char* utf8_format, ...) {
