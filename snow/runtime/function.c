@@ -5,6 +5,7 @@
 #include "snow/vm.h"
 #include "snow/function.h"
 #include "snow/str.h"
+#include "snow/snow.h"
 
 #include <string.h>
 
@@ -269,9 +270,17 @@ void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE mer
 }
 
 SnFunction* snow_value_to_function(VALUE val) {
-	// TODO: Functor support
-	ASSERT(snow_type_of(val) == SnFunctionType);
-	return (SnFunction*)val;
+	VALUE functor = val;
+	while (functor && snow_type_of(functor) != SnFunctionType) {
+		functor = snow_get_member(functor, snow_sym("__call__"));
+	}
+	
+	if (!functor) {
+		fprintf(stderr, "ERROR: %p is not a function, and doesn't respond to __call__.\n", val);
+		TRAP(); // TODO: Exception
+	}
+	
+	return (SnFunction*)functor;
 }
 
 void snow_finalize_function(SnFunction* func) {
@@ -282,7 +291,7 @@ void snow_finalize_function_call_context(SnFunctionCallContext* context) {
 }
 
 VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it) {
-	//printf("snow_function_call(function: %p(%s), context: %p, self: %p, it: %p)\n", function, "<unnamed>"/*snow_string_cstr(snow_vm_get_name_of(function->descriptor->ptr))*/, context, self, it);
+	ASSERT(snow_type_of(function) == SnFunctionType);
 	if (!self)
 		self = function->definition_context ? function->definition_context->self : NULL;
 	if (function->descriptor->needs_context) {
