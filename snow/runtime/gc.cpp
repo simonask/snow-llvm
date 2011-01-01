@@ -136,7 +136,7 @@ namespace {
 	void gc_free_object(SnObjectBase* obj) {
 		fprintf(stderr, "GC: Freeing object %p\n", obj);
 		switch (obj->type) {
-			case SnObjectType: break;
+			case SnObjectType: snow_finalize_object((SnObject*)obj); break;
 			case SnStringType: snow_finalize_string((SnString*)obj); break;
 			case SnArrayType: snow_finalize_array((SnArray*)obj); break;
 			case SnMapType: snow_finalize_map((SnMap*)obj); break;
