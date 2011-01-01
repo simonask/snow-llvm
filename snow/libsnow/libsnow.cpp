@@ -32,6 +32,8 @@ static SnVM vm;
 namespace snow {
 	void init(const char* runtime_bitcode_path) {
 		ASSERT(runtime == NULL); // runtime already loaded?
+		llvm::JITEmitDebugInfo = true;
+		llvm::JITExceptionHandling = true;
 		llvm::InitializeNativeTarget();
 		llvm::llvm_start_multithreaded();
 		context = &llvm::getGlobalContext();
