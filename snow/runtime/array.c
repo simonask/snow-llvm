@@ -84,6 +84,13 @@ SnArray* snow_array_push(SnArray* array, VALUE val) {
 	return array;
 }
 
+bool snow_array_contains(SnArray* array, VALUE val) {
+	for (size_t i = 0; i < array->size; ++i) {
+		if (array->data[i] == val) return true;
+	}
+	return false;
+}
+
 
 static VALUE array_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnArrayType);

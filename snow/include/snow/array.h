@@ -23,6 +23,7 @@ CAPI void snow_array_reserve(SnArray* array, uint32_t new_alloc_size);
 CAPI SnArray* snow_array_push(SnArray* array, VALUE val);
 CAPI SnArray* snow_array_push_range(SnArray* array, VALUE* begin, VALUE* end);
 CAPI SnArray* snow_array_concatenate(SnArray* a, SnArray* b);
+CAPI bool snow_array_contains(SnArray* a, VALUE value);
 
 CAPI void snow_finalize_array(SnArray* a);
 
