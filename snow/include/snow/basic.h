@@ -31,11 +31,24 @@ static const size_t SN_MALLOC_OVERHEAD = 8; // XXX: guess...
 
 #define QUOTEME_(X) #X
 #define QUOTEME(X) QUOTEME_(X)
-#define TRAP() do{fprintf(stderr, "TRAP AT %s:%d (%s)!\n", __FILE__, __LINE__, __func__); __builtin_abort();}while(0)
-#define ASSERT(x) do {if (!(x)) {fprintf(stderr, "ASSERTION FAILED: %s\n", #x); TRAP();};}while(0)
+
+#if defined(DEBUG)
+static inline void crash_and_burn() { __asm__(""); char c = *(char*)NULL; }
+#endif
+
+#if defined(DEBUG)
+#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); crash_and_burn(); } while (0)
+#else
+#define TRAP() __builtin_abort()
+#endif
+
+#if defined(DEBUG)
+#define ASSERT(x) do { if (!(x)) { fprintf(stderr, "ASSERTION FAILED: %s\n", #x); TRAP(); } } while (0)
+#else
+#define ASSERT(x) do { if (!(x)) { fprintf(stderr, "ASSERTION FAILED at %s:%d (): %s\n", __FILE__, __LINE__, __FUNCTION__, #x); TRAP(); } } while (0)
+#endif
 
 struct SnProcess;
 #define SN_P struct SnProcess*
-
 
 #endif /* end of include guard: BASIC_H_ZPM7ZK97 */
