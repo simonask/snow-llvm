@@ -838,17 +838,26 @@ namespace snow {
 				break;
 			}
 			case SN_AST_ASSIGN: {
-				if (node->assign.target->type == SN_AST_IDENTIFIER) {
-					if (std::find(info.local_names.begin(), info.local_names.end(), node->assign.target->identifier.name) != info.local_names.end()) {
-						// the local is most likely a parameter
-						info.needs_context = true;
-					} else {
-						int level, adjusted_level, index;
-						if (!find_local(node->assign.target->identifier.name, info, level, adjusted_level, index)) {
-							// the local was not found, so it's defined here
+				SnAstNode* target = node->assign.target;
+				if (target->type == SN_AST_SEQUENCE) {
+					target = target->sequence.head;
+				}
+				
+				while (target) {
+					if (target->type == SN_AST_IDENTIFIER) {
+						if (std::find(info.local_names.begin(), info.local_names.end(), node->assign.target->identifier.name) != info.local_names.end()) {
+							// the local is most likely a parameter
 							info.needs_context = true;
+						} else {
+							int level, adjusted_level, index;
+							if (!find_local(node->assign.target->identifier.name, *info.parent, level, adjusted_level, index)) {
+								// the local was not found in parent scopes, so it's defined here
+								info.needs_context = true;
+							}
 						}
 					}
+					
+					target = target->next;
 				}
 				
 				gather_info_pass(node->assign.target, info);
