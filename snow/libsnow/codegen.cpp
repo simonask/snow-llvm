@@ -105,8 +105,9 @@ namespace snow {
 		info.self = NULL;
 		info.it = NULL;
 		info.locals_array = NULL;
+		info.module = NULL;
 		info.it_index = 0;
-		info.needs_context = true;
+		info.needs_context = true; // top-level function (module entry) should always have context
 		
 		gather_info_pass(ast->_root, info);
 		
@@ -138,6 +139,7 @@ namespace snow {
 		info.self = NULL;
 		info.it = NULL;
 		info.locals_array = NULL;
+		info.module = NULL;
 		info.it_index = 0;
 		
 		std::vector<std::pair<SnSymbol, SnAstNode*> > params;
@@ -204,6 +206,8 @@ namespace snow {
 		info.last_value = value_constant(builder, SN_NIL);
 		// locals_array = here->locals; // locals is the 5th member of SnFunctionCallContext
 		info.locals_array = builder.CreateLoad(builder.CreateConstGEP2_32(info.here, 0, 4), ":locals");
+		// module = here->module; // module is the 7th member of SnFunctionCallContext
+		info.module = builder.CreateLoad(builder.CreateConstGEP2_32(info.here, 0, 6), ":module");
 		
 		// Function body
 		if (!compile_ast_node(seq, builder, info)) return false;
@@ -280,8 +284,8 @@ namespace snow {
 						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), local_name));
 					}
 				} else {
-					// try globals
-					info.last_value = tail_call(builder.CreateCall(snow::get_runtime_function("snow_get_global"), symbol_constant(builder, node->identifier.name), std::string("global:") + local_name));
+					// try module-level locals
+					info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_object_get_member"), info.module, builder.CreatePointerCast(info.module, builder.getInt8PtrTy()), symbol_constant(builder, node->identifier.name), std::string("module:") + local_name));
 				}
 				break;
 			}
@@ -366,8 +370,8 @@ namespace snow {
 						}
 						case SN_AST_IDENTIFIER: {
 							if (info.parent == NULL) {
-								// set global
-								tail_call(builder.CreateCall2(snow::get_runtime_function("snow_set_global"), symbol_constant(builder, target->identifier.name), assign_value));
+								// set module-level identifier
+								tail_call(builder.CreateCall4(snow::get_runtime_function("snow_object_set_member"), info.module, builder.CreatePointerCast(info.module, builder.getInt8PtrTy()), symbol_constant(builder, target->identifier.name), assign_value));
 							} else {
 								// set local
 								int level, adjusted_level, index;

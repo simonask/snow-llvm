@@ -14,6 +14,7 @@
 #include "snow/map.h"
 #include "snow/exception.h"
 #include "snow/gc.h"
+#include "snow/module.h"
 #include "globals.h"
 
 #include <stdarg.h>
@@ -36,19 +37,27 @@ SnProcess* snow_init(struct SnVM* vm) {
 	snow_init_gc(&stk);
 	snow_init_globals();
 	
-	return &main_process;;
+	snow_load_in_global_module("lib/prelude.sn");
+	
+	return &main_process;
+}
+
+const char* snow_version() {
+	return "0.0.1 pre-alpha [LLVM]";
 }
 
 SnProcess* snow_get_process() {
 	return &main_process;
 }
 
-VALUE snow_eval(const char* source) {
-	SnFunction* f = snow_compile(source);
-	if (f)
-		return snow_call(f, NULL, 0, NULL);
-	fprintf(stderr, "ERROR: Function is NULL.\n");
-	return NULL;
+VALUE snow_get_global(SnSymbol name) {
+	SnObject* go = snow_get_global_module();
+	return snow_object_get_member(go, go, name);
+}
+
+VALUE snow_set_global(SnSymbol name, VALUE val) {
+	SnObject* go = snow_get_global_module();
+	return snow_object_set_member(go, go, name, val);
 }
 
 SnFunction* snow_compile(const char* source) {
@@ -132,27 +141,4 @@ VALUE snow_get_member(VALUE self, SnSymbol member) {
 VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
 	SnObject* prototype = get_nearest_object(self);
 	return snow_object_set_member(prototype, self, member, val);
-}
-
-SnMap** _snow_get_global_storage() {
-	static SnMap* a = NULL;
-	if (!a) {
-		a = snow_create_map_with_immediate_keys();
-	}
-	return &a;
-}
-
-VALUE snow_get_global(SnSymbol sym) {
-	SnMap* storage = *_snow_get_global_storage();
-	return snow_map_get(storage, snow_symbol_to_value(sym));
-}
-
-void snow_set_global(SnSymbol sym, VALUE val) {
-	SnMap* storage = *_snow_get_global_storage();
-	snow_map_set(storage, snow_symbol_to_value(sym), val);
-}
-
-VALUE snow_require(const char* file) {
-	// TODO!
-	return SN_NIL;
 }

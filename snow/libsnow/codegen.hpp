@@ -36,6 +36,7 @@ namespace snow {
 		llvm::Value* self;
 		llvm::Value* it;
 		llvm::Value* locals_array;
+		llvm::Value* module;
 		
 		std::vector<SnSymbol> param_names;
 		std::vector<SnType> param_types;

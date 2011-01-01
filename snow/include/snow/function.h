@@ -33,6 +33,7 @@ typedef struct SnFunctionCallContext {
 	VALUE self;
 	VALUE* locals;  // locals in the function, including named args. size: descriptor.num_locals
 	struct SnArguments* arguments;
+	SnObject* module;
 } SnFunctionCallContext;
 
 typedef struct SnFunction {

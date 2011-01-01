@@ -23,6 +23,7 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	context->function = callee;
 	context->caller = caller;
 	context->self = NULL; // set in snow_function_call
+	context->module = callee->definition_context ? callee->definition_context->module : NULL;
 	const SnFunctionDescriptor* descriptor = callee->descriptor;
 	
 	num_args = num_args < descriptor->num_params ? descriptor->num_params : num_args;

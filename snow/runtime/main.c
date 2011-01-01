@@ -8,6 +8,7 @@
 #include "snow/str.h"
 #include "snow/array.h"
 #include "snow/exception.h"
+#include "snow/module.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,12 +44,15 @@ static void interactive_prompt()
 		//unfinished_expr = is_expr_unfinished(buffer.str());
 		if (!unfinished_expr) {
 			SnString* str = snow_create_string_from_linkbuffer(input_buffer);
-			VALUE result = snow_eval(snow_string_cstr(str));
-			VALUE inspected = snow_call(snow_get_method(result, snow_sym("inspect")), result, 0, NULL);
-			if (snow_type_of(inspected) != SnStringType) {
-				inspected = snow_string_format("[Object@%p]", result);
+			VALUE result = snow_eval_in_global_module(snow_string_cstr(str));
+			if (result)
+			{
+				VALUE inspected = snow_call(snow_get_method(result, snow_sym("inspect")), result, 0, NULL);
+				if (snow_type_of(inspected) != SnStringType) {
+					inspected = snow_string_format("[Object@%p]", result);
+				}
+				printf("=> %s\n", snow_string_cstr((SnString*)inspected));
 			}
-			printf("=> %s\n", snow_string_cstr((SnString*)inspected));
 			snow_linkbuffer_clear(input_buffer);
 		}
 	}
@@ -122,7 +126,7 @@ int snow_main(int argc, char* const* argv) {
 	for (size_t i = 0; i < snow_array_size(require_files); ++i) {
 		VALUE vstr = snow_array_get(require_files, i);
 		ASSERT(snow_type_of(vstr) == SnStringType);
-		snow_require(snow_string_cstr((SnString*)vstr));
+		snow_load(snow_string_cstr((SnString*)vstr));
 	}
 	
 	if (interactive_mode) {
