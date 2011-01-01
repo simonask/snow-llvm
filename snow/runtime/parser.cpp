@@ -167,7 +167,27 @@ namespace snow {
 			ast->set_root(seq);
 			return ast;
 		} else {
-			fprintf(stderr, "PARSER ERROR: %s\n", _error_message);
+			long col = _error_pos->begin - _error_pos->line_begin;
+			
+			fprintf(stderr, "PARSER ERROR at line %d col %ld: %s\n", _error_pos->line_number, col, _error_message);
+			
+			// print context:
+			const char* p = _error_pos->line_begin;
+			while (*p != '\n') {
+				if (*p == '\t') {
+					col += 3;
+					printf("    ");
+					++p;
+				} else {
+					putchar(*p++);
+				}
+				
+			}
+			putchar('\n');
+			for (long i = 0; i < col; ++i) putchar('~');
+			putchar('^');
+			putchar('\n');
+			
 			delete ast;
 			return NULL;
 		}

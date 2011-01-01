@@ -271,7 +271,7 @@ namespace snow {
 				}
 			}
 			
-			fprintf(stderr, "Cannot tokenize: '%c'\n", *p);
+			fprintf(stderr, "Cannot tokenize (line %d col %ld): '%c'\n", current_line_number, p - current_line_begin, *p);
 			++p;
 		}
 		_buffer.push(Token(Token::END_OF_FILE, p, 0, current_line_number, current_line_begin));
