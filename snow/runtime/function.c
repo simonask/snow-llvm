@@ -322,12 +322,26 @@ static VALUE function_inspect(SnFunctionCallContext* here, VALUE self, VALUE it)
 
 SnObject* snow_create_function_prototype() {
 	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", function_inspect, -1);
-	SN_DEFINE_METHOD(proto, "to_string", function_inspect, -1);
+	SN_DEFINE_METHOD(proto, "inspect", function_inspect, 0);
+	SN_DEFINE_METHOD(proto, "to_string", function_inspect, 0);
 	return proto;
+}
+
+static VALUE function_call_context_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnFunctionCallContextType) return NULL;
+	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
+	return snow_string_format("[FunctionCallContext@%p]", context);
+}
+
+static VALUE function_call_context_get_arguments(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnFunctionCallContextType);
+	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
+	return context->arguments;
 }
 
 SnObject* snow_create_function_call_context_prototype() {
 	SnObject* proto = snow_create_object(NULL);
+	SN_DEFINE_METHOD(proto, "inspect", function_call_context_inspect, 0);
+	SN_DEFINE_PROPERTY(proto, "arguments", function_call_context_get_arguments, NULL);
 	return proto;
 }
