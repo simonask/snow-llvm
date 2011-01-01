@@ -31,6 +31,8 @@ void snow_finalize_object(SnObject* obj) {
 
 VALUE snow_object_get_member(SnObject* obj, VALUE self, SnSymbol member) {
 	VALUE vmember = snow_symbol_to_value(member);
+	SnObject* object_prototype = snow_get_prototype_for_type(SnObjectType);
+	
 	while (obj) {
 		VALUE v;
 		if (obj->members) {
@@ -60,7 +62,11 @@ VALUE snow_object_get_member(SnObject* obj, VALUE self, SnSymbol member) {
 			}
 		}
 		
-		obj = obj->prototype;
+		if (obj != object_prototype) {
+			obj = obj->prototype ? obj->prototype : object_prototype;
+		} else {
+			obj = NULL;
+		}
 	}
 	return NULL;
 }
