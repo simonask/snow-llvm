@@ -331,6 +331,54 @@ CAPI {
 		}
 	}
 	
+	void snow_map_get_keys_and_values(const SnMap* map, VALUE* keys, VALUE* values) {
+		if (map_is_flat(map)) {
+			memcpy(keys, map->flat.keys, sizeof(VALUE)*map->flat.size);
+			memcpy(values, map->flat.values, sizeof(VALUE)*map->flat.size);
+		} else if (map_has_immediate_keys(map)) {
+			const ImmediateHashMap* hmap = immediate_hash_map(map);
+			size_t i = 0;
+			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+				keys[i] = it->first;
+				values[i] = it->second;
+				++i;
+			}
+		} else {
+			const HashMap* hmap = hash_map(map);
+			size_t i = 0;
+			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+				keys[i] = it->first;
+				values[i] = it->second;
+				++i;
+			}
+		}
+	}
+	
+	void snow_map_get_pairs(const SnMap* map, SnKeyValuePair* pairs) {
+		if (map_is_flat(map)) {
+			for (size_t i = 0; i < map->flat.size; ++i) {
+				pairs[i][0] = map->flat.keys[i];
+				pairs[i][1] = map->flat.values[i];
+			}
+		} else if (map_has_immediate_keys(map)) {
+			const ImmediateHashMap* hmap = immediate_hash_map(map);
+			size_t i = 0;
+			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+				pairs[i][0] = it->first;
+				pairs[i][1] = it->second;
+				++i;
+			}
+		} else {
+			const HashMap* hmap = hash_map(map);
+			size_t i = 0;
+			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+				pairs[i][0] = it->first;
+				pairs[i][1] = it->second;
+				++i;
+			}
+		}
+	}
+	
 	void snow_map_for_each_gc_root(SnMap* map, SnMapForEachGCRootCallback callback) {
 		if (map_is_flat(map)) {
 			if (map_has_immediate_keys(map)) {

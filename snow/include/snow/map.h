@@ -37,6 +37,9 @@ CAPI VALUE snow_map_get(const SnMap*, VALUE key);
 CAPI VALUE snow_map_set(SnMap*, VALUE key, VALUE value);
 CAPI VALUE snow_map_erase(SnMap*, VALUE key);
 CAPI void snow_map_reserve(SnMap*, size_t num_items);
+CAPI void snow_map_get_keys_and_values(const SnMap*, VALUE* keys, VALUE* values);
+typedef VALUE SnKeyValuePair[2];
+CAPI void snow_map_get_pairs(const SnMap*, SnKeyValuePair* tuples);
 
 // Used by the GC
 typedef void(*SnMapForEachGCRootCallback)(VALUE);
