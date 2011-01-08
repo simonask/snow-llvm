@@ -1,6 +1,8 @@
 #include "snow/type.h"
 #include "snow/object.h"
 
+#include <stdlib.h>
+
 // Declarations
 CAPI SnObject* snow_create_integer_prototype();
 CAPI SnObject* snow_create_float_prototype();
@@ -16,11 +18,20 @@ CAPI SnObject* snow_create_function_call_context_prototype();
 CAPI SnObject* snow_create_arguments_prototype();
 CAPI SnObject* snow_create_pointer_prototype();
 
-static SnObject* prototypes[SnNumTypes];
-
-SnObject** snow_get_prototypes() { return prototypes; }
+SnObject** snow_get_prototypes() {
+	static SnObject** prototypes = NULL;
+	if (!prototypes) {
+		prototypes = (SnObject**)malloc(sizeof(SnObject*) * SnNumTypes);
+		bzero(prototypes, sizeof(SnObject*) * SnNumTypes);
+	}
+	return prototypes;
+}
 
 SnObject* snow_get_prototype_for_type(SnType type) {
+	ASSERT(type < SnNumTypes);
+	
+	SnObject** prototypes = snow_get_prototypes();
+	
 	if (prototypes[type] == NULL) {
 		switch (type) {
 			case SnIntegerType:  prototypes[type] = snow_create_integer_prototype(); break;
