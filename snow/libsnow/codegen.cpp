@@ -21,8 +21,16 @@ namespace {
 }
 
 namespace snow {
-	Codegen::Codegen(llvm::LLVMContext& context) : _context(context), _module(NULL), _entry_descriptor(NULL), _error_string(NULL) {
-		_module = new llvm::Module("Compiled Snow Code", _context);
+	Codegen::Codegen(llvm::LLVMContext& context, const llvm::StringRef& module_name) : _context(context), _module_name(module_name), _module(NULL), _entry_descriptor(NULL), _error_string(NULL) {
+		std::string mn = llvm::StringRef("Snow Module: ").str() + module_name.str();
+		_module = new llvm::Module(mn, _context);
+	}
+	
+	llvm::StringRef Codegen::current_assignment_name() const {
+		if (_assignment_name_stack.size() > 0) {
+			return llvm::StringRef(snow::symbol_to_cstr(_assignment_name_stack.top()));
+		}
+		return llvm::StringRef("");
 	}
 	
 	llvm::GlobalVariable* Codegen::descriptor_for_info(const FunctionCompilerInfo& info) {
@@ -130,8 +138,8 @@ namespace snow {
 		
 		// TODO: Determine more helpful function names
 		char* function_name;
-		asprintf(&function_name, "snow_function_%d", function_count++);
-		info.function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, function_name, _module);
+		asprintf(&function_name, "%s_func%d_", _module_name.str().c_str(), function_count++);
+		info.function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, llvm::StringRef(function_name) + current_assignment_name(), _module);
 		free(function_name);
 		info.function_exit = NULL;
 		info.last_value = NULL;
@@ -277,8 +285,16 @@ namespace snow {
 				if (find_local(node->identifier.name, info, level, adjusted_level, index)) {
 					if (adjusted_level == 0) {
 						// get from current scope
-						// last_value = here->locals[index]
-						info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index), local_name);
+						if (!info.needs_context && info.param_names.size() > info.it_index && info.param_names[info.it_index] == node->identifier.name) {
+							// we're looking for the first parameter, and there are no assignments (as determined by need_context),
+							// so simply use 'it' instead. This means that the locals array doesn't have to be allocated,
+							// and that the parameter can be passed in a register on x86-64.
+							// last_value = here->it
+							info.last_value = info.it;
+						} else {
+							// last_value = here->locals[index]
+							info.last_value = builder.CreateLoad(builder.CreateConstGEP1_32(info.locals_array, index), local_name);
+						}
 					} else {
 						// get from other scope
 						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), local_name));
@@ -309,14 +325,42 @@ namespace snow {
 				assign_values.reserve(num_values);
 				assign_targets.reserve(num_targets);
 				
+				// Build a list of names for the values that will be assigned,
+				// mostly for debugging purposes, so the LLVM IR reflects the
+				// names used in the source code.
+				std::vector<SnSymbol> assign_names;
+				assign_names.reserve(num_targets);
+				SnSymbol anon_assignment_symbol = snow::symbol("<anonymous>");
+				for (SnAstNode* x = node->assign.target->sequence.head; x; x = x->next) {
+					assign_targets.push_back(x);
+					switch (x->type) {
+						case SN_AST_IDENTIFIER:
+							assign_names.push_back(x->identifier.name);
+							break;
+						case SN_AST_MEMBER:
+							assign_names.push_back(x->member.name);
+							break;
+						default:
+							assign_names.push_back(anon_assignment_symbol);
+							break;
+					}
+				}
+				
+				size_t assign_name_index = 0;
 				for (SnAstNode* x = node->assign.value->sequence.head; x; x = x->next) {
+					if (assign_name_index < assign_names.size()) {
+						_assignment_name_stack.push(assign_names[assign_name_index++]);
+					} else {
+						_assignment_name_stack.push(anon_assignment_symbol);
+					}
+					
 					if (!compile_ast_node(x, builder, info)) return false;
+					
+					_assignment_name_stack.pop();
+					
 					assign_values.push_back(info.last_value);
 				}
 				
-				for (SnAstNode* x = node->assign.target->sequence.head; x; x = x->next) {
-					assign_targets.push_back(x);
-				}
 				
 				
 				// If there are more targets than values, assign nil to the remaining targets
@@ -785,7 +829,7 @@ namespace snow {
 			builder.CreateCall2(snow::get_runtime_function("snow_merge_splat_arguments"), call_context, splat_args[i]);
 		}
 		
-		if (!self) self = value_constant(builder, NULL);
+		if (!self) self = faux_self ? faux_self : value_constant(builder, NULL);
 		Value* it = args.size() ? args[0] : value_constant(builder, NULL);
 		return tail_call(builder.CreateCall4(snow::get_runtime_function("snow_function_call"), function, call_context, self, it));
 	}
@@ -847,6 +891,7 @@ namespace snow {
 					if (target->type == SN_AST_IDENTIFIER) {
 						if (std::find(info.local_names.begin(), info.local_names.end(), node->assign.target->identifier.name) != info.local_names.end()) {
 							// the local is most likely a parameter
+							// TODO: Optimize so one-parameter functions just use `it`.
 							info.needs_context = true;
 						} else {
 							int level, adjusted_level, index;

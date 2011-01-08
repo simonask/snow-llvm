@@ -23,7 +23,7 @@
 /*
 	Callbacks for the runtime.
 */
-static bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_result);
+static bool compile_ast(void* vm_state, const char* module_name, const char* source, const SnAST* ast, SnCompilationResult* out_result);
 static void free_function(void* vm_state, void* jit_handle);
 static void realize_function(void* vm_state, SnFunctionDescriptor* descriptor);
 static int get_name_of(void* vm_state, void* ptr, char* buffer, int maxlength);
@@ -41,10 +41,10 @@ namespace snow {
 	}
 }
 
-bool compile_ast(void* vm_state, const SnAST* ast, SnCompilationResult* out_result) {
+bool compile_ast(void* vm_state, const char* module_name, const char* source, const SnAST* ast, SnCompilationResult* out_result) {
 	llvm::ExecutionEngine* ee = (llvm::ExecutionEngine*)vm_state;
 	ASSERT(ee);
-	snow::Codegen codegen(llvm::getGlobalContext());
+	snow::Codegen codegen(llvm::getGlobalContext(), module_name);
 	if (codegen.compile_ast(ast)) {
 		llvm::Module* m = codegen.get_module();
 		ee->addModule(m);

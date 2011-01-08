@@ -108,12 +108,24 @@ namespace {
 	}
 	
 	inline Module* compile_module(const std::string& path, const std::string& source, SnObject* mod) {
-		fprintf(stderr, "Compiling module '%s'\n", path.c_str());
 		Module* m = new Module;
 		m->path = path;
 		m->source = source;
 		m->module = mod;
-		m->entry = snow_compile(m->source.c_str());
+		
+		std::string module_name = path;
+		char* p = strrchr(path.c_str(), '/');
+		if (p++) {
+			char* q = strrchr(p, '.');
+			if (q) {
+				module_name = std::string(p, q);
+			} else {
+				module_name = p;
+			}
+		}
+		
+		m->entry = snow_compile(module_name.c_str(), m->source.c_str());
+		
 		if (m->entry) {
 			get_module_list()->push_back(m);
 			

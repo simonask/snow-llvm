@@ -21,6 +21,7 @@
 
 #include <map>
 #include <bits/stl_pair.h>
+#include <stack>
 
 namespace snow {
 	struct FunctionCompilerInfo {
@@ -47,7 +48,7 @@ namespace snow {
 	
 	class Codegen {
 	public:
-		Codegen(llvm::LLVMContext& c);
+		Codegen(llvm::LLVMContext& c, const llvm::StringRef& module_name);
 		bool compile_ast(const SnAST* ast);
 		
 		llvm::Module* get_module() const { return _module; }
@@ -82,11 +83,15 @@ namespace snow {
 		
 		llvm::CallInst* tail_call(llvm::CallInst* inst) { inst->setTailCall(true); return inst; }
 		
+		llvm::StringRef current_assignment_name() const;
+		
 		llvm::LLVMContext& _context;
+		llvm::StringRef _module_name;
 		llvm::Module* _module;
 		llvm::GlobalVariable* _entry_descriptor;
 		char* _error_string;
 		std::map<std::string, llvm::Function*> _imported_functions;
+		std::stack<SnSymbol> _assignment_name_stack;
 	};
 }
 

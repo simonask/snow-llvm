@@ -23,9 +23,7 @@ CAPI struct SnObject** _snow_get_global_object_ptr(); // for GC
 CAPI VALUE snow_set_global(SnSymbol sym, VALUE val);
 CAPI VALUE snow_get_global(SnSymbol sym);
 
-
-CAPI struct SnFunction* snow_compile(const char* str);
-CAPI struct SnFunction* snow_compile_file(const char* path);
+CAPI struct SnFunction* snow_compile(const char* module_name, const char* source);
 
 CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, const VALUE* args);
 #define SN_CALL_METHOD(SELF, NAME, NUM_ARGS, ARGS) snow_call(snow_get_method(SELF, snow_sym(NAME)), SELF, NUM_ARGS, ARGS)

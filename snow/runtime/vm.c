@@ -3,9 +3,9 @@
 #include "snow/process.h"
 #include "snow/str.h"
 
-bool snow_vm_compile_ast(const struct SnAST* ast, SnCompilationResult* out_result) {
+bool snow_vm_compile_ast(const char* module_name, const char* source, const struct SnAST* ast, SnCompilationResult* out_result) {
 	SnProcess* p = snow_get_process();
-	return p->vm->compile_ast(p->vm->vm_state, ast, out_result);
+	return p->vm->compile_ast(p->vm->vm_state, module_name, source, ast, out_result);
 }
 
 SnString* snow_vm_get_name_of(void* ptr) {

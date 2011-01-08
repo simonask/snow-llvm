@@ -60,11 +60,11 @@ VALUE snow_set_global(SnSymbol name, VALUE val) {
 	return snow_object_set_member(go, go, name, val);
 }
 
-SnFunction* snow_compile(const char* source) {
+SnFunction* snow_compile(const char* module_name, const char* source) {
 	struct SnAST* ast = snow_parse(source);
 	if (ast) {
 		SnCompilationResult result;
-		if (snow_vm_compile_ast(ast, &result)) {
+		if (snow_vm_compile_ast(module_name, source, ast, &result)) {
 			return snow_create_function(result.entry_descriptor, NULL);
 		} else if (result.error_str) {
 			fprintf(stderr, "ERROR COMPILING FUNCTION: %s\n", result.error_str);
@@ -75,10 +75,6 @@ SnFunction* snow_compile(const char* source) {
 			return NULL;
 		}
 	}
-	return NULL;
-}
-
-SnFunction* snow_compile_file(const char* path) {
 	return NULL;
 }
 
