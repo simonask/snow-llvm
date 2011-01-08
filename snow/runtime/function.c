@@ -17,7 +17,6 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 }
 
 SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
-	ASSERT(num_names <= num_args);
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
 	SnFunctionCallContext* context = SN_GC_ALLOC_OBJECT(SnFunctionCallContext);
@@ -27,13 +26,13 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	context->module = callee->definition_context ? callee->definition_context->module : NULL;
 	const SnFunctionDescriptor* descriptor = callee->descriptor;
 	
-	num_args = num_args < descriptor->num_params ? descriptor->num_params : num_args;
 	size_t num_locals = descriptor->num_locals;
 	VALUE* locals = num_locals ? (VALUE*)malloc(sizeof(VALUE) * num_locals) : NULL;
-	memset(locals, 0, sizeof(VALUE) * num_locals);
+	bzero(locals, sizeof(VALUE) * num_locals);
 	context->locals = locals;
 	
 	VALUE* param_args = (VALUE*)alloca(descriptor->num_params * sizeof(SnSymbol));
+	bzero(param_args, descriptor->num_params * sizeof(SnSymbol));
 	SnSymbol* extra_names = (SnSymbol*)alloca(num_names*sizeof(SnSymbol));
 	VALUE* extra_args = (VALUE*)alloca(num_args*sizeof(VALUE));
 	
@@ -47,30 +46,27 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	size_t arg_i = 0;
 	while (param_i < descriptor->num_params) {
 		bool found = false;
-		while (arg_i < num_names) {
+		while (arg_i < num_names && arg_i < num_args) {
 			if (names[arg_i] == descriptor->param_names[param_i]) {
 				found = true;
-				param_args[param_i] = args[arg_i];
-				++arg_i;
+				param_args[param_i++] = args[arg_i++];
 				break;
 			} else {
 				// named argument, but not part of the function definition.
-				
-				extra_args[num_extra_names] = args[arg_i];
-				extra_names[num_extra_names] = names[arg_i];
-				++num_extra_names;
-				++num_extra_args;
+				extra_args[num_extra_names++] = args[arg_i];
+				extra_names[num_extra_names++] = names[arg_i];
 				++arg_i;
 			}
 		}
 		
 		if (!found) {
 			// take an unnamed arg
-			param_args[param_i] = args[arg_i];
-			++arg_i;
+			if (arg_i < num_args) {
+				param_args[param_i++] = args[arg_i++];
+			} else {
+				param_args[param_i++] = NULL;
+			}
 		}
-		
-		++param_i;
 	}
 	
 	// Extra named args
@@ -89,12 +85,12 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	
 	context->arguments = snow_create_arguments(num_extra_names, num_args);
 	context->arguments->descriptor = descriptor;
-	memcpy(locals, param_args, descriptor->num_params*sizeof(VALUE));
-	memcpy(context->arguments->data, param_args, descriptor->num_params*sizeof(VALUE));
+	memcpy(locals, param_args, param_i*sizeof(VALUE));
+	memcpy(context->arguments->data, param_args, param_i*sizeof(VALUE));
 	memcpy(context->arguments->data + descriptor->num_params, extra_args, num_extra_args*sizeof(VALUE));
 	memcpy(context->arguments->extra_names, extra_names, num_extra_names*sizeof(SnSymbol));
 	
-	// PHEW! The worst is over.
+	// PHEW! It's over.
 	
 	return context;
 }
