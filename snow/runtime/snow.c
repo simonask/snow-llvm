@@ -138,6 +138,17 @@ VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
 	SnObject* prototype = get_nearest_object(self);
 	return snow_object_set_member(prototype, self, member, val);
 }
+
+SnObject* snow_create_class_for_prototype(SnSymbol name, SnObject* proto) {
+	SnObject* class_prototype = snow_get_global(snow_sym("__class_prototype__"));
+	ASSERT(class_prototype); // prelude has not been loaded
+	SnObject* klass = snow_create_object(class_prototype);
+	klass->name = name;
+	snow_object_set_member(klass, klass, snow_sym("instance_prototype"), proto);
+	snow_object_set_member(proto, proto, snow_sym("class"), klass);
+	return klass;
+}
+
 SnString* snow_value_to_string(VALUE it) {
 	VALUE vstr = SN_CALL_METHOD(it, "to_string", 0, NULL);
 	ASSERT(snow_type_of(vstr) == SnStringType);

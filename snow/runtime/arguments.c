@@ -29,6 +29,27 @@ void snow_arguments_grow_by(SnArguments* args, size_t num_names, size_t size) {
 	}
 }
 
+VALUE snow_arguments_get_by_name(SnArguments* args, SnSymbol name) {
+	// TODO: Since argument names are always in order, consider using bsearch here instead.
+	
+	size_t offset = 0;
+	if (args->descriptor) {
+		for (size_t i = 0; i < args->descriptor->num_params; ++i) {
+			if (name == args->descriptor->param_names[i]) {
+				return args->data[i];
+			}
+		}
+		offset = args->descriptor->num_params;
+	}
+	
+	for (size_t i = 0; i < args->num_extra_names; ++i) {
+		if (name == args->extra_names[i]) {
+			return args->data[offset + i];
+		}
+	}
+	return NULL;
+}
+
 static VALUE arguments_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnArgumentsType) return NULL;
 	SnArguments* args = (SnArguments*)self;

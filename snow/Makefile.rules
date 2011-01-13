@@ -18,6 +18,12 @@ CXX_MM_COMMAND = $(CXX) $(CXXFLAGS) -MM
 %.cpp.bc: %.cpp .%.cpp.bc.deps $(LEVEL)/Makefile.config
 	$(BC_CXX_COMMAND) -o $@ $<
 
+%.bc: %.c .%.c.bc.deps $(LEVEL)/Makefile.config
+	$(BC_CC_COMMAND) -o $@ $<
+
+%.bc: %.cpp .%.cpp.bc.deps $(LEVEL)/Makefile.config
+	$(BC_CXX_COMMAND) -o $@ $<
+
 %.c.o: %.c .%.c.o.deps $(LEVEL)/Makefile.config
 	$(CC_COMMAND) -o $@ $<
 

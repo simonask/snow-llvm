@@ -33,6 +33,8 @@ CAPI struct SnFunction* snow_get_method(VALUE self, SnSymbol member);
 CAPI VALUE snow_get_member(VALUE self, SnSymbol member);
 CAPI VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val);
 
+CAPI struct SnObject* snow_create_class_for_prototype(SnSymbol name, struct SnObject* proto);
+
 CAPI struct SnString* snow_value_to_string(VALUE val);
 CAPI const char* snow_value_to_cstr(VALUE val);
 CAPI void snow_printf(const char* fmt, size_t num_args, ...);

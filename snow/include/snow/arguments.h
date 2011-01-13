@@ -25,5 +25,8 @@ typedef struct SnArguments {
 
 CAPI SnArguments* snow_create_arguments(size_t num_names, size_t size);
 CAPI void snow_arguments_grow_by(SnArguments* args, size_t num_names, size_t size);
+static inline size_t snow_arguments_size(SnArguments* args) { return args->size; }
+static inline VALUE snow_arguments_get_by_index(SnArguments* args, size_t idx) { return idx < args->size ? args->data[idx] : NULL; }
+CAPI VALUE snow_arguments_get_by_name(SnArguments* args, SnSymbol sym);
 
 #endif /* end of include guard: ARGUMENTS_H_5M3JAXPP */

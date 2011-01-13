@@ -4,7 +4,7 @@ TARGET := snow
 SOURCES := $(wildcard *.c *.cpp)
 OBJECTS = $(patsubst %,%.o,$(SOURCES))
 
-SUBDIRS := runtime libsnow
+SUBDIRS := runtime libsnow lib
 
 include Makefile.rules
 
