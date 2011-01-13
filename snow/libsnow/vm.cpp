@@ -27,6 +27,7 @@ static bool compile_ast(void* vm_state, const char* module_name, const char* sou
 static void free_function(void* vm_state, void* jit_handle);
 static void realize_function(void* vm_state, SnFunctionDescriptor* descriptor);
 static int get_name_of(void* vm_state, void* ptr, char* buffer, int maxlength);
+static SnModuleInitFunc load_bitcode_module(void* vm_state, const char* path);
 
 namespace snow {
 	void init_vm(SnVM* vm, llvm::ExecutionEngine* ee) {
@@ -35,6 +36,7 @@ namespace snow {
 		vm->free_function = free_function;
 		vm->realize_function = realize_function;
 		vm->get_name_of = get_name_of;
+		vm->load_bitcode_module = load_bitcode_module;
 		
 		vm->symbol = snow::symbol;
 		vm->symbol_to_cstr = snow::symbol_to_cstr;
@@ -83,4 +85,31 @@ int get_name_of(void* vm_state, void* ptr, char* buffer, int maxlen) {
 		return copy;
 	}
 	return 0;
+}
+
+SnModuleInitFunc load_bitcode_module(void* vm_state, const char* path) {
+	llvm::ExecutionEngine* ee = (llvm::ExecutionEngine*)vm_state;
+	ASSERT(ee);
+	
+	std::string error;
+	llvm::MemoryBuffer* buffer = NULL;
+	llvm::Module* module = NULL;
+	if ((buffer = llvm::MemoryBuffer::getFile(path, &error))) {
+		module = llvm::getLazyBitcodeModule(buffer, llvm::getGlobalContext(), &error);
+		if (!module) {
+			fprintf(stderr, "ERROR: Could not load %s.\n", path);
+			delete buffer;
+			return NULL;
+		}
+	}
+	
+	llvm::Function* init_func = module->getFunction("snow_module_init");
+	if (!init_func) {
+		fprintf(stderr, "ERROR: Module does not contain a function named 'snow_module_init'.\n");
+		return NULL;
+	}
+	
+	ee->addModule(module);
+	ee->runStaticConstructorsDestructors(module, false);
+	return (SnModuleInitFunc)ee->getPointerToFunction(init_func);
 }

@@ -22,12 +22,16 @@ typedef SnSymbol(*SnGetSymbolFunc)(const char* cstr);
 typedef const char*(*SnGetSymbolStringFunc)(SnSymbol sym);
 typedef int(*SnGetNameOf)(void* vm_state, void* ptr, char* buffer, int maxlen);
 
+typedef VALUE(*SnModuleInitFunc)();
+typedef SnModuleInitFunc(*SnLoadBitcodeModuleFunc)(void* vm_state, const char* path);
+
 typedef struct SnVM {
 	void* vm_state;
 	SnCompileASTFunc compile_ast;
 	SnFreeFunctionFunc free_function;
 	SnRealizeFunctionFunc realize_function;
 	SnGetNameOf get_name_of;
+	SnLoadBitcodeModuleFunc load_bitcode_module;
 	
 	SnGetSymbolFunc symbol;
 	SnGetSymbolStringFunc symbol_to_cstr;
@@ -35,8 +39,7 @@ typedef struct SnVM {
 
 CAPI void* snow_vm_load_precompiled_image(const char* file);
 CAPI bool snow_vm_compile_ast(const char* module_name, const char* soure, const struct SnAST* ast, SnCompilationResult* out_result);
-CAPI void snow_vm_realize_function(struct SnFunctionDescriptor* descriptor);
-CAPI void snow_vm_free_function(void* jit_handle);
+CAPI struct SnObject* snow_vm_load_bitcode_module(const char* path);
 CAPI struct SnString* snow_vm_get_name_of(void* ptr);
 
 

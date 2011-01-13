@@ -39,11 +39,23 @@ static VALUE global_make_object(SnFunctionCallContext* here, VALUE self, VALUE i
 	return snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
 }
 
+static VALUE global_import(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	SnString* file = snow_value_to_string(it);
+	return snow_import(snow_string_cstr(file));
+}
+
+static VALUE global_load(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	SnString* file = snow_value_to_string(it);
+	return snow_load(snow_string_cstr(file));
+}
+
 void snow_init_globals() {
 	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
 	
 	snow_set_global(snow_sym("@"), snow_create_method(global_make_array, -1));
 	snow_set_global(snow_sym("puts"), snow_create_method(global_puts, -1));
+	snow_set_global(snow_sym("import"), snow_create_method(global_import, 1));
+	snow_set_global(snow_sym("load"), snow_create_method(global_load, 1));
 	
 	snow_set_global(snow_sym("__make_object__"), snow_create_method(global_make_object, -1));
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));

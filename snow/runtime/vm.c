@@ -14,3 +14,12 @@ SnString* snow_vm_get_name_of(void* ptr) {
 	int n = p->vm->get_name_of(p->vm->vm_state, ptr, buffer, 100);
 	return snow_create_string_with_size(buffer, n);
 }
+
+SnObject* snow_vm_load_bitcode_module(const char* path) {
+	SnProcess* p = snow_get_process();
+	SnModuleInitFunc init = p->vm->load_bitcode_module(p->vm->vm_state, path);
+	if (init) {
+		return init();
+	}
+	return NULL;
+}

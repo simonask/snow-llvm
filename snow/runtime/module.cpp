@@ -4,23 +4,33 @@
 #include "snow/type.h"
 #include "snow/str.h"
 #include "snow/function.h"
+#include "snow/vm.h"
+
 #include <google/dense_hash_map>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
 
-struct Module {
-	SnObject* module;
-	SnFunction* entry;
-	std::string path;
-	std::string source;
-	// AST?
-};
-
-typedef google::dense_hash_map<std::string, Module*> ModuleMap;
-typedef std::vector<Module*> ModuleList;
 
 namespace {
+	struct Module {
+		SnObject* module;
+		SnFunction* entry;
+		std::string path;
+		std::string source;
+		// AST?
+	};
+
+	typedef google::dense_hash_map<std::string, Module*> ModuleMap;
+	typedef std::vector<Module*> ModuleList;
+	
+	enum ModuleType {
+		ModuleTypeSource,
+		ModuleTypeCompiledSource,
+		ModuleTypeBitcode,
+		ModuleTypeDynamicLibrary
+	};
+	
 	ModuleMap* get_module_map() {
 		static ModuleMap* l = NULL;
 		if (!l) {
@@ -57,6 +67,9 @@ namespace {
 			path = file;
 			return file_exists(path);
 		} else {
+			static const char* file_suffixes[] = {"", ".sn", ".sno", ".bc" /* TODO: Dynamic libraries? */};
+			static const size_t num_file_suffixes = sizeof(file_suffixes) / sizeof(const char*);
+			
 			SnArray* load_paths = snow_get_load_paths();
 			for (size_t i = 0; i < snow_array_size(load_paths); ++i) {
 				VALUE vpath = snow_array_get(load_paths, i);
@@ -73,15 +86,12 @@ namespace {
 					++spath_len;
 				}
 				
-				size_t candidate_len = spath_len + file.size();
-				char* candidate = (char*)alloca(candidate_len + 1);
-				memcpy(candidate, spath_cstr, spath_len);
-				memcpy(candidate + spath_len, file.c_str(), file.size());
-				candidate[candidate_len] = '\0';
-				
-				if (file_exists(candidate)) {
-					path = candidate;
-					return true;
+				for (size_t j = 0; j < num_file_suffixes; ++j) {
+					std::string candidate = std::string(spath_cstr) + file + std::string(file_suffixes[j]);
+					if (file_exists(candidate.c_str())) {
+						path = candidate;
+						return true;
+					}
 				}
 			}
 			return false;
@@ -107,12 +117,21 @@ namespace {
 		}
 	}
 	
-	inline Module* compile_module(const std::string& path, const std::string& source, SnObject* mod) {
-		Module* m = new Module;
-		m->path = path;
-		m->source = source;
-		m->module = mod;
-		
+	inline ModuleType get_module_type(const std::string& path) {
+		const std::string extension = strrchr(path.c_str(), '.') + 1;
+		if (extension == "sn") {
+			return ModuleTypeSource;
+		} else if (extension == "sno") {
+			return ModuleTypeCompiledSource;
+		} else if (extension == "bc") {
+			return ModuleTypeBitcode;
+		} else {
+			fprintf(stderr, "WARNING: Unknown file extension '%s', assuming source code.\n", extension.c_str());
+			return ModuleTypeSource;
+		}
+	}
+	
+	inline std::string get_module_name(const std::string& path) {
 		std::string module_name = path;
 		char* p = strrchr(path.c_str(), '/');
 		if (p++) {
@@ -123,8 +142,16 @@ namespace {
 				module_name = p;
 			}
 		}
+		return module_name;
+	}
+	
+	inline Module* compile_module(const std::string& path, const std::string& source, SnObject* mod) {
+		Module* m = new Module;
+		m->path = path;
+		m->source = source;
+		m->module = mod;
 		
-		m->entry = snow_compile(module_name.c_str(), m->source.c_str());
+		m->entry = snow_compile(get_module_name(path).c_str(), m->source.c_str());
 		
 		if (m->entry) {
 			get_module_list()->push_back(m);
@@ -139,6 +166,27 @@ namespace {
 			fprintf(stderr, "ERROR: Could not compile module.\n");
 			delete m;
 			return NULL;
+		}
+	}
+	
+	inline Module* load_module(const std::string& path) {
+		switch (get_module_type(path)) {
+			case ModuleTypeSource: return compile_module(path, load_source(path), snow_create_object(NULL));
+			case ModuleTypeBitcode: {
+				SnObject* mod = snow_vm_load_bitcode_module(path.c_str());
+				if (mod) {
+					Module* m = new Module;
+					m->path = path;
+					m->module = mod;
+					get_module_list()->push_back(m);
+					return m;
+				}
+				return NULL;
+			}
+			default: {
+				fprintf(stderr, "ERROR: Only Source and Bitcode modules are supported at this time.\n");
+				return NULL;
+			}
 		}
 	}
 }
@@ -178,8 +226,7 @@ CAPI {
 	SnObject* snow_load(const char* file) {
 		std::string path;
 		if (expand_load_path(file, path)) {
-			SnObject* mod = snow_create_object(NULL);
-			Module* module = compile_module(path, load_source(path), mod);
+			Module* module = load_module(path);
 			
 			ModuleMap& map = *get_module_map();
 			map[path] = module;
@@ -191,6 +238,7 @@ CAPI {
 	VALUE snow_load_in_global_module(const char* file) {
 		std::string path;
 		if (expand_load_path(file, path)) {
+			ASSERT(get_module_type(path) == ModuleTypeSource); // only source modules are supported in snow_load_in_global_module
 			SnObject* mod = snow_get_global_module();
 			if (compile_module(path, load_source(file), mod)) {
 				return snow_object_get_member(mod, mod, snow_sym("__module_value__"));
