@@ -138,3 +138,8 @@ VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
 	SnObject* prototype = get_nearest_object(self);
 	return snow_object_set_member(prototype, self, member, val);
 }
+SnString* snow_value_to_string(VALUE it) {
+	VALUE vstr = SN_CALL_METHOD(it, "to_string", 0, NULL);
+	ASSERT(snow_type_of(vstr) == SnStringType);
+	return (SnString*)vstr;
+}
