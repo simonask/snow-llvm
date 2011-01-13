@@ -55,7 +55,7 @@ SnObject* snow_get_prototype_for_type(SnType type) {
 			case SnFunctionType: prototypes[type] = snow_create_function_prototype(); break;
 			case SnFunctionCallContextType: prototypes[type] = snow_create_function_call_context_prototype(); break;
 			case SnArgumentsType: prototypes[type] = snow_create_arguments_prototype(); break;
-			//case SnPointerType:  prototypes[type] = snow_create_pointer_prototype(); break; // TODO
+			case SnPointerType:  prototypes[type] = snow_create_pointer_prototype(); break;
 			default: {
 				ASSERT(false && "Requested prototype for invalid type.");
 				break;
