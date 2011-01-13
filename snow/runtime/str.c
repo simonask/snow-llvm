@@ -119,7 +119,7 @@ SnString* snow_string_format(const char* utf8_format, ...) {
 	char* str;
 	vasprintf(&str, utf8_format, ap);
 	va_end(ap);
-	return snow_create_string(str);
+	return snow_create_string_take_ownership(str);
 }
 
 static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
