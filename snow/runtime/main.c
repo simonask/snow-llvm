@@ -45,14 +45,11 @@ static void interactive_prompt()
 		if (!unfinished_expr) {
 			SnString* str = snow_create_string_from_linkbuffer(input_buffer);
 			VALUE result = snow_eval_in_global_module(snow_string_cstr(str));
-			if (result)
-			{
-				VALUE inspected = snow_call(snow_get_method(result, snow_sym("inspect")), result, 0, NULL);
-				if (snow_type_of(inspected) != SnStringType) {
-					inspected = snow_string_format("[Object@%p]", result);
-				}
-				printf("=> %s\n", snow_string_cstr((SnString*)inspected));
+			VALUE inspected = snow_call(snow_get_method(result, snow_sym("inspect")), result, 0, NULL);
+			if (snow_type_of(inspected) != SnStringType) {
+				inspected = snow_string_format("[Object@%p]", result);
 			}
+			printf("=> %s\n", snow_string_cstr((SnString*)inspected));
 			snow_linkbuffer_clear(input_buffer);
 		}
 	}
