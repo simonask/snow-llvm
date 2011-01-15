@@ -1,6 +1,9 @@
 include $(LEVEL)/Makefile.config
 
-all: $(TARGET)
+GOALS = clean depends all install
+.PHONY: $(GOALS) subdirs $(SUBDIRS)
+.DEFAULT_GOAL := all
+.DELETE_ON_ERROR :=
 
 BC_CC_COMMAND = $(BC_CC) -c -emit-llvm $(BC_CFLAGS)
 BC_CXX_COMMAND = $(BC_CXX) -c -emit-llvm $(BC_CXXFLAGS)
@@ -39,11 +42,6 @@ CXX_MM_COMMAND = $(CXX) $(CXXFLAGS) -MM
 .%.cpp.o.deps: %.cpp $(LEVEL)/Makefile.config
 	$(CXX_MM_COMMAND) -MM $< > $@
 
-GOALS = clean depends all install
-.PHONY: $(GOALS) subdirs $(SUBDIRS)
-.DEFAULT_GOAL := all
-.DELETE_ON_ERROR :=
-
 DEPENDENCIES := $(patsubst %,.%.deps,$(OBJECTS))
 depends: $(DEPENDENCIES)
 	-rm .depends
@@ -53,6 +51,8 @@ depends: $(DEPENDENCIES)
 ifneq ($(MAKECMDGOALS),clean)
 -include .depends
 endif
+
+all: subdirs $(TARGET)
 
 clean: subdirs
 	-rm -f $(OBJECTS) $(TARGET)
