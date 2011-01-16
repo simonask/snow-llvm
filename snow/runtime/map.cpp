@@ -102,6 +102,7 @@ namespace {
 			map->hash_map = hmap;
 		}
 		map->flags &= ~MAP_FLAT;
+		ASSERT(!map_is_flat(map));
 	}
 	
 	bool map_elements_are_equal(const SnMap* map, VALUE a, VALUE b) {
@@ -202,12 +203,12 @@ CAPI {
 		} else if (map_has_immediate_keys(map)) {
 			const ImmediateHashMap* hmap = immediate_hash_map(map);
 			ImmediateHashMap::const_iterator it = hmap->find(key);
-			if (it != hmap->end()) return NULL;
+			if (it == hmap->end()) return NULL;
 			return it->second;
 		} else {
 			const HashMap* hmap = hash_map(map);
 			HashMap::const_iterator it = hmap->find(key);
-			if (it != hmap->end()) return NULL;
+			if (it == hmap->end()) return NULL;
 			return it->second;
 		}
 	}
