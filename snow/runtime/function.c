@@ -279,6 +279,29 @@ SnFunction* snow_value_to_function(VALUE val) {
 	return (SnFunction*)functor;
 }
 
+VALUE snow_get_local(SnFunctionCallContext* here, int adjusted_level, int index) {
+	SnFunctionCallContext* ctx = here;
+	for (int i = 0; i < adjusted_level; ++i) {
+		ctx = ctx->function->definition_context;
+	}
+	
+	ASSERT(ctx);
+	ASSERT(index < ctx->function->descriptor->num_locals);
+	return ctx->locals[index];
+}
+
+VALUE snow_set_local(SnFunctionCallContext* here, int adjusted_level, int index, VALUE value) {
+	SnFunctionCallContext* ctx = here;
+	for (int i = 0; i < adjusted_level; ++i) {
+		ctx = ctx->function->definition_context;
+	}
+	
+	ASSERT(ctx);
+	ASSERT(index < ctx->function->descriptor->num_locals);
+	ctx->locals[index] = value;
+	return value;
+}
+
 void snow_finalize_function(SnFunction* func) {
 }
 
