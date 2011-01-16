@@ -8,5 +8,5 @@ SUBDIRS := runtime libsnow lib
 
 include $(LEVEL)/Makefile.rules
 
-$(TARGET): $(OBJECTS) $(LLVM_LIBS)
+$(TARGET): $(OBJECTS) $(LLVM_LIBS) libsnow/libsnow.a
 	$(LD) $(LDFLAGS) $(OBJECTS) libsnow/libsnow.a $(LLVM_LIBS) -o $@
