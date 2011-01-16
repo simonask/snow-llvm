@@ -1,5 +1,4 @@
 #include "codegen.hpp"
-#include "vm.hpp"
 #include "symbol.hpp"
 
 #include <algorithm>
@@ -779,7 +778,9 @@ namespace snow {
 	
 	llvm::Value* Codegen::symbol_constant(llvm::IRBuilder<>& builder, const SnSymbol constant) {
 		// SnSymbol is uint64_t
-		return builder.getInt64(constant);
+		llvm::ConstantInt* ci = builder.getInt64(constant);
+		ci->setName(std::string("symbol:") + snow::symbol_to_cstr(constant));
+		return ci;
 	}
 	
 	llvm::CallInst* Codegen::method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args, const std::vector<llvm::Value*>& splat_args) {
