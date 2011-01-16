@@ -41,6 +41,7 @@ namespace snow {
 		SymbolInlinePass* _symbol_inline_pass;
 		
 		void link_with_runtime(llvm::Module* incoming_module);
+		
 		void optimize(llvm::Module* module, OptimizationLevel level);
 		void optimize(llvm::Function* function, OptimizationLevel level);
 	};
@@ -182,7 +183,7 @@ namespace snow {
 				llvm::Function* impl = _runtime->getFunction(fname);
 				if (impl != NULL) {
 					// replace calls to declaration with call to implementation in runtime
-					decl->replaceAllUsesWith(impl);
+					decl->replaceAllUsesWith(ConstantExpr::getBitCast(impl, decl->getType()));
 				}
 			}
 		}
