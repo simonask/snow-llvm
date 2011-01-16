@@ -209,7 +209,7 @@ namespace snow {
 	CodeManager::Impl::~Impl() {
 		delete _symbol_inline_pass;
 		_engine->runStaticConstructorsDestructors(true);
-		delete _engine;
+		//delete _engine; // TODO/XXX: Figure out a way to safely destroy modules without hitting the "no-use" assert.
 	}
 	
 	void CodeManager::init() {
