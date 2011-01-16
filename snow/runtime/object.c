@@ -30,10 +30,10 @@ void snow_finalize_object(SnObject* obj) {
 	free(obj->properties);
 }
 
-VALUE snow_object_get_member(SnObject* obj, VALUE self, SnSymbol member) {
+VALUE snow_object_get_member(SnObject* object, VALUE self, SnSymbol member) {
 	VALUE vmember = snow_symbol_to_value(member);
 	SnObject* object_prototype = snow_get_prototype_for_type(SnObjectType);
-	
+	SnObject* obj = object;
 	while (obj) {
 		VALUE v;
 		if (obj->members) {
@@ -58,8 +58,9 @@ VALUE snow_object_get_member(SnObject* obj, VALUE self, SnSymbol member) {
 		if (obj->included_modules) {
 			for (size_t i = 0; i < snow_array_size(obj->included_modules); ++i) {
 				SnObject* included = (SnObject*)snow_array_get(obj->included_modules, i);
-				if ((v = snow_object_get_member(included, self, member)))
-					return v;
+				ASSERT(snow_type_of(included) == SnObjectType);
+				v = snow_object_get_member(included, self, member);
+				if (v) return v;
 			}
 		}
 		
@@ -72,31 +73,31 @@ VALUE snow_object_get_member(SnObject* obj, VALUE self, SnSymbol member) {
 	return NULL;
 }
 
-VALUE snow_object_set_member(SnObject* obj, VALUE self, SnSymbol member, VALUE value) {
+VALUE snow_object_set_member(SnObject* object, VALUE self, SnSymbol member, VALUE value) {
 	// First, look for properties. TODO: Find a way to do this faster, perhaps?
-	SnObject* pobj = obj;
+	SnObject* obj = object;
 	SnProperty key = { member, NULL, NULL };
-	while (pobj) {
-		if (pobj->properties) {
-			SnProperty* property = (SnProperty*)bsearch(&key, pobj->properties, pobj->num_properties, sizeof(SnProperty), compare_properties);
+	while (obj) {
+		if (obj->properties) {
+			SnProperty* property = (SnProperty*)bsearch(&key, obj->properties, obj->num_properties, sizeof(SnProperty), compare_properties);
 			if (property) {
 				if (property->setter) {
 					return snow_call(property->setter, self, 1, &value);
 				} else {
 					// TODO: Exception
-					fprintf(stderr, "ERROR: Property '%s' is read-only on object %p (self %p).\n", snow_sym_to_cstr(member), pobj, self);
+					fprintf(stderr, "ERROR: Property '%s' is read-only on object %p (self %p).\n", snow_sym_to_cstr(member), obj, self);
 					return NULL;
 				}
 			}
 		}
-		pobj = pobj->prototype;
+		obj = obj->prototype;
 	}
 	
 	// TODO: Look for properties in included modules
 	
-	if (!obj->members)
-		obj->members = snow_create_map_with_immediate_keys();
-	snow_map_set(obj->members, snow_symbol_to_value(member), value);
+	if (!object->members)
+		object->members = snow_create_map_with_immediate_keys();
+	snow_map_set(object->members, snow_symbol_to_value(member), value);
 	return value;
 }
 
