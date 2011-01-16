@@ -48,7 +48,7 @@ namespace snow {
 	
 	class Codegen {
 	public:
-		Codegen(llvm::LLVMContext& c, const llvm::StringRef& module_name);
+		Codegen(llvm::Module* runtime_module, const llvm::StringRef& module_name);
 		bool compile_ast(const SnAST* ast);
 		
 		llvm::Module* get_module() const { return _module; }
@@ -80,14 +80,16 @@ namespace snow {
 		llvm::Value* symbol_constant(llvm::IRBuilder<>& builder, const SnSymbol constant);
 		llvm::CallInst* method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args, const std::vector<llvm::Value*>& splat_args);
 		llvm::CallInst* call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, llvm::Value* self, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args, const std::vector<llvm::Value*>& splat_args);
-		
-		llvm::CallInst* tail_call(llvm::CallInst* inst) { inst->setTailCall(true); return inst; }
+		llvm::CallInst* tail_call(llvm::CallInst* inst) const { inst->setTailCall(true); return inst; }
+		llvm::FunctionType* get_function_type() const;
+		llvm::Function* get_runtime_function(const char* name) const;
+		const llvm::StructType* get_runtime_struct_type(const char* name) const;
 		
 		llvm::StringRef current_assignment_name() const;
 		
-		llvm::LLVMContext& _context;
-		llvm::StringRef _module_name;
+		llvm::Module* _runtime_module;
 		llvm::Module* _module;
+		llvm::StringRef _module_name;
 		llvm::GlobalVariable* _entry_descriptor;
 		char* _error_string;
 		std::map<std::string, llvm::Function*> _imported_functions;

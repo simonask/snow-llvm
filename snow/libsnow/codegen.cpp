@@ -21,9 +21,9 @@ namespace {
 }
 
 namespace snow {
-	Codegen::Codegen(llvm::LLVMContext& context, const llvm::StringRef& module_name) : _context(context), _module_name(module_name), _module(NULL), _entry_descriptor(NULL), _error_string(NULL) {
-		std::string mn = llvm::StringRef("Snow Module: ").str() + module_name.str();
-		_module = new llvm::Module(mn, _context);
+	Codegen::Codegen(llvm::Module* runtime_module, const llvm::StringRef& module_name) : _runtime_module(runtime_module), _module(NULL), _module_name(module_name), _entry_descriptor(NULL), _error_string(NULL) {
+		std::string mn = std::string("Snow Module: ") + module_name.str();
+		_module = new llvm::Module(mn, runtime_module->getContext());
 	}
 	
 	llvm::StringRef Codegen::current_assignment_name() const {
@@ -35,7 +35,7 @@ namespace snow {
 	
 	llvm::GlobalVariable* Codegen::descriptor_for_info(const FunctionCompilerInfo& info) {
 		using namespace llvm;
-		const StructType* descriptor_type = snow::get_runtime_struct_type("struct.SnFunctionDescriptor");
+		const StructType* descriptor_type = get_runtime_struct_type("struct.SnFunctionDescriptor");
 		
 		/*
 			typedef struct SnFunctionDescriptor {
@@ -51,10 +51,12 @@ namespace snow {
 			} SnFunctionDescriptor;
 		*/
 		
-		const IntegerType* itype8 = IntegerType::get(_context, 8);
-		const IntegerType* itype32 = IntegerType::get(_context, 32);
-		const IntegerType* itype64 = IntegerType::get(_context, 64);
-		const IntegerType* sym_type = IntegerType::get(_context, 64);
+		LLVMContext& context = _module->getContext();
+		
+		const IntegerType* itype8 = IntegerType::get(context, 8);
+		const IntegerType* itype32 = IntegerType::get(context, 32);
+		const IntegerType* itype64 = IntegerType::get(context, 64);
+		const IntegerType* sym_type = IntegerType::get(context, 64);
 		const IntegerType* size_type = sizeof(size_t) == 4 ? itype32 : itype64;
 		Constant* zero32 = ConstantInt::get(itype32, 0);
 		Constant* zeroes[2] = { zero32, zero32 };
@@ -106,7 +108,7 @@ namespace snow {
 		
 		FunctionCompilerInfo info;
 		info.parent = NULL;
-		info.function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, "snow_module_entry", _module);
+		info.function = llvm::Function::Create(get_function_type(), llvm::GlobalValue::InternalLinkage, "snow_module_entry", _module);
 		info.function_exit = NULL;
 		info.last_value = NULL;
 		info.here = NULL;
@@ -139,7 +141,7 @@ namespace snow {
 		// TODO: Determine more helpful function names
 		char* function_name;
 		asprintf(&function_name, "%s_func%d_", _module_name.str().c_str(), function_count++);
-		info.function = llvm::Function::Create(snow::get_function_type(), llvm::GlobalValue::InternalLinkage, llvm::StringRef(function_name) + current_assignment_name(), _module);
+		info.function = llvm::Function::Create(get_function_type(), llvm::GlobalValue::InternalLinkage, llvm::StringRef(function_name) + current_assignment_name(), _module);
 		free(function_name);
 		info.function_exit = NULL;
 		info.last_value = NULL;
@@ -196,9 +198,11 @@ namespace snow {
 		Function* F = info.function;
 		ASSERT(F);
 		
+		LLVMContext& context = _module->getContext();
+		
 		// Prepare to compile function
-		BasicBlock* entry_bb = BasicBlock::Create(_context, "entry", F);
-		BasicBlock* exit_bb = BasicBlock::Create(_context, "exit", F);
+		BasicBlock* entry_bb = BasicBlock::Create(context, "entry", F);
+		BasicBlock* exit_bb = BasicBlock::Create(context, "exit", F);
 		
 		info.function_exit = exit_bb;
 		Function::arg_iterator arg_it = F->arg_begin();
@@ -245,6 +249,8 @@ namespace snow {
 		using namespace llvm;
 		Function* F = info.function;
 		
+		LLVMContext& context = _module->getContext();
+		
 		switch (node->type) {
 			case SN_AST_SEQUENCE: {
 				for (const SnAstNode* x = node->sequence.head; x; x = x->next) {
@@ -260,7 +266,7 @@ namespace snow {
 			case SN_AST_CLOSURE: {
 				Constant* descriptor = compile_function(node, info);
 				if (!descriptor) return false;
-				Value* new_function = builder.CreateCall2(snow::get_runtime_function("snow_create_function"), descriptor, info.here, "closure");
+				Value* new_function = builder.CreateCall2(get_runtime_function("snow_create_function"), descriptor, info.here, "closure");
 				info.last_value = builder.CreateBitCast(new_function, builder.getInt8PtrTy(), "closure");
 				break;
 			}
@@ -297,11 +303,11 @@ namespace snow {
 						}
 					} else {
 						// get from other scope
-						info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), local_name));
+						info.last_value = tail_call(builder.CreateCall3(get_runtime_function("snow_get_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), local_name));
 					}
 				} else {
 					// try module-level locals
-					info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_object_get_member"), info.module, builder.CreatePointerCast(info.module, builder.getInt8PtrTy()), symbol_constant(builder, node->identifier.name), std::string("module:") + local_name));
+					info.last_value = tail_call(builder.CreateCall3(get_runtime_function("snow_object_get_member"), info.module, builder.CreatePointerCast(info.module, builder.getInt8PtrTy()), symbol_constant(builder, node->identifier.name), std::string("module:") + local_name));
 				}
 				break;
 			}
@@ -378,9 +384,9 @@ namespace snow {
 					// values, put the rest of the values into an array and assign that instead.
 					if (i == num_targets-1 && num_values > num_targets) {
 						size_t num_remaining = num_values - num_targets + 1;
-						assign_value = builder.CreateCall(snow::get_runtime_function("snow_create_array_with_size"), builder.getInt64(num_remaining));
+						assign_value = builder.CreateCall(get_runtime_function("snow_create_array_with_size"), builder.getInt64(num_remaining));
 						for (size_t j = i; j < num_values; ++j) {
-							builder.CreateCall2(snow::get_runtime_function("snow_array_push"), assign_value, assign_values[j]);
+							builder.CreateCall2(get_runtime_function("snow_array_push"), assign_value, assign_values[j]);
 						}
 						// cast SnArray* to VALUE
 						assign_value = builder.CreateBitCast(assign_value, builder.getInt8PtrTy());
@@ -409,13 +415,13 @@ namespace snow {
 						case SN_AST_MEMBER: {
 							if (!compile_ast_node(target->member.object, builder, info)) return false;
 							Value* object = info.last_value;
-							info.last_value = tail_call(builder.CreateCall3(snow::get_runtime_function("snow_set_member"), object, symbol_constant(builder, target->member.name), assign_value));
+							info.last_value = tail_call(builder.CreateCall3(get_runtime_function("snow_set_member"), object, symbol_constant(builder, target->member.name), assign_value));
 							break;
 						}
 						case SN_AST_IDENTIFIER: {
 							if (info.parent == NULL) {
 								// set module-level identifier
-								tail_call(builder.CreateCall4(snow::get_runtime_function("snow_object_set_member"), info.module, builder.CreatePointerCast(info.module, builder.getInt8PtrTy()), symbol_constant(builder, target->identifier.name), assign_value));
+								tail_call(builder.CreateCall4(get_runtime_function("snow_object_set_member"), info.module, builder.CreatePointerCast(info.module, builder.getInt8PtrTy()), symbol_constant(builder, target->identifier.name), assign_value));
 							} else {
 								// set local
 								int level, adjusted_level, index;
@@ -431,7 +437,7 @@ namespace snow {
 									// set in current scope
 									builder.CreateStore(assign_value, builder.CreateConstGEP1_32(info.locals_array, index));
 								} else {
-									tail_call(builder.CreateCall4(snow::get_runtime_function("snow_set_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), assign_value));
+									tail_call(builder.CreateCall4(get_runtime_function("snow_set_local"), info.here, builder.getInt32(adjusted_level), builder.getInt32(index), assign_value));
 								}
 							}
 							info.last_value = assign_value;
@@ -448,7 +454,7 @@ namespace snow {
 			}
 			case SN_AST_MEMBER: {
 				if (!compile_ast_node(node->member.object, builder, info)) return false;
-				info.last_value = tail_call(builder.CreateCall2(snow::get_runtime_function("snow_get_member"), info.last_value, symbol_constant(builder, node->member.name)));
+				info.last_value = tail_call(builder.CreateCall2(get_runtime_function("snow_get_member"), info.last_value, symbol_constant(builder, node->member.name)));
 				break;
 			}
 			case SN_AST_CALL: {
@@ -550,13 +556,13 @@ namespace snow {
 				SnAstNode* right = node->logic_and.right;
 				
 				BasicBlock* left_bb = builder.GetInsertBlock();
-				BasicBlock* right_bb = BasicBlock::Create(_context, "and_right", F);
-				BasicBlock* merge_bb = BasicBlock::Create(_context, "and_merge", F);
+				BasicBlock* right_bb = BasicBlock::Create(context, "and_right", F);
+				BasicBlock* merge_bb = BasicBlock::Create(context, "and_merge", F);
 				
 				if (!compile_ast_node(left, builder, info)) return false;
 				left_bb = builder.GetInsertBlock();
 				Value* left_value = info.last_value;
-				Value* left_truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), left_value);
+				Value* left_truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), left_value);
 				builder.CreateCondBr(left_truth, right_bb, merge_bb);
 				
 				builder.SetInsertPoint(right_bb);
@@ -578,13 +584,13 @@ namespace snow {
 				SnAstNode* right = node->logic_or.right;
 				
 				BasicBlock* left_bb = builder.GetInsertBlock();
-				BasicBlock* right_bb = BasicBlock::Create(_context, "or_right", F);
-				BasicBlock* merge_bb = BasicBlock::Create(_context, "or_merge", F);
+				BasicBlock* right_bb = BasicBlock::Create(context, "or_right", F);
+				BasicBlock* merge_bb = BasicBlock::Create(context, "or_merge", F);
 				
 				if (!compile_ast_node(left, builder, info)) return false;
 				left_bb = builder.GetInsertBlock();
 				Value* left_value = info.last_value;
-				Value* left_truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), left_value);
+				Value* left_truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), left_value);
 				builder.CreateCondBr(left_truth, merge_bb, right_bb);
 				
 				builder.SetInsertPoint(right_bb);
@@ -605,18 +611,18 @@ namespace snow {
 				SnAstNode* left = node->logic_xor.left;
 				SnAstNode* right = node->logic_xor.right;
 				
-				BasicBlock* merge_bb = BasicBlock::Create(_context, "xor_merge", F);
-				BasicBlock* test_truth_bb = BasicBlock::Create(_context, "xor_test_truth", F);
-				BasicBlock* left_false_right_true_bb = BasicBlock::Create(_context, "xor_left_false_true_false", F);
-				BasicBlock* both_true_or_false_bb = BasicBlock::Create(_context, "xor_both_true_or_false", F);
+				BasicBlock* merge_bb = BasicBlock::Create(context, "xor_merge", F);
+				BasicBlock* test_truth_bb = BasicBlock::Create(context, "xor_test_truth", F);
+				BasicBlock* left_false_right_true_bb = BasicBlock::Create(context, "xor_left_false_true_false", F);
+				BasicBlock* both_true_or_false_bb = BasicBlock::Create(context, "xor_both_true_or_false", F);
 				
 				if (!compile_ast_node(left, builder, info)) return false;
 				Value* left_value = info.last_value;
-				Value* left_truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), left_value);
+				Value* left_truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), left_value);
 				
 				if (!compile_ast_node(right, builder, info)) return false;
 				Value* right_value = info.last_value;
-				Value* right_truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), right_value);
+				Value* right_truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), right_value);
 				
 				builder.CreateCondBr(builder.CreateXor(left_truth, right_truth, "xor"), test_truth_bb, both_true_or_false_bb);
 				
@@ -641,11 +647,11 @@ namespace snow {
 			}
 			case SN_AST_NOT: {
 				if (!compile_ast_node(node->logic_not.expr, builder, info)) return false;
-				Value* truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), info.last_value);
+				Value* truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), info.last_value);
 				
 				BasicBlock* false_bb = builder.GetInsertBlock();
-				BasicBlock* true_bb = BasicBlock::Create(_context, "not_true", F);
-				BasicBlock* merge_bb = BasicBlock::Create(_context, "not_merge", F);
+				BasicBlock* true_bb = BasicBlock::Create(context, "not_true", F);
+				BasicBlock* merge_bb = BasicBlock::Create(context, "not_merge", F);
 				
 				builder.CreateCondBr(truth, true_bb, merge_bb);
 				
@@ -661,9 +667,9 @@ namespace snow {
 				break;
 			}
 			case SN_AST_LOOP: {
-				BasicBlock* cond_bb = BasicBlock::Create(_context, "loop_cond", F);
-				BasicBlock* body_bb = BasicBlock::Create(_context, "loop_body", F);
-				BasicBlock* merge_bb = BasicBlock::Create(_context, "loop_merge", F);
+				BasicBlock* cond_bb = BasicBlock::Create(context, "loop_cond", F);
+				BasicBlock* body_bb = BasicBlock::Create(context, "loop_body", F);
+				BasicBlock* merge_bb = BasicBlock::Create(context, "loop_merge", F);
 				
 				BasicBlock* incoming_bb = builder.GetInsertBlock();
 				builder.CreateBr(cond_bb);
@@ -681,7 +687,7 @@ namespace snow {
 				if (!compile_ast_node(node->loop.cond, builder, info)) return false;
 				BasicBlock* cond_end_bb = builder.GetInsertBlock();
 				Value* cond_value = info.last_value;
-				Value* cond_truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), cond_value);
+				Value* cond_truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), cond_value);
 				builder.CreateCondBr(cond_truth, body_bb, merge_bb);
 				
 				builder.SetInsertPoint(merge_bb);
@@ -698,14 +704,14 @@ namespace snow {
 				break;
 			}
 			case SN_AST_IF_ELSE: {
-				BasicBlock* body_bb = BasicBlock::Create(_context, "if_body", F);
-				BasicBlock* else_bb = node->if_else.else_body ? BasicBlock::Create(_context, "else_body", F) : NULL;
-				BasicBlock* merge_bb = BasicBlock::Create(_context, "if_merge", F);
+				BasicBlock* body_bb = BasicBlock::Create(context, "if_body", F);
+				BasicBlock* else_bb = node->if_else.else_body ? BasicBlock::Create(context, "else_body", F) : NULL;
+				BasicBlock* merge_bb = BasicBlock::Create(context, "if_merge", F);
 				
 				if (!compile_ast_node(node->if_else.cond, builder, info)) return false;
 				BasicBlock* cond_bb = builder.GetInsertBlock();
 				Value* cond_value = info.last_value;
-				Value* cond_truth = builder.CreateCall(snow::get_runtime_function("snow_eval_truth"), cond_value);
+				Value* cond_truth = builder.CreateCall(get_runtime_function("snow_eval_truth"), cond_value);
 				builder.CreateCondBr(cond_truth, body_bb, else_bb ? else_bb : merge_bb);
 				
 				builder.SetInsertPoint(body_bb);
@@ -778,7 +784,7 @@ namespace snow {
 	
 	llvm::CallInst* Codegen::method_call(llvm::IRBuilder<>& builder, FunctionCompilerInfo& info, llvm::Value* object, SnSymbol method, const std::vector<SnSymbol>& arg_names, const std::vector<llvm::Value*>& args, const std::vector<llvm::Value*>& splat_args) {
 		std::string method_name = object->getName().str() + "." + snow::symbol_to_cstr(method);
-		llvm::Value* function = builder.CreateCall2(snow::get_runtime_function("snow_get_method"), object, symbol_constant(builder, method), method_name);
+		llvm::Value* function = builder.CreateCall2(get_runtime_function("snow_get_method"), object, symbol_constant(builder, method), method_name);
 		return call(builder, info, function, object, arg_names, args, splat_args);
 	}
 	
@@ -788,7 +794,7 @@ namespace snow {
 		if (function->getType() == builder.getInt8PtrTy()) {
 			// function is a value, not a SnFunction*, so we need to find out which function to call
 			faux_self = function;
-			function = builder.CreateCall(snow::get_runtime_function("snow_value_to_function"), function, function->getName() + ":function");
+			function = builder.CreateCall(get_runtime_function("snow_value_to_function"), function, function->getName() + ":function");
 		}
 		
 		Value* null_array = builder.CreateCast(llvm::Instruction::IntToPtr, builder.getInt64(0), PointerType::getUnqual(builder.getInt8PtrTy()));
@@ -822,16 +828,47 @@ namespace snow {
 		v[4] = builder.getInt64(num_args);
 		v[5] = args_array;
 		
-		Value* call_context = builder.CreateCall(snow::get_runtime_function("snow_create_function_call_context"), v + 0, v + 6, function->getName() + ":call_context");
+		Value* call_context = builder.CreateCall(get_runtime_function("snow_create_function_call_context"), v + 0, v + 6, function->getName() + ":call_context");
 		
 		// merge splat arguments
 		for (size_t i = 0; i < splat_args.size(); ++i) {
-			builder.CreateCall2(snow::get_runtime_function("snow_merge_splat_arguments"), call_context, splat_args[i]);
+			builder.CreateCall2(get_runtime_function("snow_merge_splat_arguments"), call_context, splat_args[i]);
 		}
 		
 		if (!self) self = faux_self ? faux_self : value_constant(builder, NULL);
 		Value* it = args.size() ? args[0] : value_constant(builder, NULL);
-		return tail_call(builder.CreateCall4(snow::get_runtime_function("snow_function_call"), function, call_context, self, it));
+		return tail_call(builder.CreateCall4(get_runtime_function("snow_function_call"), function, call_context, self, it));
+	}
+	
+	
+	const llvm::StructType* Codegen::get_runtime_struct_type(const char* name) const {
+		ASSERT(_runtime_module != NULL);
+		return llvm::cast<const llvm::StructType>(_runtime_module->getTypeByName(name));
+	}
+	
+	llvm::FunctionType* Codegen::get_function_type() const {
+		static llvm::FunctionType* FT = NULL;
+		if (!FT) {
+			ASSERT(_runtime_module != NULL); // runtime must be loaded!
+			const llvm::Type* value_type = llvm::Type::getInt8PtrTy(_runtime_module->getContext());
+			std::vector<const llvm::Type*> param_types(3, NULL);
+			param_types[0] = llvm::PointerType::getUnqual(_runtime_module->getTypeByName("struct.SnFunctionCallContext"));
+			ASSERT(param_types[0]);
+			param_types[1] = value_type;
+			param_types[2] = value_type;
+			FT = llvm::FunctionType::get(value_type, param_types, false);
+		}
+		return FT;
+	}
+	
+	llvm::Function* Codegen::get_runtime_function(const char* name) const {
+		ASSERT(_runtime_module != NULL); // runtime must be loaded
+		llvm::Function* F = _runtime_module->getFunction(name);
+		if (!F) {
+			fprintf(stderr, "ERROR: Function '%s' not found in runtime! Codegen wants it.\n", name);
+			return NULL;
+		}
+		return F;
 	}
 	
 	void Codegen::gather_info_pass(const SnAstNode* node, FunctionCompilerInfo& info) {

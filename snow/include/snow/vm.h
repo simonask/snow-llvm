@@ -28,9 +28,6 @@ typedef SnModuleInitFunc(*SnLoadBitcodeModuleFunc)(void* vm_state, const char* p
 typedef struct SnVM {
 	void* vm_state;
 	SnCompileASTFunc compile_ast;
-	SnFreeFunctionFunc free_function;
-	SnRealizeFunctionFunc realize_function;
-	SnGetNameOf get_name_of;
 	SnLoadBitcodeModuleFunc load_bitcode_module;
 	
 	SnGetSymbolFunc symbol;
