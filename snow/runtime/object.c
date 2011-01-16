@@ -8,6 +8,7 @@
 #include "snow/function.h"
 #include "snow/str.h"
 #include "snow/snow.h"
+#include "snow/boolean.h"
 
 static int compare_properties(const void* _a, const void* _b) {
 	const SnProperty* a = (const SnProperty*)_a;
@@ -144,10 +145,25 @@ static VALUE object_instance_eval(SnFunctionCallContext* here, VALUE self, VALUE
 	return snow_call(functor, self, 0, NULL);
 }
 
+static VALUE object_include(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnObjectType) {
+		fprintf(stderr, "ERROR: Trying to include a module in a non-object '%p'.\n", self);
+		return NULL;
+	}
+	if (snow_type_of(it) != SnObjectType) {
+		fprintf(stderr, "ERROR: Trying to include non-object '%p' as module.\n", it);
+		return NULL;
+	}
+	
+	bool r = snow_object_include_module((SnObject*)self, (SnObject*)it);
+	return snow_boolean_to_value(r);
+}
+
 SnObject* snow_create_object_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "instance_eval", object_instance_eval, 1);
+	SN_DEFINE_METHOD(proto, "include", object_include, 1);
 	return proto;
 }
