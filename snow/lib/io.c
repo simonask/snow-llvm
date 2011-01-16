@@ -152,6 +152,7 @@ static VALUE io_file_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 		VALUE v = snow_arguments_get_by_index(here->arguments, i);
 		SnString* str = snow_value_to_string(v);
 		fputs(snow_string_cstr(str), fp);
+		fputc('\n', fp);
 	}
 	
 	return SN_NIL;
