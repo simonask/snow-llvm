@@ -15,6 +15,7 @@ typedef VALUE(*SnFunctionPtr)(struct SnFunctionCallContext* here, VALUE self, VA
 
 typedef struct SnFunctionDescriptor {
 	SnFunctionPtr ptr;
+	SnSymbol name;
 	SnType return_type;
 	size_t num_params;
 	SnType* param_types;
@@ -52,9 +53,9 @@ CAPI VALUE snow_set_local(SnFunctionCallContext* here, int adjusted_level, int i
 CAPI VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it);
 
 // Convenience for C bindings
-CAPI SnFunction* snow_create_method(SnFunctionPtr function, int num_args);
+CAPI SnFunction* snow_create_method(SnFunctionPtr function, SnSymbol name, int num_args);
 
-#define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_object_set_member(PROTO, PROTO, snow_sym(NAME), snow_create_method(PTR, NUM_ARGS))
+#define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_object_set_member(PROTO, PROTO, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
 
 // Used by the GC
 CAPI void snow_finalize_function(SnFunction*);

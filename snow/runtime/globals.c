@@ -49,15 +49,17 @@ static VALUE global_load(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_load(snow_string_cstr(file));
 }
 
+#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_method(FUNCTION, snow_sym(NAME), NUM_ARGS))
+
 void snow_init_globals() {
 	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
 	
-	snow_set_global(snow_sym("@"), snow_create_method(global_make_array, -1));
-	snow_set_global(snow_sym("puts"), snow_create_method(global_puts, -1));
-	snow_set_global(snow_sym("import"), snow_create_method(global_import, 1));
-	snow_set_global(snow_sym("load"), snow_create_method(global_load, 1));
+	SN_DEFINE_GLOBAL("@", global_make_array, -1);
+	SN_DEFINE_GLOBAL("puts", global_puts, -1);
+	SN_DEFINE_GLOBAL("import", global_import, 1);
+	SN_DEFINE_GLOBAL("load", global_load, 1);
+	SN_DEFINE_GLOBAL("__make_object__", global_make_object, -1);
 	
-	snow_set_global(snow_sym("__make_object__"), snow_create_method(global_make_object, -1));
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
 	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));
 	snow_set_global(snow_sym("__boolean_prototype__"), snow_get_prototype_for_type(SnTrueType));
@@ -69,5 +71,5 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("__map_prototype__"), snow_get_prototype_for_type(SnMapType));
 	snow_set_global(snow_sym("__function_prototype__"), snow_get_prototype_for_type(SnFunctionType));
 	snow_set_global(snow_sym("__function_call_context_prototype__"), snow_get_prototype_for_type(SnFunctionCallContextType));
-	//snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
+	snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
 }

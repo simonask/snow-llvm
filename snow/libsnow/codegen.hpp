@@ -28,6 +28,7 @@ namespace snow {
 		FunctionCompilerInfo* parent;
 		
 		llvm::Function* function;
+		SnSymbol name;
 		llvm::BasicBlock* function_exit;
 		std::map<llvm::BasicBlock*, llvm::Value*> return_points;
 		

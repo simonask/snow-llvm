@@ -39,6 +39,7 @@ namespace snow {
 		/*
 			typedef struct SnFunctionDescriptor {
 				SnFunctionPtr ptr;
+				SnSymbol name;
 				SnType return_type;
 				size_t num_params;
 				SnType* param_types;
@@ -86,16 +87,17 @@ namespace snow {
 		Constant* local_names_array = ConstantArray::get(ArrayType::get(sym_type, local_names.size()), local_names);
 		GlobalVariable* local_names_var = new GlobalVariable(*_module, local_names_array->getType(), true, GlobalValue::InternalLinkage, local_names_array, info.function->getName() + "_local_names");
 		
-		std::vector<Constant*> values(9);
+		std::vector<Constant*> values(10);
 		values[0] = info.function;
-		values[1] = ConstantInt::get(itype32, SnAnyType);
-		values[2] = ConstantInt::get(size_type, param_names.size());
-		values[3] = ConstantExpr::getInBoundsGetElementPtr(param_types_var, zeroes, 2);
-		values[4] = ConstantExpr::getInBoundsGetElementPtr(param_names_var, zeroes, 2);
-		values[5] = ConstantInt::get(itype32, 0); // it_index
-		values[6] = ConstantExpr::getInBoundsGetElementPtr(local_names_var, zeroes, 2);
-		values[7] = ConstantInt::get(itype32, local_names.size());
-		values[8] = info.needs_context ? ConstantInt::get(itype8, 1) : ConstantInt::get(itype8, 0);
+		values[1] = ConstantInt::get(sym_type, info.name);
+		values[2] = ConstantInt::get(itype32, SnAnyType);
+		values[3] = ConstantInt::get(size_type, param_names.size());
+		values[4] = ConstantExpr::getInBoundsGetElementPtr(param_types_var, zeroes, 2);
+		values[5] = ConstantExpr::getInBoundsGetElementPtr(param_names_var, zeroes, 2);
+		values[6] = ConstantInt::get(itype32, 0); // it_index
+		values[7] = ConstantExpr::getInBoundsGetElementPtr(local_names_var, zeroes, 2);
+		values[8] = ConstantInt::get(itype32, local_names.size());
+		values[9] = info.needs_context ? ConstantInt::get(itype8, 1) : ConstantInt::get(itype8, 0);
 		
 		Constant* descriptor_value = ConstantStruct::get(descriptor_type, values);
 		return new GlobalVariable(*_module, descriptor_value->getType(), true, GlobalValue::InternalLinkage, descriptor_value, info.function->getName() + "_descriptor");
@@ -106,6 +108,7 @@ namespace snow {
 		ASSERT(_entry_descriptor == NULL);
 		
 		FunctionCompilerInfo info;
+		info.name = snow::symbol("<module>");
 		info.parent = NULL;
 		info.function = llvm::Function::Create(get_function_type(), llvm::GlobalValue::InternalLinkage, "snow_module_entry", _module);
 		info.function_exit = NULL;
@@ -142,6 +145,7 @@ namespace snow {
 		asprintf(&function_name, "%s_func%d_", _module_name.str().c_str(), function_count++);
 		info.function = llvm::Function::Create(get_function_type(), llvm::GlobalValue::InternalLinkage, llvm::StringRef(function_name) + current_assignment_name(), _module);
 		free(function_name);
+		info.name = snow::symbol(current_assignment_name().str().c_str());
 		info.function_exit = NULL;
 		info.last_value = NULL;
 		info.here = NULL;

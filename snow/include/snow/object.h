@@ -40,6 +40,6 @@ CAPI void snow_object_set_property_setter(SnObject* object, SnSymbol member, VAL
 CAPI void snow_object_define_property(SnObject* object, SnSymbol name, VALUE getter, VALUE setter);
 CAPI bool snow_include_module(SnObject* object, SnObject* module);
 
-#define SN_DEFINE_PROPERTY(OBJECT, NAME, GETTER, SETTER) snow_object_define_property(OBJECT, snow_sym(NAME), snow_create_method(GETTER, 0), snow_create_method(SETTER, 1))
+#define SN_DEFINE_PROPERTY(OBJECT, NAME, GETTER, SETTER) snow_object_define_property(OBJECT, snow_sym(NAME), snow_create_method(GETTER, snow_sym(#GETTER), 0), snow_create_method(SETTER, snow_sym(#GETTER), 1))
 
 #endif /* end of include guard: OBJECT_H_CCPHDYB5 */

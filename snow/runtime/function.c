@@ -321,9 +321,10 @@ VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, V
 }
 
 
-SnFunction* snow_create_method(SnFunctionPtr ptr, int num_args) {
+SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int num_args) {
 	SnFunctionDescriptor* descriptor = (SnFunctionDescriptor*)malloc(sizeof(SnFunctionDescriptor));
 	descriptor->ptr = ptr;
+	descriptor->name = name;
 	descriptor->return_type = SnAnyType;
 	descriptor->num_params = num_args > 0 ? num_args : 0;
 	descriptor->param_types = num_args > 0 ? (SnType*)malloc(sizeof(SnType)*num_args) : NULL;
@@ -343,22 +344,33 @@ SnFunction* snow_create_method(SnFunctionPtr ptr, int num_args) {
 
 
 static VALUE function_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	char buffer[100];
-	snprintf(buffer, 100, "[Function@%p(%s)]", self, /*snow_string_cstr(snow_vm_get_name_of(here->function->descriptor->ptr))*/ "<name>");
-	return snow_create_string(buffer);
+	if (snow_type_of(self) == SnFunctionType) {
+		SnFunction* function = (SnFunction*)self;
+		return snow_string_format("[Function@%p(%s)]", self, snow_sym_to_cstr(function->descriptor->name));
+	}
+	return snow_string_format("[Function@%p]", self);
+}
+
+static VALUE function_name(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) == SnFunctionType) {
+		SnFunction* function = (SnFunction*)self;
+		return snow_symbol_to_value(function->descriptor->name);
+	}
+	return NULL;
 }
 
 SnObject* snow_create_function_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", function_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", function_inspect, 0);
+	SN_DEFINE_PROPERTY(proto, "name", function_name, 0);
 	return proto;
 }
 
 static VALUE function_call_context_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFunctionCallContextType) return NULL;
 	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
-	return snow_string_format("[FunctionCallContext@%p]", context);
+	return snow_string_format("[FunctionCallContext@%p function:%p(%s)]", context, context->function, snow_sym_to_cstr(context->function->descriptor->name));
 }
 
 static VALUE function_call_context_get_arguments(SnFunctionCallContext* here, VALUE self, VALUE it) {
