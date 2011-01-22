@@ -28,9 +28,9 @@ CAPI struct SnArray* snow_string_split(const SnString* str, const SnString* sepa
 
 CAPI SnString* snow_string_format(const char* utf8_format, ...);
 
-static inline const char* snow_string_cstr(const SnString* str) { return str->data; }
-static inline uint32_t snow_string_size(const SnString* str) { return str->size; }
-static inline uint32_t snow_string_length(const SnString* str) { return str->length; }
+INLINE const char* snow_string_cstr(const SnString* str) { return str->data; }
+INLINE uint32_t snow_string_size(const SnString* str) { return str->size; }
+INLINE uint32_t snow_string_length(const SnString* str) { return str->length; }
 
 CAPI void snow_finalize_string(SnString*);
 

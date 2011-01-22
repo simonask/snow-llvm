@@ -17,7 +17,7 @@ typedef struct SnPointer {
 
 CAPI SnPointer* snow_wrap_pointer(void* ptr, SnPointerCopyFunc copy_func, SnPointerFreeFunc free_func);
 CAPI SnPointer* snow_pointer_copy(SnPointer* ptr);
-static inline void* snow_pointer_get(SnPointer* ptr) { return ptr->ptr; }
+INLINE void* snow_pointer_get(SnPointer* ptr) { return ptr->ptr; }
 CAPI void snow_pointer_free(SnPointer* ptr);
 
 #endif /* end of include guard: POINTER_H_EZG3FT77 */

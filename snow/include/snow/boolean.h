@@ -5,7 +5,7 @@
 #include "snow/basic.h"
 #include "snow/value.h"
 
-static inline bool snow_value_to_boolean(VALUE val) { return val == SN_TRUE; }
-static inline VALUE snow_boolean_to_value(bool b) { return b ? SN_TRUE : SN_FALSE; }
+INLINE bool snow_value_to_boolean(VALUE val) { return val == SN_TRUE; }
+INLINE VALUE snow_boolean_to_value(bool b) { return b ? SN_TRUE : SN_FALSE; }
 
 #endif /* end of include guard: BOOLEAN_H_L8LG419 */

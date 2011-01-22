@@ -11,15 +11,15 @@ CAPI VALUE snow_vsym(const char* str);
 CAPI SnSymbol snow_sym(const char* str);
 CAPI const char* snow_sym_to_cstr(SnSymbol sym);
 
-static inline bool snow_is_symbol(VALUE val) {
+INLINE bool snow_is_symbol(VALUE val) {
 	return ((uintptr_t)val & SnTypeMask) == SnSymbolType;
 }
 
-static inline VALUE snow_symbol_to_value(SnSymbol sym) {
+INLINE VALUE snow_symbol_to_value(SnSymbol sym) {
 	return (VALUE)(sym << 4 | SnSymbolType);
 }
 
-static inline SnSymbol snow_value_to_symbol(VALUE val) {
+INLINE SnSymbol snow_value_to_symbol(VALUE val) {
 	ASSERT(snow_is_symbol(val));
 	return (SnSymbol)((uintptr_t)val >> 4);
 }

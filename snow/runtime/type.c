@@ -64,12 +64,3 @@ SnObject* snow_get_prototype_for_type(SnType type) {
 	}
 	return prototypes[type];
 }
-
-SnType snow_type_of(VALUE val) {
-	if (!val) return SnNilType;
-	const uintptr_t t = (uintptr_t)val & SnTypeMask;
-	if (t == 0x0) return ((SnObjectBase*)val)->type;
-	if (t & 0x1) return SnIntegerType;
-	return (SnType)t;
-}
-

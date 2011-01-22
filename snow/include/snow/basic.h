@@ -20,9 +20,18 @@ typedef unsigned char byte;
 
 #ifdef __cplusplus
 #define CAPI extern "C"
+#if !defined(INLINE)
+#define INLINE inline
+#endif
 #else
 #define CAPI 
+#if !defined(INLINE)
+#define INLINE static inline
 #endif
+#endif
+
+#define LIKELY(X) __builtin_expect(X, true)
+#define UNLIKELY(X) __builtin_expect(X, false)
 
 static const size_t SN_CACHE_LINE_SIZE = 64; // XXX: x86 default.
 static const size_t SN_OBJECT_MAX_SIZE = SN_CACHE_LINE_SIZE;
@@ -33,7 +42,7 @@ static const size_t SN_MALLOC_OVERHEAD = 8; // XXX: guess...
 #define QUOTEME(X) QUOTEME_(X)
 
 #if defined(DEBUG)
-static inline void crash_and_burn() { __asm__(""); char c = *(char*)NULL; }
+INLINE void crash_and_burn() { __asm__(""); char c = *(char*)NULL; }
 #endif
 
 #if defined(DEBUG)

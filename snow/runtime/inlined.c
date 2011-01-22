@@ -3,7 +3,8 @@
 	"inline" in the runtime will still be accessible from outside modules.
 */
 
-#define inline 
+#define INLINE 
 
 #include "snow/value.h"
 #include "snow/str.h"
+#include "snow/type.h"

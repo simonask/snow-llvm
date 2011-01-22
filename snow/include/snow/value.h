@@ -33,11 +33,11 @@ static const VALUE SN_NIL = (VALUE)SnNilType;
 static const VALUE SN_FALSE = (VALUE)SnFalseType;
 static const VALUE SN_TRUE = (VALUE)SnTrueType;
 
-inline bool snow_is_object(VALUE val) {
+INLINE bool snow_is_object(VALUE val) {
 	return val && (((uintptr_t)val & SnTypeMask) == SnAnyType);
 }
 
-inline bool snow_eval_truth(VALUE val) {
+INLINE bool snow_eval_truth(VALUE val) {
 	return val != NULL && val != SN_NIL && val != SN_FALSE;
 }
 
