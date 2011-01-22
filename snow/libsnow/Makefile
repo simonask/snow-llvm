@@ -1,8 +1,9 @@
 LEVEL = ..
 TARGET := libsnow.a
 
-SOURCES := $(wildcard *.cpp *.c)
-OBJECTS = $(patsubst %,%.o,$(SOURCES))
+SOURCES := $(wildcard *.cpp *.c) $(wildcard llvm-backend/*.cpp llvm-backend/*.c)
+OBJECTS := $(patsubst %,%.o,$(SOURCES))
+INCLUDES := -I.
 
 include $(LEVEL)/Makefile.rules
 
