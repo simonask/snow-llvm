@@ -1,7 +1,7 @@
 #include "basic.hpp"
 #include "codemanager.hpp"
-#include "symbol-inline-pass.hpp"
-#include "codegen.hpp"
+#include "llvm-backend/symbol-inline-pass.hpp"
+#include "llvm-backend/codegen.hpp"
 
 #include "snow/ast.hpp"
 

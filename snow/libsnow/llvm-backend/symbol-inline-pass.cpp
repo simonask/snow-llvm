@@ -1,5 +1,5 @@
 #include "basic.hpp"
-#include "symbol-inline-pass.hpp"
+#include "llvm-backend/symbol-inline-pass.hpp"
 #include "symbol.hpp"
 
 #include <llvm/Instructions.h>
