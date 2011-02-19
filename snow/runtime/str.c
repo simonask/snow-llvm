@@ -4,6 +4,7 @@
 #include "snow/linkbuffer.h"
 #include "snow/type.h"
 #include "snow/function.h"
+#include "snow/snow.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -137,9 +138,20 @@ static VALUE string_to_string(SnFunctionCallContext* here, VALUE self, VALUE it)
 	return self;
 }
 
+static VALUE string_add(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnStringType) return NULL;
+	
+	if (it) {
+		SnString* other = snow_value_to_string(it);
+		return snow_string_concat((SnString*)self, other);
+	}
+	return self;
+}
+
 SnObject* snow_create_string_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", string_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", string_to_string, 0);
+	SN_DEFINE_METHOD(proto, "+", string_add, 1);
 	return proto;
 }
