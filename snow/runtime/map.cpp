@@ -423,9 +423,20 @@ CAPI {
 
 
 static VALUE map_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	char buffer[100];
-	snprintf(buffer, 100, "[Map@%p]", self);
-	return snow_create_string(buffer);
+	if (snow_type_of(self) != SnMapType) return NULL;
+	SnMap* map = (SnMap*)self;
+	const size_t size = snow_map_size(map);
+	SnString* result = snow_create_string_constant("#(");
+	SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
+	snow_map_get_pairs(map, pairs);
+	for (size_t i = 0; i < size; ++i) {
+		snow_string_append(result, snow_value_inspect(pairs[i][0]));
+		snow_string_append_cstr(result, " => ");
+		snow_string_append(result, snow_value_inspect(pairs[i][1]));
+		if (i != size-1) snow_string_append_cstr(result, ", ");
+	}
+	snow_string_append_cstr(result, ")");
+	return result;
 }
 
 static VALUE map_index_get(SnFunctionCallContext* here, VALUE self, VALUE it) {
