@@ -34,7 +34,7 @@ typedef unsigned char byte;
 #define UNLIKELY(X) __builtin_expect(X, false)
 
 static const size_t SN_CACHE_LINE_SIZE = 64; // XXX: x86 default.
-static const size_t SN_OBJECT_MAX_SIZE = SN_CACHE_LINE_SIZE;
+static const size_t SN_OBJECT_SIZE = SN_CACHE_LINE_SIZE;
 static const size_t SN_MEMORY_PAGE_SIZE = 4096; // XXX: x86 default.
 static const size_t SN_MALLOC_OVERHEAD = 8; // XXX: guess...
 

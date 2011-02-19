@@ -11,7 +11,10 @@ struct SnArray;
 
 typedef struct SnObjectBase {
 	union {
-		SnType type;
+		struct {
+			unsigned gc_flags : 32;
+			SnType type       : 32;
+		};
 		void* _; // for alignment
 	};
 } SnObjectBase;
@@ -29,6 +32,7 @@ typedef struct SnObject {
 	SnProperty* properties;
 	size_t num_properties;
 	struct SnArray* included_modules;
+	SnSymbol name;
 } SnObject;
 
 CAPI SnObject* snow_create_object(SnObject* prototype);

@@ -7,7 +7,7 @@
 #include "snow/function.h"
 #include "snow/str.h"
 
-#include "linkheap.hpp"
+#include "allocator.hpp"
 
 #include <stdlib.h>
 #include <vector>
@@ -17,15 +17,13 @@ CAPI SnMap** _snow_get_global_storage(); // internal symbol
 namespace {
 	using namespace snow;
 	
-	static const size_t GC_OBJECT_SIZE = SN_OBJECT_MAX_SIZE;
-	
 	static int64_t gc_collection_threshold = 1000;
 	static int64_t gc_num_objects = 0;
 	static int64_t gc_max_num_objects = 0;
 	static int64_t gc_reachable_objects = 0;
 	
 	struct GCObject {
-		byte data[GC_OBJECT_SIZE];
+		byte data[SN_OBJECT_SIZE];
 	};
 	
 	enum GCFlags {
@@ -34,7 +32,7 @@ namespace {
 		GC_DELETED = 2,
 	};
 	
-	static LinkHeap<GCObject> gc_heap;
+	static Allocator gc_allocator;
 	static uint8_t* gc_flags = NULL;
 	
 	static const void** stack_top = NULL;
@@ -98,7 +96,7 @@ namespace {
 	}
 	
 	void gc_mark_value(VALUE obj) {
-		ASSERT(gc_flags); // not in GC cycle
+		/*ASSERT(gc_flags); // not in GC cycle
 		if (snow_is_object(obj)) {
 			int64_t idx = gc_heap.index_of(obj);
 			ASSERT(idx < gc_max_num_objects);
@@ -112,7 +110,7 @@ namespace {
 					gc_mark_object(object);
 				}
 			}
-		}
+		}*/
 	}
 	
 	void gc_mark_globals() {
@@ -149,7 +147,7 @@ namespace {
 			}
 		}
 		
-		gc_heap.free((GCObject*)obj);
+		gc_allocator.free(obj);
 	}
 }
 
@@ -159,7 +157,7 @@ CAPI {
 	}
 	
 	void snow_gc() {
-		ASSERT(!stack_bottom); // GC is already in progress!
+		/*ASSERT(!stack_bottom); // GC is already in progress!
 		ASSERT(stack_top); // GC is not initialized!
 		
 		// initialize everything
@@ -207,18 +205,19 @@ CAPI {
 		
 		delete gc_flags;
 		gc_flags = NULL;
-		stack_bottom = NULL;
+		stack_bottom = NULL;*/
 	}
 	
 	SnObjectBase* snow_gc_alloc_object(size_t sz, SnType type) {
-		ASSERT(sz <= GC_OBJECT_SIZE);
+		ASSERT(sz <= SN_OBJECT_SIZE);
+		ASSERT(!snow_is_immediate_type(type) && type != SnAnyType);
 		
 		// Disabled GC for now -- reenable when we have a real debugger.
 		//if (gc_num_objects >= gc_collection_threshold) {
 		//	snow_gc();
 		//}
 		
-		SnObjectBase* obj = (SnObjectBase*)gc_heap.alloc();
+		SnObjectBase* obj = gc_allocator.allocate();
 		ASSERT(((intptr_t)obj & 0xf) == 0); // unaligned object allocation!
 		obj->type = type;
 		++gc_num_objects;
