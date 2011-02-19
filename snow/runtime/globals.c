@@ -16,7 +16,7 @@ SnObject* snow_get_vm_interface() {
 	static SnObject* Snow = NULL;
 	if (!Snow) {
 		Snow = snow_create_object(NULL);
-		snow_object_set_member(Snow, Snow, snow_sym("version"), snow_create_string(snow_version()));
+		snow_object_set_member(Snow, Snow, snow_sym("version"), snow_create_string_constant(snow_version()));
 		SN_DEFINE_PROPERTY(Snow, "load_paths", get_load_paths, NULL);
 	}
 	return Snow;
