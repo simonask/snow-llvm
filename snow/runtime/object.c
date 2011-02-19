@@ -18,6 +18,7 @@ static int compare_properties(const void* _a, const void* _b) {
 
 SnObject* snow_create_object(SnObject* prototype) {
 	SnObject* obj = SN_GC_ALLOC_OBJECT(SnObject);
+	ASSERT(snow_is_object(prototype) || prototype == NULL);
 	obj->prototype = prototype;
 	obj->members = NULL;
 	obj->properties = NULL;
@@ -160,11 +161,26 @@ static VALUE object_include(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(r);
 }
 
+static VALUE object_get_members(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	SnObject* obj = snow_get_nearest_object(self);
+	return obj->members;
+}
+
+static VALUE object_get_prototype(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_is_object(self)) {
+		SnObject* proto = ((SnObject*)self)->prototype;
+		return proto ? proto : snow_get_prototype_for_type(SnObjectType);
+	}
+	return snow_get_nearest_object(self);
+}
+
 SnObject* snow_create_object_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "instance_eval", object_instance_eval, 1);
 	SN_DEFINE_METHOD(proto, "include", object_include, 1);
+	SN_DEFINE_PROPERTY(proto, "members", object_get_members, NULL);
+	SN_DEFINE_PROPERTY(proto, "prototype", object_get_prototype, NULL);
 	return proto;
 }
