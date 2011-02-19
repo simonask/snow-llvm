@@ -13,6 +13,7 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 	SnFunction* obj = SN_GC_ALLOC_OBJECT(SnFunction);
 	obj->descriptor = descriptor;
 	obj->definition_context = definition_context;
+	obj->variable_references = (VALUE**)0x1;
 	return obj;
 }
 
