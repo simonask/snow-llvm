@@ -34,7 +34,7 @@ static const VALUE SN_FALSE = (VALUE)SnFalseType;
 static const VALUE SN_TRUE = (VALUE)SnTrueType;
 
 INLINE bool snow_is_object(VALUE val) {
-	return val && (((uintptr_t)val & SnTypeMask) == SnAnyType);
+	return val && (((uintptr_t)val & SnTypeMask) == 0);
 }
 
 INLINE bool snow_eval_truth(VALUE val) {
