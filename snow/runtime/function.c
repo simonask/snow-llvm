@@ -73,9 +73,10 @@ void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE mer
 	}
 }
 
-SnFunction* snow_value_to_function(VALUE val) {
+SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self) {
 	VALUE functor = val;
 	while (functor && snow_type_of(functor) != SnFunctionType) {
+		*in_out_new_self = functor;
 		functor = snow_get_member(functor, snow_sym("__call__"));
 	}
 	
@@ -122,7 +123,7 @@ VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, V
 	if (!self)
 		self = function->definition_context ? function->definition_context->self : NULL;
 	if (function->descriptor->needs_context) {
-		// context is owned by function
+		// context is owned by function, don't change it if we don't own it.
 		context->self = self;
 	}
 	return function->descriptor->ptr(context, self, it);
@@ -141,6 +142,7 @@ SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int num_args) {
 	descriptor->local_names = descriptor->param_names;
 	descriptor->num_locals = num_args > 0 ? num_args : 0;
 	descriptor->needs_context = num_args < 0 || num_args > 1;
+	descriptor->jit_info = NULL;
 	
 	for (int i = 0; i < num_args; ++i) {
 		descriptor->param_types[i] = SnAnyType; // TODO
