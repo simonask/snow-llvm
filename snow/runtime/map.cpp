@@ -45,7 +45,7 @@ namespace {
 	public:
 		size_t operator()(VALUE v) const {
 			if (snow_is_object(v)) {
-				VALUE h = snow_call(snow_get_method(v, snow_sym("hash")), v, 0, NULL);
+				VALUE h = SNOW_CALL_METHOD(v, "hash", 0, NULL);
 				ASSERT(snow_is_integer(h));
 				return (size_t)h;
 			} else {
@@ -59,7 +59,7 @@ namespace {
 		bool operator()(const VALUE _a, const VALUE _b) const {
 			VALUE a = const_cast<VALUE>(_a);
 			VALUE b = const_cast<VALUE>(_b);
-			VALUE r = snow_call(snow_get_method(a, snow_sym("=")), a, 1, &b);
+			VALUE r = SNOW_CALL_METHOD(a, "=", 1, &b);
 			return snow_value_to_boolean(r);
 		}
 	};
@@ -122,7 +122,7 @@ namespace {
 	int compare_objects(const void* _a, const void* _b) {
 		const VALUE* a = (const VALUE*)_a;
 		const VALUE* b = (const VALUE*)_b;
-		VALUE difference = snow_call(snow_get_method(*a, snow_sym("compare")), *a, 1, b);
+		VALUE difference = SNOW_CALL_METHOD(*a, "compare", 1, b);
 		ASSERT(snow_is_integer(difference));
 		return snow_value_to_integer(difference);
 	}

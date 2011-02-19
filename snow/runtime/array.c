@@ -99,9 +99,7 @@ static VALUE array_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	SnString** inspected = (SnString**)alloca(array->size*sizeof(SnString*));
 	size_t complete_size = 0;
 	for (size_t i = 0; i < array->size; ++i) {
-		VALUE x = array->data[i];
-		inspected[i] = (SnString*)snow_call(snow_get_method(x, snow_sym("inspect")), x, 0, NULL);
-		ASSERT(snow_type_of(inspected[i]) == SnStringType);
+		inspected[i] = snow_value_inspect(array->data[i]);
 		complete_size += inspected[i]->size;
 	}
 	

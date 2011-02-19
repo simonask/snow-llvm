@@ -22,8 +22,7 @@ SnObject* snow_get_vm_interface() {
 
 static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->arguments->size; ++i) {
-		SnString* str = (SnString*)snow_call(snow_get_method(here->arguments->data[i], snow_sym("to_string")), here->arguments->data[i], 0, NULL);
-		ASSERT(snow_type_of(str) == SnStringType);
+		SnString* str = snow_value_to_string(here->arguments->data[i]);
 		printf("%s", snow_string_cstr(str));
 	}
 	printf("\n");
