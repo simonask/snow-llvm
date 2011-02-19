@@ -162,7 +162,7 @@ namespace {
 CAPI {
 	SnMap* snow_create_map() {
 		SnMap* map = SN_GC_ALLOC_OBJECT(SnMap);
-		memset(map, 0, sizeof(SnMap));
+		memset(&map->flat, 0, sizeof(map->flat));
 		map->flags = MAP_FLAT;
 		return map;
 	}
