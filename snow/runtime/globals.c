@@ -5,6 +5,8 @@
 #include "snow/type.h"
 #include "snow/array.h"
 #include "snow/module.h"
+#include "snow/boolean.h"
+#include "snow/vm.h"
 
 static VALUE get_load_paths(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
@@ -29,15 +31,6 @@ static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE global_make_array(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
-}
-
-static VALUE global_make_object(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnObjectType);
-	return snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
-}
-
 static VALUE global_import(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_import(snow_string_cstr(file));
@@ -46,6 +39,43 @@ static VALUE global_import(SnFunctionCallContext* here, VALUE self, VALUE it) {
 static VALUE global_load(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_load(snow_string_cstr(file));
+}
+
+static VALUE global_make_object(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	//ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnObjectType);
+	SnObject* obj = snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
+	return obj;
+}
+
+static VALUE global_make_array(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
+}
+
+static VALUE global_make_map(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return SN_NIL; // XXX: TODO!
+}
+
+static VALUE global_make_string(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return SN_NIL; // XXX: TODO!
+}
+
+static VALUE global_make_boolean(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_boolean_to_value(snow_eval_truth(it));
+}
+
+static VALUE global_make_symbol(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return SN_NIL; // XXX: TODO!
+}
+
+static VALUE global_disasm(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	VALUE dummy = NULL;
+	SnFunction* function = snow_value_to_function(it, &dummy);
+	if (function) {
+		snow_vm_print_disassembly(function);
+	} else {
+		fprintf(stderr, "Cannot convert %p to a function.\n", it);
+	}
+	return NULL;
 }
 
 #define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_method(FUNCTION, snow_sym(NAME), NUM_ARGS))
@@ -58,6 +88,12 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("import", global_import, 1);
 	SN_DEFINE_GLOBAL("load", global_load, 1);
 	SN_DEFINE_GLOBAL("__make_object__", global_make_object, -1);
+	SN_DEFINE_GLOBAL("__make_array__", global_make_array, -1);
+	SN_DEFINE_GLOBAL("__make_map__", global_make_map, -1);
+	SN_DEFINE_GLOBAL("__make_string__", global_make_string, -1);
+	SN_DEFINE_GLOBAL("__make_boolean__", global_make_boolean, 1);
+	SN_DEFINE_GLOBAL("__make_symbol__", global_make_symbol, 1);
+	SN_DEFINE_GLOBAL("__disasm__", global_disasm, 1);
 	
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
 	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));

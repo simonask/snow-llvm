@@ -2,6 +2,7 @@
 #include "snow/snow.h"
 #include "snow/process.h"
 #include "snow/str.h"
+#include "snow/function.h"
 
 bool snow_vm_compile_ast(const char* module_name, const char* source, const struct SnAST* ast, SnCompilationResult* out_result) {
 	SnProcess* p = snow_get_process();
@@ -15,4 +16,9 @@ SnObject* snow_vm_load_bitcode_module(const char* path) {
 		return init();
 	}
 	return NULL;
+}
+
+void snow_vm_print_disassembly(const SnFunction* function) {
+	SnProcess* p = snow_get_process();
+	p->vm->print_disassembly(p->vm->vm_state, function->descriptor);
 }
