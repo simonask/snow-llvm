@@ -26,6 +26,12 @@ const char* snow_sym_to_cstr(SnSymbol sym) {
 static VALUE symbol_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	const char* symstr = snow_sym_to_cstr(snow_value_to_symbol(self));
+	
+	if (!symstr) {
+		fprintf(stderr, "ERROR: %p is not in the symbol table.\n", self);
+		return SN_NIL;
+	}
+	
 	size_t len = strlen(symstr);
 	char* str = alloca(len+2);
 	str[0] = '#';
