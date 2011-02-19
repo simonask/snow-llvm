@@ -173,7 +173,7 @@ namespace snow {
 			
 			// print context:
 			const char* p = _error_pos->line_begin;
-			while (*p != '\n') {
+			while (*p && *p != '\n') {
 				if (*p == '\t') {
 					col += 3;
 					printf("    ");
