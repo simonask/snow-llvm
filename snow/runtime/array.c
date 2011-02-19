@@ -143,6 +143,16 @@ static VALUE array_multiply_or_splat(SnFunctionCallContext* here, VALUE self, VA
 	return self; // TODO: Something useful?
 }
 
+static VALUE array_each(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnArrayType) return NULL;
+	SnArray* array = (SnArray*)self;
+	for (size_t i = 0; i < snow_array_size(array); ++i) {
+		VALUE args[] = { array->data[i], snow_integer_to_value(i) };
+		snow_call(it, NULL, 2, args);
+	}
+	return SN_NIL;
+}
+
 SnObject* snow_create_array_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", array_inspect, 0);
@@ -150,5 +160,6 @@ SnObject* snow_create_array_prototype() {
 	SN_DEFINE_METHOD(proto, "__index_get__", array_index_get, 1);
 	SN_DEFINE_METHOD(proto, "__index_set__", array_index_set, 2);
 	SN_DEFINE_METHOD(proto, "*", array_multiply_or_splat, 1);
+	SN_DEFINE_METHOD(proto, "each", array_each, 1);
 	return proto;
 }
