@@ -1,6 +1,7 @@
 #include "snow/object.h"
 #include "snow/type.h"
 #include "snow/array.h"
+#include "snow/map.h"
 #include "snow/gc.h"
 #include "snow/vm.h"
 #include "snow/function.h"
@@ -20,78 +21,21 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
+	const SnFunctionDescriptor* descriptor = callee->descriptor;
+	
 	SnFunctionCallContext* context = SN_GC_ALLOC_OBJECT(SnFunctionCallContext);
 	context->function = callee;
 	context->caller = caller;
 	context->self = NULL; // set in snow_function_call
 	context->module = callee->definition_context ? callee->definition_context->module : NULL;
-	const SnFunctionDescriptor* descriptor = callee->descriptor;
+	context->arguments = snow_create_arguments_for_function_call(descriptor, num_names, names, num_args, args);
 	
-	size_t num_locals = descriptor->num_locals;
-	VALUE* locals = num_locals ? (VALUE*)malloc(sizeof(VALUE) * num_locals) : NULL;
-	bzero(locals, sizeof(VALUE) * num_locals);
-	context->locals = locals;
-	
-	VALUE* param_args = (VALUE*)alloca(descriptor->num_params * sizeof(SnSymbol));
-	bzero(param_args, descriptor->num_params * sizeof(SnSymbol));
-	SnSymbol* extra_names = (SnSymbol*)alloca(num_names*sizeof(SnSymbol));
-	VALUE* extra_args = (VALUE*)alloca(num_args*sizeof(VALUE));
-	
-	size_t num_extra_names = 0;
-	size_t num_extra_args = 0;
-	size_t first_unnamed_arg = num_names;
-	
-	// first, put named args in place
-	// INFO: The following code is why param names and named arguments are sorted by symbol value.
-	size_t param_i = 0;
-	size_t arg_i = 0;
-	while (param_i < descriptor->num_params) {
-		bool found = false;
-		while (arg_i < num_names && arg_i < num_args) {
-			if (names[arg_i] == descriptor->param_names[param_i]) {
-				found = true;
-				param_args[param_i++] = args[arg_i++];
-				break;
-			} else {
-				// named argument, but not part of the function definition.
-				extra_args[num_extra_names++] = args[arg_i];
-				extra_names[num_extra_names++] = names[arg_i];
-				++arg_i;
-			}
-		}
-		
-		if (!found) {
-			// take an unnamed arg
-			if (arg_i < num_args) {
-				param_args[param_i++] = args[arg_i++];
-			} else {
-				param_args[param_i++] = NULL;
-			}
-		}
-	}
-	
-	// Extra named args
-	if (arg_i < num_names) {
-		memcpy(extra_names + num_extra_names, names + arg_i, (num_names - arg_i)*sizeof(SnSymbol));
-		memcpy(extra_args + num_extra_args, args + arg_i, (num_names - arg_i)*sizeof(VALUE));
-		num_extra_names += num_names - arg_i;
-		num_extra_args += num_names - arg_i;
-		arg_i = num_names;
-	}
-	if (arg_i < num_args) {
-		memcpy(extra_args + num_extra_args, args + arg_i, (num_args - arg_i)*sizeof(VALUE));
-		num_extra_args += num_args - arg_i;
-		arg_i = num_args;
-	}
-	
-	context->arguments = snow_create_arguments(num_extra_names, num_args);
-	context->arguments->descriptor = descriptor;
-	memcpy(locals, param_args, param_i*sizeof(VALUE));
-	memcpy(context->arguments->data, param_args, param_i*sizeof(VALUE));
-	memcpy(context->arguments->data + descriptor->num_params, extra_args, num_extra_args*sizeof(VALUE));
-	memcpy(context->arguments->extra_names, extra_names, num_extra_names*sizeof(SnSymbol));
-	
-	// PHEW! It's over.
+	// arguments are also the first locals
+	const size_t num_locals = descriptor->num_locals;
+	context->locals = num_locals ? (VALUE*)malloc(sizeof(VALUE)*num_locals) : NULL;
+	memset(context->locals, 0, sizeof(VALUE)*num_locals);
+	size_t num_set_arguments = context->arguments->size > descriptor->num_params ? descriptor->num_params : context->arguments->size;
+	memcpy(context->locals, context->arguments->data, sizeof(VALUE)*num_set_arguments);
 	
 	return context;
 }
@@ -105,164 +49,27 @@ static int named_arg_cmp(const void* _a, const void* _b) {
 
 void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE merge_in) {
 	SnArguments* args = callee_context->arguments;
-	
 	switch (snow_type_of(merge_in)) {
-		case SnArrayType: {
-			SnArray* array = (SnArray*)merge_in;
-			size_t n = snow_array_size(array);
-			if (n) {
-				size_t offset = 0;
-				for (size_t i = 0; (i < args->size) && (offset < n); ++i) {
-					if (!args->data[i]) {
-						args->data[i] = array->data[offset++];
-					}
-				}
-				size_t old_size = args->size;
-				snow_arguments_grow_by(args, 0, n - offset);
-				memcpy(args->data + old_size, array->data + offset, (n-offset)*sizeof(VALUE));
-			}
+		case SnArrayType:
+			snow_arguments_append_array(args, (SnArray*)merge_in);
 			break;
-		}
-		case SnMapType: {
-			// TODO!!
+		case SnMapType:
+			snow_arguments_append_map(args, (SnMap*)merge_in);
 			break;
-		}
-		case SnArgumentsType: {
-			SnArguments* src = (SnArguments*)merge_in;
-			
-			// Warning: This gets complicated fast. Hold tight.
-			// The following is similar to, but *not quite* the same as,
-			// the function snow_create_function_call_context above.
-			struct named_arg* extra_named_args = (struct named_arg*)alloca((src->size + args->num_extra_names)*sizeof(struct named_arg));
-			size_t num_extra_named_args = 0;
-			VALUE* extra_unnamed_args = (VALUE*)alloca((src->size + args->size)*sizeof(VALUE));
-			size_t num_extra_unnamed_args = 0;
-			
-			// First, check the target arguments' described named args against the source's
-			// described named args.
-			fprintf(stderr, "Merge SnArguments, step 1\n");
-			size_t param_i = 0;
-			size_t src_param_i = 0;
-			size_t src_unnamed_i = src->descriptor->num_params + src->num_extra_names;
-			while (param_i < args->descriptor->num_params) {
-				bool found = false;
-				while (src_param_i < src->descriptor->num_params) {
-					if (args->descriptor->param_names[param_i] == src->descriptor->param_names[src_param_i]) {
-						args->data[param_i] = src->data[src_param_i];
-						found = true;
-						++src_param_i;
-						break;
-					} else {
-						extra_named_args[num_extra_named_args].name = src->descriptor->param_names[src_param_i];
-						extra_named_args[num_extra_named_args].value = src->data[src_param_i];
-						++num_extra_named_args;
-						++src_param_i;
-					}
-				}
-				
-				if (!found) {
-					// no name matched, so pick an unnamed arg, if AND ONLY IF the
-					// target args don't already have something at that spot! This is
-					// an important difference to snow_create_function_call_context.
-					if (args->data[param_i] == NULL && src_unnamed_i < src->size) {
-						args->data[param_i] = src->data[src_unnamed_i++];
-					}
-				}
-				
-				param_i++;
-			}
-			
-			// Add remaining described named args as extra args
-			while (src_param_i < src->descriptor->num_params) {
-				extra_named_args[num_extra_named_args].name = src->descriptor->param_names[src_param_i];
-				extra_named_args[num_extra_named_args].value = src->data[src_param_i];
-				++num_extra_named_args;
-				++src_param_i;
-			}
-			
-			// Second, check the target arguments' describe named args against the source's
-			// extra named args.
-						fprintf(stderr, "Merge SnArguments, step 2\n");
-			param_i = 0;
-			size_t src_extra_i = 0;
-			while (param_i < args->descriptor->num_params) {
-				bool found = false;
-				while (src_extra_i < src->num_extra_names) {
-					const size_t src_extra_data_i = src->descriptor->num_params + src_extra_i;
-					if (args->descriptor->param_names[param_i] == src->extra_names[src_extra_i]) {
-						args->data[param_i] = src->data[src_extra_i];
-						found = true;
-						++src_extra_i;
-						break;
-					} else {
-						extra_named_args[num_extra_named_args].name = src->extra_names[src_extra_i];
-						extra_named_args[num_extra_named_args].value = src->data[src_extra_data_i];
-						num_extra_named_args++;
-						++src_extra_i;
-					}
-				}
-				
-				if (!found) {
-					// no name matched, so pick an unnamed arg, as above.
-					if (args->data[param_i] == NULL && src_unnamed_i < src->size) {
-						args->data[param_i] = src->data[src_unnamed_i++];
-					}
-				}
-			}
-			
-			// Add remaining extra named args as extra args
-			while (src_extra_i < src->num_extra_names) {
-				const size_t src_extra_data_i = src->descriptor->num_params + src_extra_i;
-				extra_named_args[num_extra_named_args].name = src->extra_names[src_extra_i];
-				extra_named_args[num_extra_named_args].value = src->data[src_extra_data_i];
-				++num_extra_named_args;
-				++src_extra_i;
-			}
-			
-			// Third, put remaining unnamed args in extra_unnamed_args
-						fprintf(stderr, "Merge SnArguments, step 3\n");
-			for (size_t i = args->descriptor->num_params + args->num_extra_names; i < args->size; ++i) {
-				extra_unnamed_args[num_extra_unnamed_args++] = args->data[i];
-			}
-			while (src_unnamed_i < src->size) {
-				extra_unnamed_args[num_extra_unnamed_args++] = src->data[src_unnamed_i++];
-			}
-			
-			// Fourth, do the merging!
-			// The target described args are in good shape, we just need to
-			// properly sort the extra named args, and append the unnamed args.
-						fprintf(stderr, "Merge SnArguments, step 4\n");
-			const size_t grow_by_names = num_extra_named_args;
-			const size_t grow_by_args = grow_by_names + (src->size - src_unnamed_i);
-			// Add existing extra named args to the pool, so they can be sorted together
-			for (size_t i = 0; i < args->num_extra_names; ++i) {
-				const size_t args_extra_data_i = args->descriptor->num_params + i;
-				extra_named_args[num_extra_named_args].name = args->extra_names[i];
-				extra_named_args[num_extra_named_args].value = args->data[args_extra_data_i];
-				++num_extra_named_args;
-			}
-			
-						fprintf(stderr, "Merge SnArguments, step 5\n");
-			qsort(extra_named_args, num_extra_named_args, sizeof(struct named_arg), named_arg_cmp);
-			
-						fprintf(stderr, "Merge SnArguments, step 6\n");
-			snow_arguments_grow_by(args, grow_by_names, grow_by_args);
-			for (size_t i = 0; i < num_extra_named_args; ++i) {
-				const size_t args_extra_data_i = args->descriptor->num_params + i;
-				args->extra_names[i] = extra_named_args[i].name;
-				args->data[args_extra_data_i] = extra_named_args[i].value;
-			}
-			for (size_t i = 0; i < num_extra_unnamed_args; ++i) {
-				const size_t args_extra_data_i = args->descriptor->num_params + args->num_extra_names;
-				args->data[args_extra_data_i] = extra_unnamed_args[i];
-			}
-			
+		case SnArgumentsType:
+			snow_arguments_merge(args, (SnArguments*)merge_in);
 			break;
-		}
 		default: {
 			fprintf(stderr, "WARNING: Splat argument '%p' is not a map or array.\n", merge_in);
 			break;
 		}
+	}
+	
+	// Set the locals representing the arguments
+	const SnFunctionDescriptor* descriptor = callee_context->function->descriptor;
+	for (size_t i = 0; (i < descriptor->num_locals) && (i < args->size); ++i) {
+		if (!callee_context->locals[i])
+			callee_context->locals[i] = args->data[i];
 	}
 }
 
@@ -371,7 +178,15 @@ SnObject* snow_create_function_prototype() {
 static VALUE function_call_context_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFunctionCallContextType) return NULL;
 	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
-	return snow_string_format("[FunctionCallContext@%p function:%p(%s)]", context, context->function, snow_sym_to_cstr(context->function->descriptor->name));
+	SnString* result = snow_string_format("[FunctionCallContext@%p function:%p(%s) locals:(", context, context->function, snow_sym_to_cstr(context->function->descriptor->name));
+	for (size_t i = 0; i < context->function->descriptor->num_locals; ++i) {
+		snow_string_append_cstr(result, snow_sym_to_cstr(context->function->descriptor->local_names[i]));
+		snow_string_append_cstr(result, " => ");
+		snow_string_append(result, snow_value_inspect(context->locals[i]));
+		if (i != context->function->descriptor->num_locals-1) snow_string_append_cstr(result, ", ");
+	}
+	snow_string_append_cstr(result, ")]");
+	return result;
 }
 
 static VALUE function_call_context_get_arguments(SnFunctionCallContext* here, VALUE self, VALUE it) {
@@ -380,9 +195,21 @@ static VALUE function_call_context_get_arguments(SnFunctionCallContext* here, VA
 	return context->arguments;
 }
 
+static VALUE function_call_context_get_locals(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnFunctionCallContextType) return NULL;
+	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
+	SnMap* map = snow_create_map_with_immediate_keys_and_insertion_order();
+	const SnFunctionDescriptor* descriptor = context->function->descriptor;
+	for (size_t i = 0; i < descriptor->num_locals; ++i) {
+		snow_map_set(map, snow_symbol_to_value(descriptor->local_names[i]), context->locals[i]);
+	}
+	return map;
+}
+
 SnObject* snow_create_function_call_context_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", function_call_context_inspect, 0);
 	SN_DEFINE_PROPERTY(proto, "arguments", function_call_context_get_arguments, NULL);
+	SN_DEFINE_PROPERTY(proto, "locals", function_call_context_get_locals, NULL);
 	return proto;
 }
