@@ -4,11 +4,11 @@
 #include "snow/function.h"
 
 static VALUE nil_inspect(SnFunctionCallContext* context, VALUE self, VALUE it) {
-	return snow_create_string("nil");
+	return snow_create_string_constant("nil");
 }
 
 static VALUE nil_to_string(SnFunctionCallContext* context, VALUE self, VALUE it) {
-	return snow_create_string("");
+	return snow_create_string_constant("");
 }
 
 SnObject* snow_create_nil_prototype() {

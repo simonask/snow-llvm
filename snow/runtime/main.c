@@ -45,7 +45,7 @@ static void interactive_prompt()
 		if (!unfinished_expr) {
 			SnString* str = snow_create_string_from_linkbuffer(input_buffer);
 			VALUE result = snow_eval_in_global_module(snow_string_cstr(str));
-			VALUE inspected = snow_call(snow_get_method(result, snow_sym("inspect")), result, 0, NULL);
+			VALUE inspected = SNOW_CALL_METHOD(result, "inspect", 0, NULL);
 			if (snow_type_of(inspected) != SnStringType) {
 				inspected = snow_string_format("[Object@%p]", result);
 			}
@@ -90,7 +90,7 @@ int snow_main(int argc, char* const* argv) {
 			}
 			case 'r':
 			{
-				SnString* filename = snow_create_string(optarg);
+				SnString* filename = snow_create_string_constant(optarg);
 				snow_array_push(require_files, filename);
 				break;
 			}
@@ -108,14 +108,14 @@ int snow_main(int argc, char* const* argv) {
 	
 	// require first loose argument, unless -- was used
 	if (optind < argc && strcmp("--", argv[optind-1]) != 0) {
-		SnString* filename = snow_create_string(argv[optind++]);
+		SnString* filename = snow_create_string_constant(argv[optind++]);
 		snow_array_push(require_files, filename);
 	}
 	
 	// stuff the rest in ARGV
 	SnArray* ARGV = snow_create_array_with_size(argc);
 	while (optind < argc) {
-		SnString* argument = snow_create_string(argv[optind++]);
+		SnString* argument = snow_create_string_constant(argv[optind++]);
 		snow_array_push(ARGV, argument);
 	}
 	snow_set_global(snow_sym("ARGV"), ARGV);
