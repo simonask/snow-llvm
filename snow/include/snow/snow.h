@@ -26,12 +26,16 @@ CAPI VALUE snow_get_global(SnSymbol sym);
 CAPI struct SnFunction* snow_compile(const char* module_name, const char* source);
 
 CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, const VALUE* args);
-#define SN_CALL_METHOD(SELF, NAME, NUM_ARGS, ARGS) snow_call(snow_get_method(SELF, snow_sym(NAME)), SELF, NUM_ARGS, ARGS)
+CAPI VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, const VALUE* args);
 CAPI VALUE snow_call_with_named_arguments(VALUE function, VALUE self, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);
-CAPI struct SnFunction* snow_get_method(VALUE self, SnSymbol member);
+CAPI VALUE snow_call_method_with_named_arguments(VALUE self, SnSymbol method_name, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);
+#define SNOW_CALL_METHOD(SELF, NAME, NUM_ARGS, ARGS) snow_call_method(SELF, snow_sym(NAME), NUM_ARGS, ARGS)
+CAPI struct SnFunction* snow_get_method(VALUE self, SnSymbol member, VALUE* new_self);
 
+CAPI struct SnObject* snow_get_nearest_object(VALUE val);
 CAPI VALUE snow_get_member(VALUE self, SnSymbol member);
 CAPI VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val);
+CAPI VALUE snow_value_freeze(VALUE it);
 
 CAPI struct SnObject* snow_create_class_for_prototype(SnSymbol name, struct SnObject* proto);
 

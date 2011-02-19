@@ -28,8 +28,6 @@ struct SnAstNode;
 static SnProcess main_process;
 static SnObject* immediate_prototypes[8];
 
-static SnObject* get_nearest_object(VALUE);
-
 SnProcess* snow_init(struct SnVM* vm) {
 	main_process.vm = vm;
 	
@@ -79,9 +77,16 @@ SnFunction* snow_compile(const char* module_name, const char* source) {
 }
 
 VALUE snow_call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
-	SnFunction* function = snow_value_to_function(functor);
+	SnFunction* function = snow_value_to_function(functor, &self);
 	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, 0, NULL, num_args, args);
 	return snow_function_call(function, context, self, num_args ? args[0] : NULL);
+}
+
+VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, const VALUE* args) {
+	SnFunction* method = snow_get_method(self, method_name, &self);
+	if (!method) return NULL;
+	ASSERT(snow_type_of(method) == SnFunctionType);
+	return snow_call(method, self, num_args, args);
 }
 
 struct named_arg { SnSymbol name; VALUE value; };
@@ -104,39 +109,54 @@ VALUE snow_call_with_named_arguments(VALUE functor, VALUE self, size_t num_names
 		it = args[0];
 	}
 	
-	SnFunction* function = snow_value_to_function(functor);
+	SnFunction* function = snow_value_to_function(functor, &self);
 	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, num_names, names, num_args, args);
 	return snow_function_call(function, context, self, it);
 }
 
-SnFunction* snow_get_method(VALUE object, SnSymbol member) {
-	// TODO: Support functor objects
-	VALUE f = snow_get_member(object, member);
-	if (!f) {
-		snow_throw_exception_with_description("Member '%s' of object %p does not exist.", snow_sym_to_cstr(member), object);
-		return NULL;
-	}
-	if (snow_type_of(f) != SnFunctionType) {
-		snow_throw_exception_with_description("Method '%s' of object %p is not a function.", snow_sym_to_cstr(member), object);
-		return NULL;
-	}
-	return (SnFunction*)f;
+VALUE snow_call_method_with_named_arguments(VALUE self, SnSymbol method_name, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args) {
+	SnFunction* method = snow_get_method(self, method_name, &self);
+	return snow_call_with_named_arguments(method, self, num_names, names, num_args, args);
 }
 
-static SnObject* get_nearest_object(VALUE value) {
+SnFunction* snow_get_method(VALUE object, SnSymbol member, VALUE* new_self) {
+	// TODO: Support functor objects
+	VALUE f = snow_get_member(object, member);
+	*new_self = object;
+	if (!f) {
+		snow_throw_exception_with_description("Object %p does not respond to method '%s'.", object, snow_sym_to_cstr(member));
+		return NULL;
+	}
+	return snow_value_to_function(f, new_self);
+}
+
+SnObject* snow_get_nearest_object(VALUE value) {
 	SnType type = snow_type_of(value);
 	if (type == SnObjectType) return (SnObject*)value;
 	return snow_get_prototype_for_type(type);
 }
 
 VALUE snow_get_member(VALUE self, SnSymbol member) {
-	SnObject* prototype = get_nearest_object(self);
+	SnObject* prototype = snow_get_nearest_object(self);
 	return snow_object_get_member(prototype, self, member);
 }
 
 VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
-	SnObject* prototype = get_nearest_object(self);
+	SnObject* prototype = snow_get_nearest_object(self);
 	return snow_object_set_member(prototype, self, member, val);
+}
+
+VALUE snow_value_freeze(VALUE it) {
+	// TODO!!
+	return it;
+}
+
+VALUE snow_get_module_value(SnObject* module, SnSymbol member) {
+	VALUE v = snow_get_member(module, member);
+	if (v) return v;
+	// TODO: Exception
+	fprintf(stderr, "ERROR: Variable '%s' not found in module %p.\n", snow_sym_to_cstr(member), module);
+	return NULL;
 }
 
 SnObject* snow_create_class_for_prototype(SnSymbol name, SnObject* proto) {
