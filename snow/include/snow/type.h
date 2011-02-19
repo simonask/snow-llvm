@@ -6,7 +6,7 @@
 #include "snow/value.h"
 #include "snow/object.h"
 
-INLINE SnType snow_type_of(VALUE val) {
+INLINE SnType snow_type_of(const void* val) {
 	if (!val) return SnNilType;
 	const uintptr_t t = (uintptr_t)val & SnTypeMask;
 	if (t == 0x0) return ((SnObjectBase*)val)->type;
@@ -14,8 +14,11 @@ INLINE SnType snow_type_of(VALUE val) {
 	return (SnType)t;
 }
 
+INLINE bool snow_is_immediate_type(SnType type) {
+	return type < SnTypeMask && type != SnAnyType;
+}
+
 CAPI struct SnObject** snow_get_prototypes();
 CAPI struct SnObject* snow_get_prototype_for_type(SnType type);
-
 
 #endif /* end of include guard: TYPE_H_ZR7ZWP35 */
