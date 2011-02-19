@@ -150,7 +150,17 @@ SnObject* snow_create_class_for_prototype(SnSymbol name, SnObject* proto) {
 }
 
 SnString* snow_value_to_string(VALUE it) {
-	VALUE vstr = SN_CALL_METHOD(it, "to_string", 0, NULL);
+	VALUE vstr = SNOW_CALL_METHOD(it, "to_string", 0, NULL);
 	ASSERT(snow_type_of(vstr) == SnStringType);
 	return (SnString*)vstr;
+}
+
+SnString* snow_value_inspect(VALUE it) {
+	VALUE vstr = SNOW_CALL_METHOD(it, "inspect", 0, NULL);
+	ASSERT(snow_type_of(vstr) == SnStringType);
+	return (SnString*)vstr;
+}
+
+const char* snow_value_to_cstr(VALUE it) {
+	return snow_string_cstr(snow_value_to_string(it));
 }
