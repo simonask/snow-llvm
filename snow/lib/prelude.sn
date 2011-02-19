@@ -1,4 +1,3 @@
-
 __class_prototype__: __make_object__(nil)
 __class_prototype__.__call__: {
 	obj: __make_object__(.instance_prototype)
@@ -9,19 +8,29 @@ __class_prototype__.initialize: [super] {
 	.super: super
 }
 
+__object_prototype__.initialize: {}
+
 class: [super_or_block, block] {
 	if block
-		prototype: super_or_block.instance_prototype
+		super: super_or_block
 		definition: block
 	else
-		prototype: __object_prototype__
+		super: Object
 		definition: super_or_block
 	end
 	
+	prototype: super.instance_prototype
+	
 	klass: Class(super)
 	klass.instance_prototype: __make_object__(prototype)
-	definition.call_with_self(klass.instance_prototype, klass)
+	klass.instance_prototype.instance_eval(definition, klass)
 	klass
+}
+
+module: [block] {
+	m: Object()
+	m.instance_eval(block)
+	m
 }
 
 Class: __make_object__(__class_prototype__)
@@ -29,47 +38,116 @@ Class.instance_prototype: __class_prototype__
 
 Object: __make_object__(__class_prototype__)
 Object.instance_prototype: __object_prototype__
+Object.__call__: __make_object__
+
+Object.super: nil
+Class.super: Object
 
 Array: __make_object__(__class_prototype__)
 Array.instance_prototype: __array_prototype__
-Array.instance_prototype.instance_eval {
-	.each: [block] {
-		i, n: 0, .size
-		while i < n
-			block(self[i], i)
-		end
-	}
-	
-	.each_pair: [block] {
-		i, n: 0, .size
-		while i < n
-			block(i, self[i])
-		end
-	}
-}
 Array.__call__: __make_array__
+Array.super: Object
 @: Array
 
 Map: __make_object__(__class_prototype__)
 Map.instance_prototype: __map_prototype__
 Map.__call__: __make_map__
+Map.super: Object
 
 Integer: __make_object__(__class_prototype__)
 Integer.instance_prototype: __integer_prototype__
 Integer.__call__: [n] { n }
+Integer.super: Object
 
 Float: __make_object__(__class_prototype__)
 Float.instance_prototype: __float_prototype__
 Float.__call__: [f] { f }
+Float.super: Object
 
 String: __make_object__(__class_prototype__)
 String.instance_prototype: __string_prototype__
 String.__call__: __make_string__
+String.super: Object
 
 Boolean: __make_object__(__class_prototype__)
 Boolean.instance_prototype: __boolean_prototype__
 Boolean.__call__: __make_boolean__
+Boolean.super: Object
 
 Symbol: __make_object__(__class_prototype__)
 Symbol.instance_prototype: __symbol_prototype__
 Symbol.__call__: __make_symbol__
+Symbol.super: Object
+
+Enumerable: module {
+	.all?: [condition] {
+		if condition
+			.each { here.parent.ret(false) unless condition(it) }
+		else
+			.each { here.parent.ret(false) unless it }
+		end
+		return true
+	}
+	
+	.any?: [condition] {
+		if condition
+			.each { here.parent.ret(true) if condition(it) }
+		else
+			.each { here.parent.ret(true) if it }
+		end
+		return false
+	}
+	
+	.count: [condition] {
+		i: 0
+		if condition
+			.each { i: i + 1 if condition(it) }
+		else
+			.each { i: i + 1 if it }
+		end
+		return i
+	}
+	
+	.find: [condition_or_object] {
+		
+	}
+	
+	.map: [block] {
+		MapEnumerator(self, block)
+	}
+}
+Array.instance_prototype.include(Enumerable)
+Map.instance_prototype.include(Enumerable)
+
+MapEnumerator: class {
+	.include(Enumerable)
+	.initialize: [object, transformer] {
+		.object, .transformer: object, transformer
+	}
+	.each: [block] {
+		.object.each {
+			block(.transformer(it))
+		}
+	}
+	
+	.__call__: [block] {
+		.object.each {
+			block(.transformer(it))
+		}
+	}
+	
+	.to_array: {
+		array: @()
+		.each { array.push(it) }
+		array
+	}
+	
+	.to_string: {
+		return .to_array().to_string() if .object
+		"[MapEnumerator prototype]"
+	}
+	.inspect: {
+		return .to_array().inspect() if .object
+		"[MapEnumerator prototype]"
+	}
+}
