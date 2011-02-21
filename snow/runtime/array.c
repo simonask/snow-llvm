@@ -153,6 +153,13 @@ static VALUE array_each(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
+static VALUE array_push(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnArrayType) return NULL;
+	SnArray* array = (SnArray*)self;
+	snow_array_push(array, it);
+	return self;
+}
+
 SnObject* snow_create_array_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", array_inspect, 0);
@@ -161,5 +168,7 @@ SnObject* snow_create_array_prototype() {
 	SN_DEFINE_METHOD(proto, "__index_set__", array_index_set, 2);
 	SN_DEFINE_METHOD(proto, "*", array_multiply_or_splat, 1);
 	SN_DEFINE_METHOD(proto, "each", array_each, 1);
+	SN_DEFINE_METHOD(proto, "push", array_push, 1);
+	SN_DEFINE_METHOD(proto, "<<", array_push, 1);
 	return proto;
 }
