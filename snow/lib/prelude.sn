@@ -121,18 +121,18 @@ Map.instance_prototype.include(Enumerable)
 
 MapEnumerator: class {
 	.include(Enumerable)
-	.initialize: [object, transformer] {
-		.object, .transformer: object, transformer
+	.initialize: [collection, function] {
+		.collection, .function: collection, function
 	}
 	.each: [block] {
-		.object.each {
-			block(.transformer(it))
+		.collection.each {
+			block(.function(it))
 		}
 	}
 	
 	.__call__: [block] {
-		.object.each {
-			block(.transformer(it))
+		.collection.each {
+			block(.function(it))
 		}
 	}
 	
@@ -142,12 +142,20 @@ MapEnumerator: class {
 		array
 	}
 	
+	.to_map: {
+		map: Map()
+		.collection.each {
+			map[it]: .function(it)
+		}
+		map
+	}
+	
 	.to_string: {
-		return .to_array().to_string() if .object
+		return .to_array().to_string() if .collection
 		"[MapEnumerator prototype]"
 	}
 	.inspect: {
-		if .object
+		if .collection
 			return .to_array().inspect()
 		else
 			return .instance_eval(Object.instance_prototype.inspect)
