@@ -138,7 +138,7 @@ MapEnumerator: class {
 	
 	.to_array: {
 		array: @()
-		.each { array.push(it) }
+		.each { array << it }
 		array
 	}
 	
@@ -147,7 +147,10 @@ MapEnumerator: class {
 		"[MapEnumerator prototype]"
 	}
 	.inspect: {
-		return .to_array().inspect() if .object
-		"[MapEnumerator prototype]"
+		if .object
+			return .to_array().inspect()
+		else
+			return .instance_eval(Object.instance_prototype.inspect)
+		end
 	}
 }
