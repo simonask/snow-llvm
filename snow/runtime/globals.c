@@ -4,6 +4,7 @@
 #include "snow/str.h"
 #include "snow/type.h"
 #include "snow/array.h"
+#include "snow/map.h"
 #include "snow/module.h"
 #include "snow/boolean.h"
 #include "snow/vm.h"
@@ -52,7 +53,19 @@ static VALUE global_make_array(SnFunctionCallContext* here, VALUE self, VALUE it
 }
 
 static VALUE global_make_map(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	return SN_NIL; // XXX: TODO!
+	return snow_create_map();
+}
+
+static VALUE global_make_map_with_immediate_keys(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_create_map_with_immediate_keys();
+}
+
+static VALUE global_make_map_with_insertion_order(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_create_map_with_insertion_order();
+}
+
+static VALUE global_make_map_with_immediate_keys_and_insertion_order(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_create_map_with_immediate_keys_and_insertion_order();
 }
 
 static VALUE global_make_string(SnFunctionCallContext* here, VALUE self, VALUE it) {
@@ -84,12 +97,16 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
 	
 	SN_DEFINE_GLOBAL("@", global_make_array, -1);
+	SN_DEFINE_GLOBAL("#", global_make_map, -1);
 	SN_DEFINE_GLOBAL("puts", global_puts, -1);
 	SN_DEFINE_GLOBAL("import", global_import, 1);
 	SN_DEFINE_GLOBAL("load", global_load, 1);
 	SN_DEFINE_GLOBAL("__make_object__", global_make_object, -1);
 	SN_DEFINE_GLOBAL("__make_array__", global_make_array, -1);
 	SN_DEFINE_GLOBAL("__make_map__", global_make_map, -1);
+	SN_DEFINE_GLOBAL("__make_map_with_immediate_keys__", global_make_map_with_immediate_keys, -1);
+	SN_DEFINE_GLOBAL("__make_map_with_insertion_order__", global_make_map_with_insertion_order, -1);
+	SN_DEFINE_GLOBAL("__make_map_with_immediate_keys_and_insertion_order__", global_make_map_with_immediate_keys_and_insertion_order, -1);
 	SN_DEFINE_GLOBAL("__make_string__", global_make_string, -1);
 	SN_DEFINE_GLOBAL("__make_boolean__", global_make_boolean, 1);
 	SN_DEFINE_GLOBAL("__make_symbol__", global_make_symbol, 1);

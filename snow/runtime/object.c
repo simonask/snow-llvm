@@ -9,6 +9,7 @@
 #include "snow/str.h"
 #include "snow/snow.h"
 #include "snow/boolean.h"
+#include "snow/numeric.h"
 
 static int compare_properties(const void* _a, const void* _b) {
 	const SnProperty* a = (const SnProperty*)_a;
@@ -174,12 +175,18 @@ static VALUE object_get_prototype(SnFunctionCallContext* here, VALUE self, VALUE
 	return snow_get_nearest_object(self);
 }
 
+static VALUE object_compare(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	// XXX: TODO: With accurate GC, this is unsafe.
+	return snow_integer_to_value((ssize_t)self - (ssize_t)it);
+}
+
 SnObject* snow_create_object_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "instance_eval", object_instance_eval, 1);
 	SN_DEFINE_METHOD(proto, "include", object_include, 1);
+	SN_DEFINE_METHOD(proto, "<=>", object_compare, 1);
 	SN_DEFINE_PROPERTY(proto, "members", object_get_members, NULL);
 	SN_DEFINE_PROPERTY(proto, "prototype", object_get_prototype, NULL);
 	return proto;

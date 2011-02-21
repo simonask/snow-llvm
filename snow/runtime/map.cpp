@@ -122,7 +122,7 @@ namespace {
 	int compare_objects(const void* _a, const void* _b) {
 		const VALUE* a = (const VALUE*)_a;
 		const VALUE* b = (const VALUE*)_b;
-		VALUE difference = SNOW_CALL_METHOD(*a, "compare", 1, b);
+		VALUE difference = SNOW_CALL_METHOD(*a, "<=>", 1, b);
 		ASSERT(snow_is_integer(difference));
 		return snow_value_to_integer(difference);
 	}
@@ -426,7 +426,7 @@ static VALUE map_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnMapType) return NULL;
 	SnMap* map = (SnMap*)self;
 	const size_t size = snow_map_size(map);
-	SnString* result = snow_create_string_constant("#(");
+	SnString* result = snow_create_string_constant("%(");
 	SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
 	snow_map_get_pairs(map, pairs);
 	for (size_t i = 0; i < size; ++i) {
@@ -453,7 +453,7 @@ CAPI SnObject* snow_create_map_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", map_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", map_inspect, 0);
-	SN_DEFINE_METHOD(proto, "__index_get__", map_index_get, 1);
-	SN_DEFINE_METHOD(proto, "__index_set__", map_index_set, 2);
+	SN_DEFINE_METHOD(proto, "get", map_index_get, 1);
+	SN_DEFINE_METHOD(proto, "set", map_index_set, 2);
 	return proto;
 }

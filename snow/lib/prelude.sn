@@ -52,6 +52,9 @@ Array.super: Object
 Map: __make_object__(__class_prototype__)
 Map.instance_prototype: __map_prototype__
 Map.__call__: __make_map__
+Map.with_immediate_keys: __make_map_with_immediate_keys__
+Map.with_insertion_order: __make_map_with_insertion_order__
+Map.with_immediate_keys_and_insertion_order: __make_map_with_immediate_keys_and_insertion_order__
 Map.super: Object
 
 Integer: __make_object__(__class_prototype__)
