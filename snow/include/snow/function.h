@@ -13,6 +13,11 @@ struct SnFunction;
 
 typedef VALUE(*SnFunctionPtr)(struct SnFunctionCallContext* here, VALUE self, VALUE it);
 
+typedef struct SnVariableReference {
+	int level; // The number of call scopes to go up to find the variable.
+	int index; // The index of the variable in that scope.
+} SnVariableReference;
+
 typedef struct SnFunctionDescriptor {
 	SnFunctionPtr ptr;
 	SnSymbol name;
@@ -25,6 +30,8 @@ typedef struct SnFunctionDescriptor {
 	uint32_t num_locals; // num_locals >= num_params (locals include arguments)
 	bool needs_context;
 	void* jit_info;
+	size_t num_variable_references;
+	SnVariableReference* variable_references;
 } SnFunctionDescriptor;
 
 typedef struct SnFunctionCallContext {

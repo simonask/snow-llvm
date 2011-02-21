@@ -14,7 +14,22 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 	SnFunction* obj = SN_GC_ALLOC_OBJECT(SnFunction);
 	obj->descriptor = descriptor;
 	obj->definition_context = definition_context;
-	obj->variable_references = (VALUE**)0x1;
+	obj->variable_references = NULL;
+	if (descriptor->num_variable_references) {
+		obj->variable_references = (VALUE**)malloc(sizeof(VALUE*)*descriptor->num_variable_references);
+		
+		for (size_t i = 0; i < descriptor->num_variable_references; ++i) {
+			SnVariableReference* ref = descriptor->variable_references + i;
+			SnFunctionCallContext* ref_context = definition_context;
+			for (int level = 1; level < ref->level; ++level) {
+				ref_context = ref_context->function->definition_context;
+				ASSERT(ref_context && "Invalid variable reference! Function descriptor is corrupt.");
+			}
+			ASSERT(ref->level > 0 && ref->index < ref_context->function->descriptor->num_locals && "Invalid variable reference index! Function descriptor is corrupt.");
+			obj->variable_references[i] = ref_context->locals + ref->index;
+		}
+	}
+	
 	return obj;
 }
 
@@ -143,6 +158,8 @@ SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int num_args) {
 	descriptor->num_locals = num_args > 0 ? num_args : 0;
 	descriptor->needs_context = num_args < 0 || num_args > 1;
 	descriptor->jit_info = NULL;
+	descriptor->num_variable_references = 0;
+	descriptor->variable_references = NULL;
 	
 	for (int i = 0; i < num_args; ++i) {
 		descriptor->param_types[i] = SnAnyType; // TODO

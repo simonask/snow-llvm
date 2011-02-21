@@ -664,6 +664,8 @@ namespace snow {
 				uint32_t num_locals;
 				bool needs_context;
 				void* jit_info;
+				size_t num_variable_references;
+				SnVariableReference* variable_references;
 			} SnFunctionDescriptor;
 		*/		
 		const llvm::StructType* descriptor_type = get_struct_type("struct.SnFunctionDescriptor");
@@ -680,6 +682,12 @@ namespace snow {
 		struct_values.push_back(llvm::ConstantInt::get(itype32, function->local_names.size()));
 		struct_values.push_back(llvm::ConstantInt::get(bool_type, function->needs_environment));
 		struct_values.push_back(llvm::ConstantExpr::getIntToPtr(llvm::ConstantInt::get(size_type, (size_t)function->function), get_value_type())); // VALUE is void*
+		// Variable references
+		struct_values.push_back(llvm::ConstantInt::get(size_type, function->variable_references.size()));
+		// TODO: Make this a globalvariable instead of an embedded pointer
+		SnVariableReference* references = new SnVariableReference[function->variable_references.size()];
+		for (size_t i = 0; i < function->variable_references.size(); ++i) references[i] = function->variable_references[i];
+		struct_values.push_back(llvm::ConstantExpr::getIntToPtr(llvm::ConstantInt::get(size_type, (size_t)references), get_pointer_to_struct_type("struct.SnVariableReference")));
 		
 		llvm::Constant* descriptor_value = llvm::ConstantStruct::get(descriptor_type, struct_values);
 		llvm::GlobalVariable* var = new llvm::GlobalVariable(*_module, descriptor_value->getType(), true, llvm::GlobalValue::InternalLinkage, descriptor_value, function->function->getName() + "_descriptor");
@@ -866,27 +874,7 @@ namespace snow {
 		return value;
 	}
 	
-	Value Codegen::compile_get_local(Builder& builder, Function& current_function, SnSymbol name) {
-		// TODO: Disable LocalCache for parallel code.
-		//Function::LocalCache::iterator it = current_function.local_cache.find(name);
-		//if (it != current_function.local_cache.end()) return it->second;
-		
-		std::string sname = snow::symbol_to_cstr(name);
-		int local_index = index_of(current_function.local_names, name);
-		if (local_index >= 0) {
-			llvm::Value* local = builder.CreateLoad(builder.CreateConstGEP1_32(current_function.locals_array, local_index), sname);
-			Value result;
-			if (local_index < current_function.param_names.size()) {
-				// It's a parameter, so we might have some type information
-				result = Value(local, current_function.param_types[local_index]);
-			} else {
-				result = Value(local);
-			}
-			current_function.local_cache[name] = result;
-			return result;
-		}
-		
-		// Nothing was found in the current scope. It's time to check parent scopes.
+	llvm::Value* Codegen::get_pointer_to_variable_reference(Builder& builder, Function& current_function, SnSymbol name) {
 		VariableReference ref;
 		ref.level = 1;
 		ref.index = -1;
@@ -903,13 +891,31 @@ namespace snow {
 				ref_index = (int)current_function.variable_references.size();
 				current_function.variable_references.push_back(ref);
 			}
-			// TODO: Consider if we can add type inference here.
-			llvm::Value* variable_reference = builder.CreateLoad(builder.CreateConstGEP1_32(current_function.variable_references_array, ref_index));
-			llvm::Value* local = builder.CreateLoad(variable_reference);
-			Value result(local);
+			
+			return builder.CreateLoad(builder.CreateConstGEP1_32(current_function.variable_references_array, ref_index));
+		}
+		return NULL;
+	}
+	
+	Value Codegen::compile_get_local(Builder& builder, Function& current_function, SnSymbol name) {
+		std::string sname = snow::symbol_to_cstr(name);
+		int local_index = index_of(current_function.local_names, name);
+		if (local_index >= 0) {
+			llvm::Value* local = builder.CreateLoad(builder.CreateConstGEP1_32(current_function.locals_array, local_index), sname);
+			Value result;
+			if (local_index < current_function.param_names.size()) {
+				// It's a parameter, so we might have some type information
+				result = Value(local, current_function.param_types[local_index]);
+			} else {
+				result = Value(local);
+			}
 			current_function.local_cache[name] = result;
 			return result;
 		}
+		
+		// Nothing was found in the current scope. It's time to check parent scopes.
+		llvm::Value* ref_ptr = get_pointer_to_variable_reference(builder, current_function, name);
+		if (ref_ptr) return Value(builder.CreateLoad(ref_ptr));
 		
 		// Nothing was found at all! *sigh* Check the module, and throw an error if nothing is found.
 		// TODO: Provide source/line information to snow_get_module_value.
@@ -971,24 +977,9 @@ namespace snow {
 		}
 		
 		// Nothing was found in the current scope. It's time to check parent scopes.
-		VariableReference ref;
-		ref.level = 1;
-		ref.index = -1;
-		const Function* function = current_function.parent;
-		while (function) {
-			ref.index = index_of(function->local_names, name);
-			if (ref.index >= 0) break;
-			++ref.level;
-			function = function->parent;
-		}
-		if (ref.index >= 0) {
-			int ref_index = index_of(current_function.variable_references, ref);
-			if (ref_index < 0) {
-				ref_index = (int)current_function.variable_references.size();
-				current_function.variable_references.push_back(ref);
-			}
-			llvm::Value* variable_reference = builder.CreateLoad(builder.CreateConstGEP1_32(current_function.variable_references_array, ref_index), sname + ":ptr");
-			builder.CreateStore(value, variable_reference);
+		llvm::Value* ref_ptr = get_pointer_to_variable_reference(builder, current_function, name);
+		if (ref_ptr) {
+			builder.CreateStore(value, ref_ptr);
 			return value;
 		}
 		

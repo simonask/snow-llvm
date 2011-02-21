@@ -97,9 +97,7 @@ namespace snow {
 		const llvm::Value* operator->() const { return value; }
 	};
 	
-	struct VariableReference {
-		int level; // How many parent scopes to go up before we find our variable?
-		int index; // In that scope, what is the index of the variable?
+	struct VariableReference : public SnVariableReference {
 		bool operator==(const VariableReference& other) const { return level == other.level && index == other.index; }
 	};
 	
@@ -210,6 +208,7 @@ namespace snow {
 		Value compile_association_assignment(Builder& builder, Function& current_function, const SnAstNode* association, const Value& value);
 		Value compile_member_assignment(Builder& builder, Function& current_function, const SnAstNode* member, const Value& value);
 		Value compile_local_assignment(Builder& builder, Function& current_function, const SnAstNode* identifier, const Value& value);
+		llvm::Value* get_pointer_to_variable_reference(Builder& builder, Function& current_function, SnSymbol name);
 		
 		Value get_direct_method_call(Builder& builder, const Value& self, SnSymbol method, const CallArguments& args);
 		Value compile_method_call(Builder& builder, Function& caller, const Value& object, SnSymbol method, const CallArguments& args);
