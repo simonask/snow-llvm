@@ -12,8 +12,10 @@ struct SnArray;
 typedef struct SnObjectBase {
 	union {
 		struct {
-			unsigned gc_flags : 32;
-			SnType type       : 32;
+			unsigned gc_flags       : 8;
+			unsigned gc_page_offset : 8;
+			SnType type             : 8;
+			unsigned frozen         : 1;
 		};
 		void* _; // for alignment
 	};

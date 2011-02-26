@@ -4,45 +4,56 @@
 
 #include "snow/basic.h"
 #include "snow/object.h"
+#include "lock.h"
+
 #include <vector>
 
 namespace snow {
 	class Allocator {
 	public:
-		static const size_t OBJECTS_PER_PAGE = SN_MEMORY_PAGE_SIZE / SN_OBJECT_SIZE;
-
 		struct GCObject : SnObjectBase {
 			byte _[SN_OBJECT_SIZE - sizeof(SnObjectBase)];
 		};
 		
-		struct Page {
+		struct Block {
+			SN_RWLOCK_T lock;
 			union {
-				void* memory;
+				byte* memory;
 				GCObject* begin;
 			};
 			GCObject* end;
 			GCObject** free_list_head;
 			size_t free_list_size;
 			
-			bool contains(SnObjectBase* ptr) const { return ptr >= begin && ptr < end; }
+			Block() { SN_RWLOCK_INIT(&lock); }
+			~Block() { SN_RWLOCK_DESTROY(&lock); }
+			bool contains(const SnObjectBase* ptr) const { return ptr >= begin && ptr < end; }
 			size_t num_allocated() const { return (end - begin) - free_list_size; }
-			size_t num_available() const { return OBJECTS_PER_PAGE - num_allocated(); }
+			size_t num_available() const;
+			unsigned int block_offset_for(const GCObject* ptr) const;
 		};
+		
+		static const size_t OBJECTS_PER_BLOCK = (SN_ALLOCATION_BLOCK_SIZE - sizeof(Block)) / SN_OBJECT_SIZE;
 		
 		SnObjectBase* allocate();
 		void free(SnObjectBase* object);
-		void free(SnObjectBase* object, Page* page);
+		void free(SnObjectBase* object, Block* block);
 		bool is_allocated(SnObjectBase* object) const;
-		size_t get_num_pages() const { return _pages.size(); }
-		Page* get_page(unsigned i) { return &_pages[i]; }
-		Page* get_page_for_object(SnObjectBase* object);
+		size_t get_num_blocks() const { return _blocks.size(); }
+		Block* get_block(unsigned i) { return _blocks[i]; }
+		Block* get_block_for_object_fast(const SnObjectBase* definitely_an_object);
+		Block* get_block_for_object_safe(const SnObjectBase* maybe_an_object);
 	private:
-		std::vector<Page> _pages;
+		std::vector<Block*> _blocks;
 		
-		Page* find_available_page();
-		Page* create_page();
-		SnObjectBase* allocate_from_page(Page* page);
+		Block* find_available_block();
+		Block* create_block();
+		SnObjectBase* allocate_from_block(Block* block);
 	};
+	
+	inline size_t Allocator::Block::num_available() const {
+		return Allocator::OBJECTS_PER_BLOCK - num_allocated();
+	}
 }
 
 #endif /* end of include guard: ALLOCATOR_HPP_UZ4GOM1J */
