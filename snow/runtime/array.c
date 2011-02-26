@@ -38,22 +38,34 @@ void snow_finalize_array(SnArray* a) {
 }
 
 size_t snow_array_size(const SnArray* array) {
-	return array->size;
+	SN_GC_RDLOCK(array);
+	size_t size = array->size;
+	SN_GC_UNLOCK(array);
+	return size;
 }
 
 VALUE snow_array_get(const SnArray* array, int idx) {
-	if (idx >= array->size)
-		return NULL;
+	SN_GC_RDLOCK(array);
+	VALUE val;
+	if (idx >= array->size) {
+		val = NULL;
+		goto out;
+	}
 	if (idx < 0)
 		idx += array->size;
-	if (idx < 0)
-		return NULL;
-	// TODO: Lock?
-	VALUE val = array->data[idx];
+	if (idx < 0) {
+		val = NULL;
+		goto out;
+	}
+	val = array->data[idx];
+out:
+	SN_GC_UNLOCK(array);
 	return val;
 }
 
 VALUE snow_array_set(SnArray* array, int idx, VALUE val) {
+	SN_GC_WRLOCK(array);
+	
 	if (idx >= array->size) {
 		const uint32_t new_size = idx + 1;
 		snow_array_reserve(array, new_size);
@@ -63,14 +75,17 @@ VALUE snow_array_set(SnArray* array, int idx, VALUE val) {
 		idx += array->size;
 	}
 	if (idx < 0) {
+		// TODO: EXCEPTION.
 		TRAP(); // index out of bounds
-		return NULL;
+		goto out;
 	}
 	array->data[idx] = val;
+out:
+	SN_GC_UNLOCK(array);
 	return val;
 }
 
-void snow_array_reserve(SnArray* array, uint32_t new_size) {
+static void snow_array_reserve_unlocked(SnArray* array, uint32_t new_size) {
 	if (new_size > array->alloc_size) {
 		array->data = (VALUE*)realloc(array->data, new_size*sizeof(VALUE));
 		memset(array->data + array->alloc_size, 0, new_size - array->alloc_size);
@@ -78,17 +93,31 @@ void snow_array_reserve(SnArray* array, uint32_t new_size) {
 	}
 }
 
+void snow_array_reserve(SnArray* array, uint32_t new_size) {
+	SN_GC_WRLOCK(array);
+	snow_array_reserve_unlocked(array, new_size);
+	SN_GC_UNLOCK(array);
+}
+
 SnArray* snow_array_push(SnArray* array, VALUE val) {
-	snow_array_reserve(array, ++array->size);
+	SN_GC_WRLOCK(array);
+	snow_array_reserve_unlocked(array, ++array->size);
 	array->data[array->size-1] = val;
+	SN_GC_UNLOCK(array);
 	return array;
 }
 
 bool snow_array_contains(SnArray* array, VALUE val) {
+	SN_GC_RDLOCK(array);
+	bool found = false;
 	for (size_t i = 0; i < array->size; ++i) {
-		if (array->data[i] == val) return true;
+		if (array->data[i] == val) {
+			found = true;
+			break;
+		}
 	}
-	return false;
+	SN_GC_UNLOCK(array);
+	return found;
 }
 
 
@@ -96,10 +125,14 @@ static VALUE array_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnArrayType);
 	SnArray* array = (SnArray*)self;
 	
+	SN_GC_RDLOCK(array);
 	SnString** inspected = (SnString**)alloca(array->size*sizeof(SnString*));
 	size_t complete_size = 0;
 	for (size_t i = 0; i < array->size; ++i) {
-		inspected[i] = snow_value_inspect(array->data[i]);
+		VALUE val = array->data[i];
+		SN_GC_UNLOCK(array); // must release lock while calling .inspect
+		inspected[i] = snow_value_inspect(val);
+		SN_GC_RDLOCK(array);
 		complete_size += inspected[i]->size;
 	}
 	
@@ -121,6 +154,7 @@ static VALUE array_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	*p = ')';
 	++p;
 	*p = '\0';
+	SN_GC_UNLOCK(array);
 	
 	return snow_create_string_take_ownership(str);
 }
@@ -147,7 +181,7 @@ static VALUE array_each(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnArrayType) return NULL;
 	SnArray* array = (SnArray*)self;
 	for (size_t i = 0; i < snow_array_size(array); ++i) {
-		VALUE args[] = { array->data[i], snow_integer_to_value(i) };
+		VALUE args[] = { snow_array_get(array, i), snow_integer_to_value(i) };
 		snow_call(it, NULL, 2, args);
 	}
 	return SN_NIL;

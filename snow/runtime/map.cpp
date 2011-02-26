@@ -8,6 +8,8 @@
 #include "snow/function.h"
 #include "snow/str.h"
 
+#include "lock.hpp"
+
 #include <google/dense_hash_map>
 #include <stdlib.h>
 #include <string.h>
@@ -186,6 +188,7 @@ CAPI {
 	}
 	
 	size_t snow_map_size(const SnMap* map) {
+		SN_GC_SCOPED_RDLOCK(map);
 		if (map_is_flat(map)) {
 			return map->flat.size;
 		} else if (map_has_immediate_keys(map)) {
@@ -196,6 +199,7 @@ CAPI {
 	}
 	
 	VALUE snow_map_get(const SnMap* map, VALUE key) {
+		SN_GC_SCOPED_RDLOCK(map);
 		if (map_is_flat(map)) {
 			int32_t i = flat_find_index(map, key);
 			if (i >= 0) return map->flat.values[i];
@@ -213,7 +217,7 @@ CAPI {
 		}
 	}
 	
-	VALUE snow_map_set(SnMap* map, VALUE key, VALUE value) {
+	static VALUE snow_map_set_unlocked(SnMap* map, VALUE key, VALUE value) {
 		if (map_is_flat(map)) {
 			if (map_has_immediate_keys(map) && snow_is_object(key)) {
 				snow_throw_exception_with_description("Attempted to use an Object as key in an immediates-only hash map.");
@@ -230,7 +234,7 @@ CAPI {
 			// first, check if we need to convert to a full hash
 			if (!map_is_always_flat(map) && map->flat.size > FULL_HASH_THRESHOLD) {
 				convert_from_flat_to_full(map);
-				return snow_map_set(map, key, value); // no longer flat, should hit one of the full-hash cases
+				return snow_map_set_unlocked(map, key, value); // no longer flat, should hit one of the full-hash cases
 			}
 			
 			// no, so insert it in the list
@@ -272,7 +276,14 @@ CAPI {
 		}
 	}
 	
+	VALUE snow_map_set(SnMap* map, VALUE key, VALUE value) {
+		SN_GC_SCOPED_WRLOCK(map);
+		return snow_map_set_unlocked(map, key, value);
+	}
+	
 	VALUE snow_map_erase(SnMap* map, VALUE key) {
+		SN_GC_SCOPED_WRLOCK(map);
+		
 		// TODO: Consider if the map should be converted back into a flat map below the threshold?
 		
 		if (map_is_flat(map)) {
@@ -317,6 +328,7 @@ CAPI {
 	}
 	
 	void snow_map_reserve(SnMap* map, size_t size) {
+		SN_GC_SCOPED_WRLOCK(map);
 		if (size > FULL_HASH_THRESHOLD) {
 			convert_from_flat_to_full(map);
 		}
@@ -332,14 +344,16 @@ CAPI {
 		}
 	}
 	
-	void snow_map_get_keys_and_values(const SnMap* map, VALUE* keys, VALUE* values) {
+	void snow_map_get_keys_and_values(const SnMap* map, VALUE* keys, VALUE* values, size_t max) {
+		SN_GC_SCOPED_RDLOCK(map);
 		if (map_is_flat(map)) {
-			memcpy(keys, map->flat.keys, sizeof(VALUE)*map->flat.size);
-			memcpy(values, map->flat.values, sizeof(VALUE)*map->flat.size);
+			if (map->flat.size < max) max = map->flat.size;
+			memcpy(keys, map->flat.keys, sizeof(VALUE)*max);
+			memcpy(values, map->flat.values, sizeof(VALUE)*max);
 		} else if (map_has_immediate_keys(map)) {
 			const ImmediateHashMap* hmap = immediate_hash_map(map);
 			size_t i = 0;
-			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end() && i < max; ++it) {
 				keys[i] = it->first;
 				values[i] = it->second;
 				++i;
@@ -347,7 +361,7 @@ CAPI {
 		} else {
 			const HashMap* hmap = hash_map(map);
 			size_t i = 0;
-			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end() && i < max; ++it) {
 				keys[i] = it->first;
 				values[i] = it->second;
 				++i;
@@ -355,16 +369,17 @@ CAPI {
 		}
 	}
 	
-	void snow_map_get_pairs(const SnMap* map, SnKeyValuePair* pairs) {
+	void snow_map_get_pairs(const SnMap* map, SnKeyValuePair* pairs, size_t max) {
+		SN_GC_SCOPED_RDLOCK(map);
 		if (map_is_flat(map)) {
-			for (size_t i = 0; i < map->flat.size; ++i) {
+			for (size_t i = 0; i < map->flat.size && i < max; ++i) {
 				pairs[i][0] = map->flat.keys[i];
 				pairs[i][1] = map->flat.values[i];
 			}
 		} else if (map_has_immediate_keys(map)) {
 			const ImmediateHashMap* hmap = immediate_hash_map(map);
 			size_t i = 0;
-			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end() && i < max; ++it) {
 				pairs[i][0] = it->first;
 				pairs[i][1] = it->second;
 				++i;
@@ -372,7 +387,7 @@ CAPI {
 		} else {
 			const HashMap* hmap = hash_map(map);
 			size_t i = 0;
-			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end(); ++it) {
+			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end() && i < max; ++it) {
 				pairs[i][0] = it->first;
 				pairs[i][1] = it->second;
 				++i;
@@ -381,6 +396,7 @@ CAPI {
 	}
 	
 	void snow_map_for_each_gc_root(SnMap* map, SnMapForEachGCRootCallback callback) {
+		// TODO: Consider locking
 		if (map_is_flat(map)) {
 			if (map_has_immediate_keys(map)) {
 				// only callback for values
@@ -428,7 +444,7 @@ static VALUE map_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	const size_t size = snow_map_size(map);
 	SnString* result = snow_create_string_constant("%(");
 	SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
-	snow_map_get_pairs(map, pairs);
+	snow_map_get_pairs(map, pairs, size);
 	for (size_t i = 0; i < size; ++i) {
 		snow_string_append(result, snow_value_inspect(pairs[i][0]));
 		snow_string_append_cstr(result, " => ");

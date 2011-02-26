@@ -8,6 +8,7 @@
 #include "snow/str.h"
 
 #include "allocator.hpp"
+#include "lock.h"
 
 #include <stdlib.h>
 #include <vector>
@@ -222,5 +223,20 @@ CAPI {
 		obj->type = type;
 		++gc_num_objects;
 		return obj;
+	}
+	
+	void snow_gc_rdlock(const SnObjectBase* object) {
+		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
+		SN_RWLOCK_RDLOCK(&block->lock);
+	}
+	
+	void snow_gc_wrlock(const SnObjectBase* object) {
+		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
+		SN_RWLOCK_WRLOCK(&block->lock);
+	}
+	
+	void snow_gc_unlock(const SnObjectBase* object) {
+		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
+		SN_RWLOCK_UNLOCK(&block->lock);
 	}
 }

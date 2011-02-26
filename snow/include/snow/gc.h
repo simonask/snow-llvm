@@ -19,5 +19,12 @@ CAPI void snow_gc();
 CAPI struct SnObjectBase* snow_gc_alloc_object(size_t sz, SnType type);
 
 #define SN_GC_ALLOC_OBJECT(TYPE) (struct TYPE*)snow_gc_alloc_object(sizeof(struct TYPE), TYPE ## Type)
+#define SN_GC_RDLOCK(OBJECT) snow_gc_rdlock(&(OBJECT)->base)
+#define SN_GC_WRLOCK(OBJECT) snow_gc_wrlock(&(OBJECT)->base)
+#define SN_GC_UNLOCK(OBJECT) snow_gc_unlock(&(OBJECT)->base)
+
+CAPI void snow_gc_rdlock(const SnObjectBase* object);
+CAPI void snow_gc_wrlock(const SnObjectBase* object);
+CAPI void snow_gc_unlock(const SnObjectBase* object);
 
 #endif /* end of include guard: GC_H_X9TH74GE */
