@@ -30,8 +30,8 @@ CAPI struct SnArray* snow_string_split(const SnString* str, const SnString* sepa
 CAPI SnString* snow_string_format(const char* utf8_format, ...);
 
 INLINE const char* snow_string_cstr(const SnString* str) { return str->data; } // XXX: Inherently thread-unsafe!
-INLINE size_t snow_string_size(const SnString* str);
-INLINE size_t snow_string_length(const SnString* str);
+CAPI size_t snow_string_size(const SnString* str);
+CAPI size_t snow_string_length(const SnString* str);
 
 CAPI void snow_finalize_string(SnString*);
 
