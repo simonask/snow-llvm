@@ -81,7 +81,7 @@ SnArguments* snow_create_arguments_for_function_call(const SnFunctionDescriptor*
 	return arguments;
 }
 
-void snow_arguments_grow_by(SnArguments* args, size_t num_names, size_t size) {
+static void arguments_grow_by_unlocked(SnArguments* args, size_t num_names, size_t size) {
 	if (num_names) {
 		args->extra_names = (SnSymbol*)realloc(args->extra_names, (args->num_extra_names+num_names)*sizeof(SnSymbol));
 		memset(args->extra_names + args->num_extra_names, -1, num_names*sizeof(SnSymbol));
@@ -94,14 +94,23 @@ void snow_arguments_grow_by(SnArguments* args, size_t num_names, size_t size) {
 	}
 }
 
+void snow_arguments_grow_by(SnArguments* args, size_t num_names, size_t size) {
+	SN_GC_WRLOCK(args);
+	arguments_grow_by_unlocked(args, num_names, size);
+	SN_GC_UNLOCK(args);
+}
+
 VALUE snow_arguments_get_by_name(SnArguments* args, SnSymbol name) {
 	// TODO: Since argument names are always in order, consider using bsearch here instead.
+	SN_GC_RDLOCK(args);
+	VALUE val = NULL;
 	
 	size_t offset = 0;
 	if (args->descriptor) {
 		for (size_t i = 0; i < args->descriptor->num_params; ++i) {
 			if (name == args->descriptor->param_names[i]) {
-				return args->data[i];
+				val = args->data[i];
+				goto out;
 			}
 		}
 		offset = args->descriptor->num_params;
@@ -109,13 +118,18 @@ VALUE snow_arguments_get_by_name(SnArguments* args, SnSymbol name) {
 	
 	for (size_t i = 0; i < args->num_extra_names; ++i) {
 		if (name == args->extra_names[i]) {
-			return args->data[offset + i];
+			val = args->data[offset + i];
+			goto out;
 		}
 	}
-	return NULL;
+	
+out:
+	SN_GC_UNLOCK(args);
+	return val;
 }
 
 static void arguments_append_values(SnArguments* args, size_t num_values, const VALUE* values) {
+	SN_GC_WRLOCK(args);
 	size_t offset = 0;
 	for (size_t i = 0; (i < args->size) && (offset < num_values); ++i) {
 		if (!args->data[i]) {
@@ -123,13 +137,16 @@ static void arguments_append_values(SnArguments* args, size_t num_values, const 
 		}
 	}
 	size_t old_size = args->size;
-	snow_arguments_grow_by(args, 0, num_values - offset);
+	arguments_grow_by_unlocked(args, 0, num_values - offset);
 	memcpy(args->data + old_size, values + offset, (num_values-offset)*sizeof(VALUE));
+	SN_GC_UNLOCK(args);
 }
 
 void snow_arguments_append_array(SnArguments* args, const SnArray* array) {
 	size_t n = snow_array_size(array);
-	if (n) arguments_append_values(args, n, array->data);
+	VALUE* values = (VALUE*)alloca(n*sizeof(VALUE));
+	n = snow_array_get_all(array, values, n);
+	if (n) arguments_append_values(args, n, values);
 }
 
 void snow_arguments_append_map(SnArguments* args, const SnMap* map) {
@@ -138,7 +155,13 @@ void snow_arguments_append_map(SnArguments* args, const SnMap* map) {
 
 void snow_arguments_merge(SnArguments* args, const SnArguments* other) {
 	// TODO: Merge named arguments
-	arguments_append_values(args, other->size, other->data);
+	SN_GC_RDLOCK(other);
+	size_t sz = other->size;
+	VALUE* values = (VALUE*)alloca(sz*sizeof(VALUE));
+	memcpy(values, other->data, sz*sizeof(VALUE));
+	SN_GC_UNLOCK(other);
+	
+	arguments_append_values(args, sz, values);
 }
 
 static VALUE arguments_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {

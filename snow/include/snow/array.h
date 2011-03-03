@@ -19,6 +19,7 @@ CAPI SnArray* snow_array_copy(SnArray* array);
 CAPI size_t snow_array_size(const SnArray* array);
 CAPI VALUE snow_array_get(const SnArray* array, int32_t i);
 CAPI VALUE snow_array_set(SnArray* array, int32_t i, VALUE val);
+CAPI size_t snow_array_get_all(const SnArray* array, VALUE* out_values, size_t max);
 CAPI void snow_array_reserve(SnArray* array, uint32_t new_alloc_size);
 CAPI SnArray* snow_array_push(SnArray* array, VALUE val);
 CAPI SnArray* snow_array_push_range(SnArray* array, VALUE* begin, VALUE* end);

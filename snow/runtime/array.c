@@ -63,6 +63,14 @@ out:
 	return val;
 }
 
+size_t snow_array_get_all(const SnArray* array, VALUE* out_values, size_t max) {
+	SN_GC_RDLOCK(array);
+	size_t to_copy = array->size < max ? array->size : max;
+	memcpy(out_values, array->data, sizeof(VALUE)*max);
+	SN_GC_UNLOCK(array);
+	return to_copy;
+}
+
 VALUE snow_array_set(SnArray* array, int idx, VALUE val) {
 	SN_GC_WRLOCK(array);
 	
