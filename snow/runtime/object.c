@@ -165,12 +165,19 @@ void snow_object_define_property(SnObject* obj, SnSymbol name, VALUE getter, VAL
 }
 
 bool snow_object_include_module(SnObject* object, SnObject* module) {
-	SN_GC_WRLOCK(object);
+	SN_GC_RDLOCK(object);
 	SnArray* included_modules = object->included_modules;
-	if (!included_modules) {
-		included_modules = object->included_modules = snow_create_array();
-	}
 	SN_GC_UNLOCK(object);
+	
+	if (!included_modules) included_modules = snow_create_array();
+	
+	SN_GC_WRLOCK(object);
+	if (!object->included_modules) {
+		object->included_modules = included_modules;
+	}
+	included_modules = object->included_modules
+	SN_GC_UNLOCK(object);
+	
 	if (snow_array_contains(included_modules, module)) return false;
 	
 	snow_array_push(included_modules, module);
