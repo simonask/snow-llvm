@@ -814,8 +814,9 @@ namespace snow {
 	
 	Value Codegen::get_float_to_value(Builder& builder, llvm::Value* f) {
 		ASSERT(f->getType()->isFloatTy());
-		llvm::Value* casted = builder.CreateBitCast(f, builder.getInt64Ty());
-		llvm::Value* shifted = builder.CreateShl(casted, 16);
+		llvm::Value* casted = builder.CreateBitCast(f, builder.getInt32Ty());
+		llvm::Value* casted_extended = builder.CreateZExt(casted, builder.getInt64Ty());
+		llvm::Value* shifted = builder.CreateShl(casted_extended, 16);
 		llvm::Value* masked = builder.CreateIntToPtr(builder.CreateOr(shifted, SnFloatType), get_value_type());
 		return Value(masked, f, SnFloatType);
 	}
