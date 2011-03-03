@@ -65,22 +65,31 @@ void snow_finalize_string(SnString* str) {
 }
 
 SnString* snow_string_concat(const SnString* a, const SnString* b) {
-	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
 	size_t size_a = snow_string_size(a);
 	size_t size_b = snow_string_size(b);
 	size_t s = size_a + size_b;
+	char* buffer = s ? (char*)malloc(s+1) : NULL;
+	size_a = snow_string_copy_to(a, buffer, size_a);
+	size_b = snow_string_copy_to(b, buffer + size_a, size_b);
+	s = size_a + size_b;
+	buffer[s] = '\0';
+
+	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	SN_GC_WRLOCK(obj);
 	obj->size = s;
 	obj->length = s; // TODO: UTF-8 length
-	obj->data = s ? (char*)malloc(s+1) : 0;
-	memcpy(obj->data, snow_string_cstr(a), size_a);
-	memcpy(obj->data + size_a, snow_string_cstr(b), size_b);
-	obj->data[s] = '\0';
+	obj->data = buffer;
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
 void snow_string_append(SnString* self, const SnString* other) {
-	size_t combined_size = snow_string_size(self) + snow_string_size(other);
+	size_t other_size = snow_string_size(other);
+	char* tmp = (char*)alloca(other_size);
+	other_size = snow_string_copy_to(other, tmp, other_size);
 	
+	SN_GC_WRLOCK(self);
+	const size_t combined_size = self->size + other_size;
 	if (self->constant) {
 		char* data = (char*)malloc(combined_size + 1);
 		memcpy(data, self->data, self->size);
@@ -90,15 +99,18 @@ void snow_string_append(SnString* self, const SnString* other) {
 		self->data = (char*)realloc(self->data, combined_size + 1);
 	}
 	
-	memcpy(self->data + self->size, other->data, other->size);
+	memcpy(self->data + self->size, tmp, other_size);
 	self->data[combined_size] = '\0';
 	self->size = combined_size;
-	self->length = combined_size;
+	self->length = combined_size; // TODO: UTF-8 length
+	SN_GC_UNLOCK(self);
 }
 
 void snow_string_append_cstr(SnString* self, const char* utf8) {
 	size_t s = strlen(utf8);
-	size_t combined_size = snow_string_size(self) + s;
+	
+	SN_GC_WRLOCK(self);
+	size_t combined_size = self->size + s;
 	if (self->constant) {
 		char* data = (char*)malloc(combined_size + 1);
 		memcpy(data, self->data, self->size);
@@ -111,7 +123,16 @@ void snow_string_append_cstr(SnString* self, const char* utf8) {
 	memcpy(self->data + self->size, utf8, s);
 	self->data[combined_size] = '\0';
 	self->size = combined_size;
-	self->length = combined_size;
+	self->length = combined_size; // TODO: UTF-8 length
+	SN_GC_UNLOCK(self);
+}
+
+size_t snow_string_copy_to(const SnString* self, char* buffer, size_t max) {
+	SN_GC_RDLOCK(self);
+	size_t to_copy = self->size < max ? self->size : max;
+	memcpy(buffer, self->data, to_copy);
+	SN_GC_UNLOCK(self);
+	return to_copy;
 }
 
 SnString* snow_string_format(const char* utf8_format, ...) {
@@ -126,15 +147,17 @@ SnString* snow_string_format(const char* utf8_format, ...) {
 static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnStringType);
 	SnString* s = (SnString*)self;
-	char* buffer = alloca(s->size + 3);
-	memcpy(buffer+1, s->data, s->size);
+	size_t size = snow_string_size(s);
+	char* buffer = (char*)alloca(size + 3);
+	size = snow_string_copy_to(s, buffer+1, size);
 	buffer[0] = '"';
-	buffer[s->size + 1] = '"';
-	buffer[s->size + 2] = '\0';
-	return snow_create_string(buffer);
+	buffer[size + 1] = '"';
+	buffer[size + 2] = '\0';
+	return snow_create_string_with_size(buffer, size + 3);
 }
 
 static VALUE string_to_string(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnStringType);
 	return self;
 }
 

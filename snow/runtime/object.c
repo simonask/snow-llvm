@@ -37,18 +37,24 @@ VALUE snow_object_get_member(SnObject* object, VALUE self, SnSymbol member) {
 	SnObject* object_prototype = snow_get_prototype_for_type(SnObjectType);
 	SnObject* obj = object;
 	while (obj) {
+		SN_GC_RDLOCK(obj);
+		
 		VALUE v;
 		if (obj->members) {
-			if ((v = snow_map_get(obj->members, vmember)))
+			if ((v = snow_map_get(obj->members, vmember))) {
+				SN_GC_UNLOCK(obj);
 				return v;
+			}
 		}
 		
 		if (obj->properties) {
 			SnProperty key = { member, NULL, NULL };
 			SnProperty* property = (SnProperty*)bsearch(&key, obj->properties, obj->num_properties, sizeof(SnProperty), compare_properties);
 			if (property) {
-				if (property->getter) {
-					return snow_call(property->getter, self, 0, NULL);
+				VALUE getter = property->getter;
+				SN_GC_UNLOCK(obj);
+				if (getter) {
+					return snow_call(getter, self, 0, NULL);
 				} else {
 					// TODO: Exception
 					fprintf(stderr, "ERROR: Property '%s' is write-only on object %p (self %p).\n", snow_sym_to_cstr(member), obj, self);
@@ -62,12 +68,17 @@ VALUE snow_object_get_member(SnObject* object, VALUE self, SnSymbol member) {
 				SnObject* included = (SnObject*)snow_array_get(obj->included_modules, i);
 				ASSERT(snow_type_of(included) == SnObjectType);
 				v = snow_object_get_member(included, self, member);
-				if (v) return v;
+				if (v) {
+					SN_GC_UNLOCK(obj);
+					return v;	
+				}
 			}
 		}
 		
+		SnObject* prototype = obj->prototype;
+		SN_GC_UNLOCK(obj);
 		if (obj != object_prototype) {
-			obj = obj->prototype ? obj->prototype : object_prototype;
+			obj = prototype ? prototype : object_prototype;
 		} else {
 			obj = NULL;
 		}
@@ -80,11 +91,14 @@ VALUE snow_object_set_member(SnObject* object, VALUE self, SnSymbol member, VALU
 	SnObject* obj = object;
 	SnProperty key = { member, NULL, NULL };
 	while (obj) {
+		SN_GC_RDLOCK(obj);
 		if (obj->properties) {
 			SnProperty* property = (SnProperty*)bsearch(&key, obj->properties, obj->num_properties, sizeof(SnProperty), compare_properties);
 			if (property) {
+				VALUE setter = property->setter;
+				SN_GC_UNLOCK(obj);
 				if (property->setter) {
-					return snow_call(property->setter, self, 1, &value);
+					return snow_call(setter, self, 1, &value);
 				} else {
 					// TODO: Exception
 					fprintf(stderr, "ERROR: Property '%s' is read-only on object %p (self %p).\n", snow_sym_to_cstr(member), obj, self);
@@ -92,19 +106,29 @@ VALUE snow_object_set_member(SnObject* object, VALUE self, SnSymbol member, VALU
 				}
 			}
 		}
+		
+		SnObject* locked_obj = obj;
 		obj = obj->prototype;
+		SN_GC_UNLOCK(locked_obj);
 	}
 	
 	// TODO: Look for properties in included modules
 	
-	if (!object->members)
-		object->members = snow_create_map_with_immediate_keys();
-	snow_map_set(object->members, snow_symbol_to_value(member), value);
+	SN_GC_WRLOCK(object);
+	SnMap* members = object->members;
+	if (!members) {
+		members = object->members = snow_create_map_with_immediate_keys();
+	}
+	SN_GC_UNLOCK(object);
+	
+	snow_map_set(members, snow_symbol_to_value(member), value);
+	
 	return value;
 }
 
 
 void snow_object_define_property(SnObject* obj, SnSymbol name, VALUE getter, VALUE setter) {
+	SN_GC_WRLOCK(obj);
 	SnProperty key = { name, NULL, NULL };
 	SnProperty* existing_property = obj->num_properties ? (SnProperty*)bsearch(&key, obj->properties, obj->num_properties, sizeof(SnProperty), compare_properties) : 0;
 	if (existing_property) {
@@ -123,15 +147,19 @@ void snow_object_define_property(SnObject* obj, SnSymbol name, VALUE getter, VAL
 		existing_property->getter = getter;
 		existing_property->setter = setter;
 	}
+	SN_GC_UNLOCK(obj);
 }
 
 bool snow_object_include_module(SnObject* object, SnObject* module) {
-	if (!object->included_modules) {
-		object->included_modules = snow_create_array();
+	SN_GC_WRLOCK(object);
+	SnArray* included_modules = object->included_modules;
+	if (!included_modules) {
+		included_modules = object->included_modules = snow_create_array();
 	}
-	if (snow_array_contains(object->included_modules, module)) return false;
+	SN_GC_UNLOCK(object);
+	if (snow_array_contains(included_modules, module)) return false;
 	
-	snow_array_push(object->included_modules, module);
+	snow_array_push(included_modules, module);
 	// TODO: Call module.included(object)
 	return true;
 }
