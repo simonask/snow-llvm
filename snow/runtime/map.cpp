@@ -162,29 +162,28 @@ namespace {
 }
 
 CAPI {
-	SnMap* snow_create_map() {
+	static SnMap* create_map_with_flags(uint32_t flags) {
 		SnMap* map = SN_GC_ALLOC_OBJECT(SnMap);
+		SN_GC_SCOPED_WRLOCK(map);
 		memset(&map->flat, 0, sizeof(map->flat));
-		map->flags = MAP_FLAT;
+		map->flags = MAP_FLAT | flags;
 		return map;
+	}
+	
+	SnMap* snow_create_map() {
+		return create_map_with_flags(MAP_FLAT);
 	}
 	
 	SnMap* snow_create_map_with_immediate_keys() {
-		SnMap* map = snow_create_map();
-		map->flags |= MAP_IMMEDIATE_KEYS;
-		return map;
+		return create_map_with_flags(MAP_IMMEDIATE_KEYS);
 	}
 	
 	SnMap* snow_create_map_with_insertion_order() {
-		SnMap* map = snow_create_map();
-		map->flags |= MAP_MAINTAINS_INSERTION_ORDER;
-		return map;
+		return create_map_with_flags(MAP_MAINTAINS_INSERTION_ORDER);
 	}
 	
 	SnMap* snow_create_map_with_immediate_keys_and_insertion_order() {
-		SnMap* map = snow_create_map_with_immediate_keys();
-		map->flags |= MAP_MAINTAINS_INSERTION_ORDER;
-		return map;
+		return create_map_with_flags(MAP_IMMEDIATE_KEYS | MAP_MAINTAINS_INSERTION_ORDER);
 	}
 	
 	size_t snow_map_size(const SnMap* map) {

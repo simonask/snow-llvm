@@ -12,6 +12,7 @@
 
 SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunctionCallContext* definition_context) {
 	SnFunction* obj = SN_GC_ALLOC_OBJECT(SnFunction);
+	SN_GC_WRLOCK(obj);
 	obj->descriptor = descriptor;
 	obj->definition_context = definition_context;
 	obj->variable_references = NULL;
@@ -29,21 +30,26 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 			obj->variable_references[i] = ref_context->locals + ref->index;
 		}
 	}
-	
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
 SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
+	SN_GC_RDLOCK(callee);
 	const SnFunctionDescriptor* descriptor = callee->descriptor;
+	SN_GC_UNLOCK(callee);
+	
+	SnArguments* arguments = snow_create_arguments_for_function_call(descriptor, num_names, names, num_args, args);
 	
 	SnFunctionCallContext* context = SN_GC_ALLOC_OBJECT(SnFunctionCallContext);
+	SN_GC_WRLOCK(context);
 	context->function = callee;
 	context->caller = caller;
 	context->self = NULL; // set in snow_function_call
 	context->module = callee->definition_context ? callee->definition_context->module : NULL;
-	context->arguments = snow_create_arguments_for_function_call(descriptor, num_names, names, num_args, args);
+	context->arguments = arguments;
 	
 	// arguments are also the first locals
 	const size_t num_locals = descriptor->num_locals;
@@ -51,6 +57,7 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	memset(context->locals, 0, sizeof(VALUE)*num_locals);
 	size_t num_set_arguments = context->arguments->size > descriptor->num_params ? descriptor->num_params : context->arguments->size;
 	memcpy(context->locals, context->arguments->data, sizeof(VALUE)*num_set_arguments);
+	SN_GC_UNLOCK(context);
 	
 	return context;
 }

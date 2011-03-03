@@ -5,17 +5,29 @@
 
 SnPointer* snow_wrap_pointer(void* ptr, SnPointerCopyFunc copy_func, SnPointerFreeFunc free_func) {
 	SnPointer* obj = SN_GC_ALLOC_OBJECT(SnPointer);
+	SN_GC_WRLOCK(obj);
 	obj->ptr = ptr;
 	obj->copy = copy_func;
 	obj->free = free_func;
+	SN_GC_WRLOCK(obj);
 	return obj;
 }
 
 SnPointer* snow_pointer_copy(SnPointer* other) {
+	SN_GC_RDLOCK(other);
+	SnPointerCopyFunc copy_func = other->copy;
+	SnPointerFreeFunc free_func = other->free;
+	void* ptr = other->ptr;
+	SN_GC_UNLOCK(other);
+	
+	if (copy_func) ptr = copy_func(ptr);
+	
 	SnPointer* obj = SN_GC_ALLOC_OBJECT(SnPointer);
-	obj->ptr = other->copy ? other->copy(other->ptr) : other->ptr;
-	obj->copy = other->copy;
-	obj->free = other->free;
+	SN_GC_WRLOCK(obj);
+	obj->ptr = ptr;
+	obj->copy = copy_func;
+	obj->free = free_func;
+	SN_GC_WRLOCK(obj);
 	return obj;
 }
 

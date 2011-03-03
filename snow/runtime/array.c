@@ -11,25 +11,31 @@
 
 SnArray* snow_create_array() {
 	SnArray* array = SN_GC_ALLOC_OBJECT(SnArray);
+	SN_GC_WRLOCK(array);
 	array->data = NULL;
 	array->alloc_size = 0;
 	array->size = 0;
+	SN_GC_UNLOCK(array);
 	return array;
 }
 
 SnArray* snow_create_array_with_size(size_t sz) {
 	SnArray* array = SN_GC_ALLOC_OBJECT(SnArray);
+	SN_GC_WRLOCK(array);
 	array->data = (VALUE*)malloc(sz * sizeof(VALUE));
 	array->alloc_size = (uint32_t)sz;
 	array->size = 0;
+	SN_GC_UNLOCK(array);
 	return array;
 }
 
 SnArray* snow_create_array_from_range(VALUE* begin, VALUE* end) {
 	size_t sz = end - begin;
 	SnArray* array = snow_create_array_with_size(sz);
+	SN_GC_WRLOCK(array);
 	array->size = sz;
 	memcpy(array->data, begin, sz*sizeof(VALUE));
+	SN_GC_UNLOCK(array);
 	return array;
 }
 

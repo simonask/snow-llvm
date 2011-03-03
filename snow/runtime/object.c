@@ -19,12 +19,14 @@ static int compare_properties(const void* _a, const void* _b) {
 
 SnObject* snow_create_object(SnObject* prototype) {
 	SnObject* obj = SN_GC_ALLOC_OBJECT(SnObject);
+	SN_GC_WRLOCK(obj);
 	ASSERT(snow_is_object(prototype) || prototype == NULL);
 	obj->prototype = prototype;
 	obj->members = NULL;
 	obj->properties = NULL;
 	obj->num_properties = 0;
 	obj->included_modules = NULL;
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
@@ -175,7 +177,7 @@ bool snow_object_include_module(SnObject* object, SnObject* module) {
 	if (!object->included_modules) {
 		object->included_modules = included_modules;
 	}
-	included_modules = object->included_modules
+	included_modules = object->included_modules;
 	SN_GC_UNLOCK(object);
 	
 	if (snow_array_contains(included_modules, module)) return false;
