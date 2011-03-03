@@ -56,8 +56,6 @@ CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, Sn
 CAPI SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
 CAPI void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE mergee);
 CAPI SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self);
-CAPI VALUE snow_get_local(SnFunctionCallContext* here, int adjusted_level, int index);
-CAPI VALUE snow_set_local(SnFunctionCallContext* here, int adjusted_level, int index, VALUE val);
 
 CAPI VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it);
 
