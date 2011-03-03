@@ -22,7 +22,7 @@ SnObject** snow_get_prototypes() {
 	static SnObject** prototypes = NULL;
 	if (!prototypes) {
 		prototypes = (SnObject**)malloc(sizeof(SnObject*) * SnNumTypes);
-		bzero(prototypes, sizeof(SnObject*) * SnNumTypes);
+		memset(prototypes, 0, sizeof(SnObject*) * SnNumTypes);
 	}
 	return prototypes;
 }
