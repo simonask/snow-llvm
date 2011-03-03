@@ -90,8 +90,11 @@ VALUE snow_object_set_member(SnObject* object, VALUE self, SnSymbol member, VALU
 	// First, look for properties. TODO: Find a way to do this faster, perhaps?
 	SnObject* obj = object;
 	SnProperty key = { member, NULL, NULL };
+	SnMap* members = NULL;
 	while (obj) {
 		SN_GC_RDLOCK(obj);
+		if (obj == object) members = obj->members; // optimization to avoid acquiring extra locks. 'members' is needed after this loop.
+		
 		if (obj->properties) {
 			SnProperty* property = (SnProperty*)bsearch(&key, obj->properties, obj->num_properties, sizeof(SnProperty), compare_properties);
 			if (property) {
@@ -114,11 +117,22 @@ VALUE snow_object_set_member(SnObject* object, VALUE self, SnSymbol member, VALU
 	
 	// TODO: Look for properties in included modules
 	
-	SN_GC_WRLOCK(object);
-	SnMap* members = object->members;
-	if (!members) {
-		members = object->members = snow_create_map_with_immediate_keys();
+	/*
+		The following is a little bit cryptic, because we're not allowed to
+		create allocate memory while holding a GC lock. We have previously
+		tried to find out if the object has a members map, and if it didn't,
+		we'll create a new one. If the object got a members map in the meantime,
+		while we didn't hold the lock, we ignore the newly created map, and
+		use the one that was created by somebody else.
+	*/
+	if (UNLIKELY(members == NULL)) {
+		members = snow_create_map_with_immediate_keys();
 	}
+	SN_GC_WRLOCK(object);
+	if (!object->members) {
+		object->members = members;
+	}
+	members = object->members;
 	SN_GC_UNLOCK(object);
 	
 	snow_map_set(members, snow_symbol_to_value(member), value);
