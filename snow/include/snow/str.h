@@ -24,13 +24,14 @@ inline SnString* snow_create_empty_string() { return snow_create_string_constant
 CAPI SnString* snow_string_concat(const SnString* a, const SnString* b); // create new string
 CAPI void snow_string_append(SnString* str, const SnString* other); // append to str
 CAPI void snow_string_append_cstr(SnString* str, const char* utf8);
+CAPI size_t snow_string_copy_to(const SnString* str, char* buffer, size_t max);
 CAPI struct SnArray* snow_string_split(const SnString* str, const SnString* separator);
 
 CAPI SnString* snow_string_format(const char* utf8_format, ...);
 
-INLINE const char* snow_string_cstr(const SnString* str) { return str->data; }
-INLINE uint32_t snow_string_size(const SnString* str) { return str->size; }
-INLINE uint32_t snow_string_length(const SnString* str) { return str->length; }
+INLINE const char* snow_string_cstr(const SnString* str) { return str->data; } // XXX: Inherently thread-unsafe!
+INLINE size_t snow_string_size(const SnString* str);
+INLINE size_t snow_string_length(const SnString* str);
 
 CAPI void snow_finalize_string(SnString*);
 

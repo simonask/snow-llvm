@@ -5,6 +5,7 @@
 #include "snow/type.h"
 #include "snow/function.h"
 #include "snow/snow.h"
+#include "snow/numeric.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,15 +17,18 @@ SnString* snow_create_string(const char* utf8) {
 
 SnString* snow_create_string_constant(const char* utf8) {
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	SN_GC_WRLOCK(obj);
 	obj->size = strlen(utf8);
 	obj->length = obj->size;
 	obj->data = (char*)utf8;
 	obj->constant = true;
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
 SnString* snow_create_string_with_size(const char* utf8, size_t size) {
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	SN_GC_WRLOCK(obj);
 	obj->size = size;
 	obj->length = size; // TODO: UTF-8 length
 	obj->data = size ? (char*)malloc(size+1) : NULL;
@@ -33,21 +37,25 @@ SnString* snow_create_string_with_size(const char* utf8, size_t size) {
 		memcpy(obj->data, utf8, size);
 		obj->data[size] = '\0';
 	}
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
 SnString* snow_create_string_take_ownership(char* utf8) {
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	SN_GC_WRLOCK(obj);
 	obj->size = strlen(utf8);
 	obj->length = obj->size;
 	obj->data = utf8;
 	obj->constant = false;
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
 SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 	size_t s = snow_linkbuffer_size(buf);
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	SN_GC_WRLOCK(obj);
 	obj->size = s;
 	obj->length = s; // TODO: UTF-8 length
 	obj->data = s ? (char*)malloc(s+1) : NULL;
@@ -56,6 +64,7 @@ SnString* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 		snow_linkbuffer_copy_data(buf, obj->data, s);
 		obj->data[s] = '\0';
 	}
+	SN_GC_UNLOCK(obj);
 	return obj;
 }
 
@@ -144,6 +153,20 @@ SnString* snow_string_format(const char* utf8_format, ...) {
 	return snow_create_string_take_ownership(str);
 }
 
+size_t snow_string_size(const SnString* str) {
+	SN_GC_RDLOCK(str);
+	size_t sz = str->size;
+	SN_GC_UNLOCK(str);
+	return sz;
+}
+
+size_t snow_string_length(const SnString* str) {
+	SN_GC_RDLOCK(str);
+	size_t len = str->length;
+	SN_GC_UNLOCK(str);
+	return len;
+}
+
 static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnStringType);
 	SnString* s = (SnString*)self;
@@ -171,10 +194,26 @@ static VALUE string_add(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return self;
 }
 
+static VALUE string_get_size(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) == SnStringType) {
+		return snow_integer_to_value((int64_t)snow_string_size((SnString*)self));
+	}
+	return NULL;
+}
+
+static VALUE string_get_length(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) == SnStringType) {
+		return snow_integer_to_value((int64_t)snow_string_length((SnString*)self));
+	}
+	return NULL;
+}
+
 SnObject* snow_create_string_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", string_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", string_to_string, 0);
 	SN_DEFINE_METHOD(proto, "+", string_add, 1);
+	SN_DEFINE_PROPERTY(proto, "size", string_get_size, NULL);
+	SN_DEFINE_PROPERTY(proto, "length", string_get_length, NULL);
 	return proto;
 }
