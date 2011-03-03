@@ -182,7 +182,7 @@ static VALUE array_index_get(SnFunctionCallContext* here, VALUE self, VALUE it) 
 static VALUE array_index_set(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnArrayType);
 	ASSERT(snow_type_of(it) == SnIntegerType);
-	VALUE val = here->locals[1]; // second arg
+	VALUE val = snow_arguments_get_by_index(here->arguments, 1); // second arg
 	return snow_array_set((SnArray*)self, snow_value_to_integer(it), val);
 }
 
@@ -212,8 +212,8 @@ SnObject* snow_create_array_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", array_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", array_inspect, 0);
-	SN_DEFINE_METHOD(proto, "__index_get__", array_index_get, 1);
-	SN_DEFINE_METHOD(proto, "__index_set__", array_index_set, 2);
+	SN_DEFINE_METHOD(proto, "get", array_index_get, 1);
+	SN_DEFINE_METHOD(proto, "set", array_index_set, 2);
 	SN_DEFINE_METHOD(proto, "*", array_multiply_or_splat, 1);
 	SN_DEFINE_METHOD(proto, "each", array_each, 1);
 	SN_DEFINE_METHOD(proto, "push", array_push, 1);
