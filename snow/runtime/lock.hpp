@@ -2,7 +2,6 @@
 #ifndef LOCK_HPP_TC4L5SG6
 #define LOCK_HPP_TC4L5SG6
 
-#include "lock.h"
 #include "snow/gc.h"
 
 namespace snow {
@@ -10,7 +9,7 @@ namespace snow {
 		const SnObjectBase* object;
 		
 		ScopedGCReadLock(const SnObjectBase* object) : object(object) {
-			snow_gc_rdlock(object);
+			snow_gc_rdlock(object, &object);
 		}
 		~ScopedGCReadLock() {
 			snow_gc_unlock(object);
@@ -21,7 +20,7 @@ namespace snow {
 		const SnObjectBase* object;
 		
 		ScopedGCWriteLock(const SnObjectBase* object) : object(object) {
-			snow_gc_wrlock(object);
+			snow_gc_wrlock(object, &object);
 		}
 		~ScopedGCWriteLock() {
 			snow_gc_unlock(object);

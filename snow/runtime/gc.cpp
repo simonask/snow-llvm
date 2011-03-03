@@ -225,14 +225,16 @@ CAPI {
 		return obj;
 	}
 	
-	void snow_gc_rdlock(const SnObjectBase* object) {
+	void snow_gc_rdlock(const SnObjectBase* object, void* gc_root) {
 		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
 		SN_RWLOCK_RDLOCK(&block->lock);
+		// TODO: Update gc_root if object has moved, and acquire new lock instead
 	}
 	
-	void snow_gc_wrlock(const SnObjectBase* object) {
+	void snow_gc_wrlock(const SnObjectBase* object, void* gc_root) {
 		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
 		SN_RWLOCK_WRLOCK(&block->lock);
+		// TODO: Update gc_root if object has moved, and acquite new lock instead
 	}
 	
 	void snow_gc_unlock(const SnObjectBase* object) {
