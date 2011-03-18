@@ -231,12 +231,22 @@ static VALUE object_compare(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_integer_to_value((ssize_t)self - (ssize_t)it);
 }
 
+static VALUE object_equals(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_boolean_to_value(self == it);
+}
+
+static VALUE object_not_equals(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_boolean_to_value(self != it);
+}
+
 SnObject* snow_create_object_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", object_inspect, 0);
 	SN_DEFINE_METHOD(proto, "instance_eval", object_instance_eval, 1);
 	SN_DEFINE_METHOD(proto, "include", object_include, 1);
+	SN_DEFINE_METHOD(proto, "=", object_equals, 1);
+	SN_DEFINE_METHOD(proto, "!=", object_not_equals, 1);
 	SN_DEFINE_METHOD(proto, "<=>", object_compare, 1);
 	SN_DEFINE_PROPERTY(proto, "members", object_get_members, NULL);
 	SN_DEFINE_PROPERTY(proto, "prototype", object_get_prototype, NULL);
