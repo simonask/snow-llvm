@@ -140,6 +140,9 @@ namespace snow {
 			case Token::OPERATOR_SECOND:
 			case Token::OPERATOR_THIRD:
 			case Token::OPERATOR_FOURTH:
+			case Token::LOG_AND:
+			case Token::LOG_OR:
+			case Token::LOG_XOR:
 				return true;
 			default: return false;
 		}
@@ -327,7 +330,7 @@ namespace snow {
 	
 	SnAstNode* Parser::operand_with_unary(Pos& pos) {
 		Pos p = pos;
-		if (is_operator(p->type)) {
+		if (is_operator(p->type) || p->type == Token::LOG_NOT) {
 			GET_TOKEN_SZ(data, p);
 			++p;
 			SnAstNode* a = operand(p);
@@ -336,6 +339,8 @@ namespace snow {
 				MATCH_FAILED();
 			}
 			pos = p;
+			if (p->type == Token::LOG_NOT)
+				return ast->logic_not(a);
 			return ast->call(ast->member(a, snow_sym(data)), NULL);
 		}
 		return operand(pos);
@@ -982,8 +987,15 @@ namespace snow {
 	}
 	
 	SnAstNode* Parser::reduce_operation(SnAstNode* a, SnAstNode* b, Pos op) {
-		GET_TOKEN_SZ(op_str, op);
-		return ast->call(ast->member(a, snow_sym(op_str)), ast->sequence(1, b));
+		switch (op->type) {
+			case Token::LOG_AND: return ast->logic_and(a, b);
+			case Token::LOG_OR:  return ast->logic_or(a, b);
+			case Token::LOG_XOR: return ast->logic_xor(a, b);
+			default: {
+				GET_TOKEN_SZ(op_str, op);
+				return ast->call(ast->member(a, snow_sym(op_str)), ast->sequence(1, b));
+			}
+		}
 	}
 }
 
