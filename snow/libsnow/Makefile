@@ -1,7 +1,7 @@
 LEVEL = ..
 TARGET := libsnow.a
 
-SOURCES := $(wildcard *.cpp *.c) $(wildcard llvm-backend/*.cpp llvm-backend/*.c)
+SOURCES := $(wildcard *.cpp *.c) $(wildcard llvm-backend/*.cpp llvm-backend/*.c x86-64/*.c)
 OBJECTS := $(patsubst %,%.o,$(SOURCES))
 INCLUDES := -I.
 

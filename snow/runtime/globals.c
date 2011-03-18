@@ -8,6 +8,8 @@
 #include "snow/module.h"
 #include "snow/boolean.h"
 #include "snow/vm.h"
+#include "snow/numeric.h"
+#include "snow/continuation.h"
 
 static VALUE get_load_paths(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
@@ -80,6 +82,10 @@ static VALUE global_make_symbol(SnFunctionCallContext* here, VALUE self, VALUE i
 	return SN_NIL; // XXX: TODO!
 }
 
+static VALUE global_make_continuation(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	return snow_create_continuation(it);
+}
+
 static VALUE global_disasm(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	VALUE dummy = NULL;
 	SnFunction* function = snow_value_to_function(it, &dummy);
@@ -89,6 +95,13 @@ static VALUE global_disasm(SnFunctionCallContext* here, VALUE self, VALUE it) {
 		fprintf(stderr, "Cannot convert %p to a function.\n", it);
 	}
 	return NULL;
+}
+
+static VALUE global_resolve_symbol(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (!snow_is_integer(it)) return NULL;
+	int64_t n = snow_value_to_integer(it);
+	const char* str = snow_sym_to_cstr(n);
+	return str ? snow_create_string_constant(str) : NULL;
 }
 
 #define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_method(FUNCTION, snow_sym(NAME), NUM_ARGS))
@@ -110,7 +123,9 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("__make_string__", global_make_string, -1);
 	SN_DEFINE_GLOBAL("__make_boolean__", global_make_boolean, 1);
 	SN_DEFINE_GLOBAL("__make_symbol__", global_make_symbol, 1);
+	SN_DEFINE_GLOBAL("__make_continuation__", global_make_continuation, 1);
 	SN_DEFINE_GLOBAL("__disasm__", global_disasm, 1);
+	SN_DEFINE_GLOBAL("__resolve_symbol__", global_resolve_symbol, 1);
 	
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
 	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));
@@ -124,4 +139,5 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("__function_prototype__"), snow_get_prototype_for_type(SnFunctionType));
 	snow_set_global(snow_sym("__function_call_context_prototype__"), snow_get_prototype_for_type(SnFunctionCallContextType));
 	snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
+	snow_set_global(snow_sym("__continuation_prototype__"), snow_get_prototype_for_type(SnContinuationType));
 }
