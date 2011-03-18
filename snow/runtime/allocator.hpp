@@ -41,8 +41,9 @@ namespace snow {
 		bool is_allocated(SnObjectBase* object) const;
 		size_t get_num_blocks() const { return _blocks.size(); }
 		Block* get_block(unsigned i) { return _blocks[i]; }
-		Block* get_block_for_object_fast(const SnObjectBase* definitely_an_object);
-		Block* get_block_for_object_safe(const SnObjectBase* maybe_an_object);
+		Block* get_block_for_object_fast(const SnObjectBase* definitely_an_object) const;
+		Block* get_block_for_object_safe(const SnObjectBase* maybe_an_object) const;
+		bool contains(void* ptr) const { return get_block_for_object_safe((const SnObjectBase*)ptr) != NULL; }
 	private:
 		std::vector<Block*> _blocks;
 		

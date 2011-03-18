@@ -45,7 +45,7 @@ namespace snow {
 		return false;
 	}
 	
-	Allocator::Block* Allocator::get_block_for_object_fast(const SnObjectBase* ptr) {
+	Allocator::Block* Allocator::get_block_for_object_fast(const SnObjectBase* ptr) const {
 		intptr_t p = (intptr_t)ptr;
 		intptr_t offset = ptr->gc_page_offset;
 		intptr_t page_base = p - (p % SN_MEMORY_PAGE_SIZE);
@@ -54,7 +54,7 @@ namespace snow {
 		return block;
 	}
 	
-	Allocator::Block* Allocator::get_block_for_object_safe(const SnObjectBase* ptr) {
+	Allocator::Block* Allocator::get_block_for_object_safe(const SnObjectBase* ptr) const {
 		intptr_t p = (intptr_t)ptr;
 		intptr_t offset = ptr->gc_page_offset;
 		intptr_t page_base = p % SN_MEMORY_PAGE_SIZE;

@@ -12,6 +12,7 @@
 
 #include <stdlib.h>
 #include <vector>
+#include <pthread.h>
 
 CAPI SnMap** _snow_get_global_storage(); // internal symbol
 
@@ -34,6 +35,7 @@ namespace {
 	};
 	
 	static Allocator gc_allocator;
+	static Allocator fixed_allocator;
 	static uint8_t* gc_flags = NULL;
 	
 	static const void** stack_top = NULL;
@@ -223,6 +225,22 @@ CAPI {
 		obj->type = type;
 		++gc_num_objects;
 		return obj;
+	}
+	
+	SnObjectBase* snow_gc_alloc_fixed(size_t sz, SnType type) {
+		ASSERT(sz <= SN_OBJECT_SIZE);
+		ASSERT(!snow_is_immediate_type(type) && type != SnAnyType);
+		
+		SnObjectBase* obj = fixed_allocator.allocate();
+		ASSERT(((intptr_t)obj & 0xf) == 0); // unaligned object allocation!
+		obj->type = type;
+		return obj;
+	}
+	
+	void snow_gc_free_fixed(void* ptr) {
+		if (!ptr) return;
+		ASSERT(fixed_allocator.contains(ptr));
+		fixed_allocator.free((SnObjectBase*)ptr);
 	}
 	
 	void snow_gc_rdlock(const SnObjectBase* object, void* gc_root) {
