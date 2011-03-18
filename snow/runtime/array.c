@@ -62,7 +62,7 @@ static inline size_t array_get_size_and_prefetch(const SnArray* array) {
 VALUE snow_array_get(const SnArray* array, int idx) {
 	SN_GC_RDLOCK(array);
 	VALUE val;
-	if (idx >= array->size) {
+	if (idx >= (int32_t)array->size) {
 		val = NULL;
 		goto out;
 	}
@@ -90,7 +90,7 @@ size_t snow_array_get_all(const SnArray* array, VALUE* out_values, size_t max) {
 VALUE snow_array_set(SnArray* array, int idx, VALUE val) {
 	SN_GC_WRLOCK(array);
 	
-	if (idx >= array->size) {
+	if (idx >= (int32_t)array->size) {
 		const uint32_t new_size = idx + 1;
 		snow_array_reserve(array, new_size);
 		array->size = new_size;
