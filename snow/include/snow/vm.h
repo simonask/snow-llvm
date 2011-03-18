@@ -25,6 +25,7 @@ typedef int(*SnGetNameOf)(void* vm_state, void* ptr, char* buffer, int maxlen);
 typedef void(*SnPrintDisassemblyFunc)(void* vm_state, const struct SnFunctionDescriptor* descriptor);
 
 typedef VALUE(*SnModuleInitFunc)();
+typedef int(*SnTestSuiteFunc)();
 typedef SnModuleInitFunc(*SnLoadBitcodeModuleFunc)(void* vm_state, const char* path);
 
 typedef struct SnVM {

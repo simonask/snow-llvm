@@ -1,7 +1,7 @@
 include $(LEVEL)/Makefile.config
 
-GOALS = clean depends all install
-.PHONY: $(GOALS) subdirs $(SUBDIRS)
+GOALS = clean depends all install test
+.PHONY: $(GOALS) subdirs $(SUBDIRS) $(RUN_TESTS)
 .DEFAULT_GOAL := all
 .DELETE_ON_ERROR :=
 
@@ -58,6 +58,8 @@ clean: subdirs
 	-rm -f $(OBJECTS) $(TARGET)
 
 subdirs: $(SUBDIRS)
+
+test: $(RUN_TESTS) subdirs
 
 CMDGOALS := $(filter $(GOALS),$(MAKECMDGOALS))
 

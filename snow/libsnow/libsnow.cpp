@@ -88,4 +88,12 @@ namespace snow {
 	int main(int argc, const char** argv) {
 		return code_manager->run_main(argc, argv);
 	}
+	
+	int run_tests(const char* bitcode_test_suite) {
+		SnTestSuiteFunc test_suite_func = code_manager->load_test_suite(bitcode_test_suite);
+		if (test_suite_func) {
+			return test_suite_func();
+		}
+		return -1;
+	}
 }

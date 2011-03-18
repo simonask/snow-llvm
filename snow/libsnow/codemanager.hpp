@@ -13,6 +13,7 @@ namespace snow {
 		
 		bool compile_ast(const SnAST* ast, const char* source, const char* module_name, SnCompilationResult& out_result);
 		SnModuleInitFunc load_bitcode_module(const char* path);
+		SnTestSuiteFunc load_test_suite(const char* path);
 		bool load_runtime(const char* path, SnVM* vm);
 		int run_main(int argc, const char** argv, const char* main_func = "snow_main");
 		void print_disassembly(const SnFunctionDescriptor* descriptor);

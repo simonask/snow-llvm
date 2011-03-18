@@ -34,6 +34,7 @@ namespace snow {
 		bool load_runtime(const char* path, SnVM* vm);
 		bool load_precompiled_snow_code(const char* path);
 		SnModuleInitFunc load_bitcode_module(const char* path);
+		SnTestSuiteFunc load_test_suite(const char* path);
 		bool compile_ast(const SnAST* ast, const char* source, const char* module_name, SnCompilationResult& out_result);
 	private:
 		struct FunctionInfo {
@@ -48,6 +49,7 @@ namespace snow {
 		
 		SymbolInlinePass* _symbol_inline_pass;
 		
+		llvm::Module* load_llvm_module(const char* path);
 		void link_with_runtime(llvm::Module* incoming_module);
 		void optimize(llvm::Module* module, OptimizationLevel level);
 		void optimize(llvm::Function* function, OptimizationLevel level);
@@ -111,6 +113,21 @@ namespace snow {
 		}
 	}
 	
+	llvm::Module* CodeManager::Impl::load_llvm_module(const char* path) {
+		std::string error;
+		llvm::MemoryBuffer* buffer = NULL;
+		llvm::Module* module = NULL;
+		if ((buffer = llvm::MemoryBuffer::getFile(path, &error))) {
+			module = llvm::getLazyBitcodeModule(buffer, llvm::getGlobalContext(), &error);
+			if (!module) {
+				fprintf(stderr, "ERROR: Could not load %s.\n", path);
+				delete buffer;
+				return NULL;
+			}
+		}
+		return module;
+	}
+	
 	bool CodeManager::load_runtime(const char* path, SnVM* vm) {
 		return _impl->load_runtime(path, vm);
 	}
@@ -122,17 +139,10 @@ namespace snow {
 			return false;
 		}
 		
-		std::string error;
-		llvm::MemoryBuffer* buffer = NULL;
-		if ((buffer = llvm::MemoryBuffer::getFile(path, &error))) {
-			_runtime = llvm::getLazyBitcodeModule(buffer, llvm::getGlobalContext(), &error);
-			if (!_runtime) {
-				fprintf(stderr, "ERROR: Could not load %s.\n", path);
-				delete buffer;
-				return false;
-			}
-		}
+		_runtime = load_llvm_module(path);
+		if (!_runtime) return false;
 		
+		std::string error;
 		if (_runtime->MaterializeAllPermanently(&error)) {
 			fprintf(stderr, "ERROR: Could not materialize runtime module! (error: %s)", error.c_str());
 			return false;
@@ -198,18 +208,8 @@ namespace snow {
 	}
 	
 	SnModuleInitFunc CodeManager::Impl::load_bitcode_module(const char* path) {
-		std::string error;
-		llvm::MemoryBuffer* buffer = NULL;
-		llvm::Module* module = NULL;
-		if ((buffer = llvm::MemoryBuffer::getFile(path, &error))) {
-			module = llvm::getLazyBitcodeModule(buffer, llvm::getGlobalContext(), &error);
-			if (!module) {
-				fprintf(stderr, "ERROR: Could not load %s.\n", path);
-				delete buffer;
-				return NULL;
-			}
-		}
-		
+		llvm::Module* module = load_llvm_module(path);
+		if (!module) return NULL;
 		link_with_runtime(module);
 		optimize(module, _default_optimization_level);
 		
@@ -222,6 +222,24 @@ namespace snow {
 		_engine->addModule(module);
 		_engine->runStaticConstructorsDestructors(module, false);
 		return (SnModuleInitFunc)_engine->getPointerToFunction(init_func);
+	}
+	
+	SnTestSuiteFunc CodeManager::load_test_suite(const char* path) {
+		return _impl->load_test_suite(path);
+	}
+	
+	SnTestSuiteFunc CodeManager::Impl::load_test_suite(const char* path) {
+		llvm::Module* module = load_llvm_module(path);
+		if (!module) return NULL;
+		link_with_runtime(module);
+		optimize(module, _default_optimization_level);
+		
+		llvm::Function* init_func = module->getFunction("snow_test_suite_entry");
+		if (!init_func) {
+			fprintf(stderr, "ERROR: Module '%s' does not contain a function named 'snow_test_suite_entry'.\n", path);
+			return NULL;
+		}
+		return (SnTestSuiteFunc)_engine->getPointerToFunction(init_func);
 	}
 	
 	void CodeManager::Impl::link_with_runtime(llvm::Module* module) {
