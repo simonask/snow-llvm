@@ -7,6 +7,7 @@
 #include "snow/snow.h"
 #include "snow/str.h"
 #include "snow/boolean.h"
+#include "snow/exception.h"
 
 static VALUE numeric_add(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (!it) return self;
@@ -153,6 +154,15 @@ static VALUE integer_complement(SnFunctionCallContext* here, VALUE self, VALUE i
 	return snow_integer_to_value(~snow_value_to_integer(self));
 }
 
+static VALUE integer_modulo(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (!snow_is_integer(self)) return NULL;
+	if (!snow_is_integer(it)) {
+		snow_throw_exception_with_description("Error in modulo operation: %s is not an integer.", snow_value_to_cstr(it));
+		return NULL;
+	}
+	return snow_integer_to_value(snow_value_to_integer(self) % snow_value_to_integer(it));
+}
+
 static VALUE numeric_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_is_integer(self)) {
 		char buffer[100];
@@ -173,6 +183,7 @@ SnObject* snow_create_integer_prototype() {
 	SN_DEFINE_METHOD(proto, "*", numeric_multiply, 1);
 	SN_DEFINE_METHOD(proto, "/", numeric_divide, 1);
 	SN_DEFINE_METHOD(proto, "~", integer_complement, 0);
+	SN_DEFINE_METHOD(proto, "%", integer_modulo, 1);
 	SN_DEFINE_METHOD(proto, "<", numeric_less_than, 1);
 	SN_DEFINE_METHOD(proto, "<=", numeric_less_than_or_equal, 1);
 	SN_DEFINE_METHOD(proto, ">", numeric_greater_than, 1);
