@@ -86,6 +86,7 @@ Continuation: __make_object__(__class_prototype__)
 Continuation.instance_prototype: __continuation_prototype__
 Continuation.__call__: __make_continuation__
 Continuation.super: Object
+Continuation.instance_prototype.__call__: Continuation.instance_prototype.resume
 
 Enumerable: module {
 	.all?: [condition] {
