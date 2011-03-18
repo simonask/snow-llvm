@@ -90,35 +90,32 @@ Continuation.instance_prototype.__call__: Continuation.instance_prototype.resume
 
 Enumerable: module {
 	.all?: [condition] {
-		if condition
-			.each { here.parent.ret(false) unless condition(it) }
-		else
-			.each { here.parent.ret(false) unless it }
-		end
-		return true
+		condition: condition or { it }
+		fiber: Continuation [yield] {
+			.each { yield(false) unless condition(it) }
+			true
+		}
+		fiber()
 	}
 	
 	.any?: [condition] {
-		if condition
-			.each { here.parent.ret(true) if condition(it) }
-		else
-			.each { here.parent.ret(true) if it }
-		end
-		return false
+		condition: condition or { it }
+		fiber: Continuation [yield] {
+			.each { yield(true) if condition(it) }
+			false
+		}
+		fiber()
 	}
 	
 	.count: [condition] {
 		i: 0
-		if condition
-			.each { i: i + 1 if condition(it) }
-		else
-			.each { i: i + 1 if it }
-		end
+		condition: condition or { it }
+		.each { i: i + 1 if condition(it) }
 		return i
 	}
 	
 	.find: [condition_or_object] {
-		
+		-- TODO: is_a?() required to implement this
 	}
 	
 	.map: [block] {
