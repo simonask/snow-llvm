@@ -4,7 +4,7 @@
 #include "snow/numeric.h"
 #include "snow/type.h"
 
-static VALUE continuation_function(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE continuation_function(SnCallFrame* here, VALUE self, VALUE it) {
 	printf("fiber started\n");
 	ASSERT(snow_type_of(it) == SnContinuationType);
 	SnContinuation* cc = (SnContinuation*)it;

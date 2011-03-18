@@ -3,11 +3,11 @@
 #include "snow/function.h"
 #include "snow/str.h"
 
-static VALUE boolean_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE boolean_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string_constant(snow_value_to_boolean(self) ? "true" : "false");
 }
 
-static VALUE boolean_complement(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE boolean_complement(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(!snow_value_to_boolean(self));
 }
 

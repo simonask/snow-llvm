@@ -34,7 +34,7 @@ static SnObject* wrap_fp(FILE* fp, bool builtin) {
 	return file;
 }
 
-static VALUE io_file_initialize(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_initialize(SnCallFrame* here, VALUE self, VALUE it) {
 	VALUE vfilename = snow_arguments_get_by_index(here->arguments, 0);
 	VALUE vmode = snow_arguments_get_by_index(here->arguments, 1);
 	
@@ -58,7 +58,7 @@ static VALUE io_file_initialize(SnFunctionCallContext* here, VALUE self, VALUE i
 	}
 }
 
-static VALUE io_file_read(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_read(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -81,7 +81,7 @@ static VALUE io_file_read(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	}
 }
 
-static VALUE io_file_gets(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_gets(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -99,7 +99,7 @@ static VALUE io_file_gets(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_create_string_take_ownership(buffer);
 }
 
-static VALUE io_file_write(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_write(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -118,7 +118,7 @@ static VALUE io_file_write(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return bytes ? snow_integer_to_value(bytes) : SN_NIL;
 }
 
-static VALUE io_file_seek(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_seek(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -134,7 +134,7 @@ static VALUE io_file_seek(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(r == 0);
 }
 
-static VALUE io_file_tell(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_tell(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -143,7 +143,7 @@ static VALUE io_file_tell(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_integer_to_value(p);
 }
 
-static VALUE io_file_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_puts(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -158,7 +158,7 @@ static VALUE io_file_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE io_file_close(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_close(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -167,14 +167,14 @@ static VALUE io_file_close(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(r == 0);
 }
 
-static VALUE io_file_eof(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_eof(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
 	return snow_boolean_to_value(feof(fp));
 }
 
-static VALUE io_file_size(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_size(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;
@@ -184,7 +184,7 @@ static VALUE io_file_size(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_integer_to_value(s.st_size);
 }
 
-static VALUE io_file_each_line(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE io_file_each_line(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* _fp = snow_get_member(self, snow_sym("_fp"));
 	ASSERT(snow_type_of(_fp) == SnPointerType);
 	FILE* fp = (FILE*)_fp->ptr;

@@ -38,7 +38,7 @@ void snow_pointer_free(SnPointer* ptr) {
 	}
 }
 
-static VALUE pointer_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE pointer_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	SnPointer* ptr = (SnPointer*)self;
 	if (snow_type_of(ptr) == SnPointerType) {
 		return snow_string_format("[Pointer:%p copy:%p free:%p]", ptr->ptr, ptr->copy, ptr->free);

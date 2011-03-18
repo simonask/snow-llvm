@@ -11,7 +11,7 @@
 #include "snow/numeric.h"
 #include "snow/continuation.h"
 
-static VALUE get_load_paths(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE get_load_paths(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
 }
 
@@ -25,7 +25,7 @@ SnObject* snow_get_vm_interface() {
 	return Snow;
 }
 
-static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_puts(SnCallFrame* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->arguments->size; ++i) {
 		SnString* str = snow_value_to_string(here->arguments->data[i]);
 		printf("%s", snow_string_cstr(str));
@@ -34,59 +34,59 @@ static VALUE global_puts(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE global_import(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_import(SnCallFrame* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_import(snow_string_cstr(file));
 }
 
-static VALUE global_load(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_load(SnCallFrame* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_load(snow_string_cstr(file));
 }
 
-static VALUE global_make_object(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_object(SnCallFrame* here, VALUE self, VALUE it) {
 	//ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnObjectType);
 	SnObject* obj = snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
 	return obj;
 }
 
-static VALUE global_make_array(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_array(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
 }
 
-static VALUE global_make_map(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_map(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map();
 }
 
-static VALUE global_make_map_with_immediate_keys(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_map_with_immediate_keys(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map_with_immediate_keys();
 }
 
-static VALUE global_make_map_with_insertion_order(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_map_with_insertion_order(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map_with_insertion_order();
 }
 
-static VALUE global_make_map_with_immediate_keys_and_insertion_order(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_map_with_immediate_keys_and_insertion_order(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map_with_immediate_keys_and_insertion_order();
 }
 
-static VALUE global_make_string(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_string(SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL; // XXX: TODO!
 }
 
-static VALUE global_make_boolean(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_boolean(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(snow_eval_truth(it));
 }
 
-static VALUE global_make_symbol(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_symbol(SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL; // XXX: TODO!
 }
 
-static VALUE global_make_continuation(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_make_continuation(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_continuation(it);
 }
 
-static VALUE global_disasm(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_disasm(SnCallFrame* here, VALUE self, VALUE it) {
 	VALUE dummy = NULL;
 	SnFunction* function = snow_value_to_function(it, &dummy);
 	if (function) {
@@ -97,7 +97,7 @@ static VALUE global_disasm(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return NULL;
 }
 
-static VALUE global_resolve_symbol(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE global_resolve_symbol(SnCallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(it)) return NULL;
 	int64_t n = snow_value_to_integer(it);
 	const char* str = snow_sym_to_cstr(n);
@@ -137,7 +137,7 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("__array_prototype__"), snow_get_prototype_for_type(SnArrayType));
 	snow_set_global(snow_sym("__map_prototype__"), snow_get_prototype_for_type(SnMapType));
 	snow_set_global(snow_sym("__function_prototype__"), snow_get_prototype_for_type(SnFunctionType));
-	snow_set_global(snow_sym("__function_call_context_prototype__"), snow_get_prototype_for_type(SnFunctionCallContextType));
+	snow_set_global(snow_sym("__call_frame_prototype__"), snow_get_prototype_for_type(SnCallFrameType));
 	snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
 	snow_set_global(snow_sym("__continuation_prototype__"), snow_get_prototype_for_type(SnContinuationType));
 }

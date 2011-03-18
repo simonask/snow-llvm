@@ -8,10 +8,10 @@
 #include "snow/object.h"
 #include "snow/arguments.h"
 
-struct SnFunctionCallContext;
+struct SnCallFrame;
 struct SnFunction;
 
-typedef VALUE(*SnFunctionPtr)(struct SnFunctionCallContext* here, VALUE self, VALUE it);
+typedef VALUE(*SnFunctionPtr)(struct SnCallFrame* here, VALUE self, VALUE it);
 
 typedef struct SnVariableReference {
 	int level; // The number of call scopes to go up to find the variable.
@@ -34,30 +34,30 @@ typedef struct SnFunctionDescriptor {
 	SnVariableReference* variable_references;
 } SnFunctionDescriptor;
 
-typedef struct SnFunctionCallContext {
+typedef struct SnCallFrame {
 	// XXX: Order matters -- codegen depends on this specific ordering of members.
 	SnObjectBase base;
 	struct SnFunction* function;
-	struct SnFunctionCallContext* caller;
+	struct SnCallFrame* caller;
 	VALUE self;
 	VALUE* locals;  // locals in the function, including named args. size: descriptor.num_locals
 	struct SnArguments* arguments;
 	SnObject* module;
-} SnFunctionCallContext;
+} SnCallFrame;
 
 typedef struct SnFunction {
 	SnObjectBase base;
 	const SnFunctionDescriptor* descriptor;
-	SnFunctionCallContext* definition_context;
+	SnCallFrame* definition_context;
 	VALUE** variable_references; // TODO: Consider garbage collection?
 } SnFunction;
 
-CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunctionCallContext* definition_context);
-CAPI SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
-CAPI void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE mergee);
+CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallFrame* definition_context);
+CAPI SnCallFrame* snow_create_call_frame(SnFunction* callee, SnCallFrame* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
+CAPI void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE mergee);
 CAPI SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self);
 
-CAPI VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it);
+CAPI VALUE snow_function_call(SnFunction* function, SnCallFrame* context, VALUE self, VALUE it);
 
 // Convenience for C bindings
 CAPI SnFunction* snow_create_method(SnFunctionPtr function, SnSymbol name, int num_args);
@@ -66,6 +66,6 @@ CAPI SnFunction* snow_create_method(SnFunctionPtr function, SnSymbol name, int n
 
 // Used by the GC
 CAPI void snow_finalize_function(SnFunction*);
-CAPI void snow_finalize_function_call_context(SnFunctionCallContext*);
+CAPI void snow_finalize_call_frame(SnCallFrame*);
 
 #endif /* end of include guard: FUNCTION_H_X576C5TP */

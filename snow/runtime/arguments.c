@@ -164,7 +164,7 @@ void snow_arguments_merge(SnArguments* args, const SnArguments* other) {
 	arguments_append_values(args, sz, values);
 }
 
-static VALUE arguments_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE arguments_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnArgumentsType) return NULL;
 	SnArguments* args = (SnArguments*)self;
 	
@@ -194,7 +194,7 @@ static VALUE arguments_inspect(SnFunctionCallContext* here, VALUE self, VALUE it
 	return result;
 }
 
-static VALUE arguments_splat(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE arguments_splat(SnCallFrame* here, VALUE self, VALUE it) {
 	return self;
 }
 

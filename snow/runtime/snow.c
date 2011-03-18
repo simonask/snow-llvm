@@ -81,7 +81,7 @@ SnFunction* snow_compile(const char* module_name, const char* source) {
 
 VALUE snow_call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
 	SnFunction* function = snow_value_to_function(functor, &self);
-	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, 0, NULL, num_args, args);
+	SnCallFrame* context = snow_create_call_frame(function, NULL, 0, NULL, num_args, args);
 	return snow_function_call(function, context, self, num_args ? args[0] : NULL);
 }
 
@@ -113,7 +113,7 @@ VALUE snow_call_with_named_arguments(VALUE functor, VALUE self, size_t num_names
 	}
 	
 	SnFunction* function = snow_value_to_function(functor, &self);
-	SnFunctionCallContext* context = snow_create_function_call_context(function, NULL, num_names, names, num_args, args);
+	SnCallFrame* context = snow_create_call_frame(function, NULL, num_names, names, num_args, args);
 	return snow_function_call(function, context, self, it);
 }
 

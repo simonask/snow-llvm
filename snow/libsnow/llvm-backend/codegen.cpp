@@ -165,13 +165,13 @@ namespace snow {
 		current_function.self.value->setName("self");
 		current_function.it.value->setName("it");
 		if (current_function.parent) {
-			// locals_array = here->locals; // locals is the 5th member of SnFunctionCallContext
+			// locals_array = here->locals; // locals is the 5th member of SnCallFrame
 			current_function.locals_array = builder.CreateLoad(builder.CreateStructGEP(current_function.here, 4), ":locals");
 			// variable_references_array = here->function->variable_references;
 			llvm::Value* function = builder.CreateLoad(builder.CreateStructGEP(current_function.here, 1), ":function");
 			current_function.variable_references_array = builder.CreateLoad(builder.CreateStructGEP(function, 3), ":function:variable_references");
 		}
-		// module = here->module; // module is the 7th member of SnFunctionCallContext
+		// module = here->module; // module is the 7th member of SnCallFrame
 		current_function.module = builder.CreateLoad(builder.CreateStructGEP(current_function.here, 6), ":module");
 		
 		// Function body
@@ -1096,7 +1096,7 @@ namespace snow {
 			values
 		};
 		
-		llvm::Value* context = builder.CreateCall(get_runtime_function("snow_create_function_call_context"), create_context_args, create_context_args + 6, function_name + ":environment");
+		llvm::Value* context = builder.CreateCall(get_runtime_function("snow_create_call_frame"), create_context_args, create_context_args + 6, function_name + ":environment");
 		
 		// merge splat arguments
 		for (size_t i = 0; i < args.splat_values.size(); ++i) {
@@ -1150,7 +1150,7 @@ namespace snow {
 			ASSERT(_runtime_module != NULL); // runtime must be loaded!
 			const llvm::Type* value_type = llvm::Type::getInt8PtrTy(_runtime_module->getContext());
 			std::vector<const llvm::Type*> param_types(3, NULL);
-			param_types[0] = llvm::PointerType::getUnqual(_runtime_module->getTypeByName("struct.SnFunctionCallContext"));
+			param_types[0] = llvm::PointerType::getUnqual(_runtime_module->getTypeByName("struct.SnCallFrame"));
 			ASSERT(param_types[0]);
 			param_types[1] = value_type;
 			param_types[2] = value_type;

@@ -22,7 +22,7 @@ typedef enum SnType {
 	SnArrayType,
 	SnMapType,
 	SnFunctionType,
-	SnFunctionCallContextType,
+	SnCallFrameType,
 	SnArgumentsType,
 	SnPointerType,
 	SnContinuationType,

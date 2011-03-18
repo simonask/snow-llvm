@@ -10,7 +10,7 @@
 
 #include <string.h>
 
-SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunctionCallContext* definition_context) {
+SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallFrame* definition_context) {
 	SnFunction* obj = SN_GC_ALLOC_OBJECT(SnFunction);
 	SN_GC_WRLOCK(obj);
 	obj->descriptor = descriptor;
@@ -21,7 +21,7 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 		
 		for (size_t i = 0; i < descriptor->num_variable_references; ++i) {
 			SnVariableReference* ref = descriptor->variable_references + i;
-			SnFunctionCallContext* ref_context = definition_context;
+			SnCallFrame* ref_context = definition_context;
 			for (int level = 1; level < ref->level; ++level) {
 				ref_context = ref_context->function->definition_context;
 				ASSERT(ref_context && "Invalid variable reference! Function descriptor is corrupt.");
@@ -34,7 +34,7 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnFunct
 	return obj;
 }
 
-SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnFunctionCallContext* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
+SnCallFrame* snow_create_call_frame(SnFunction* callee, SnCallFrame* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
 	SN_GC_RDLOCK(callee);
@@ -43,7 +43,7 @@ SnFunctionCallContext* snow_create_function_call_context(SnFunction* callee, SnF
 	
 	SnArguments* arguments = snow_create_arguments_for_function_call(descriptor, num_names, names, num_args, args);
 	
-	SnFunctionCallContext* context = SN_GC_ALLOC_OBJECT(SnFunctionCallContext);
+	SnCallFrame* context = SN_GC_ALLOC_OBJECT(SnCallFrame);
 	SN_GC_WRLOCK(context);
 	context->function = callee;
 	context->caller = caller;
@@ -69,7 +69,7 @@ static int named_arg_cmp(const void* _a, const void* _b) {
 	return (int)((int64_t)b->name - (int64_t)a->name);
 }
 
-void snow_merge_splat_arguments(SnFunctionCallContext* callee_context, VALUE merge_in) {
+void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE merge_in) {
 	SnArguments* args = callee_context->arguments;
 	switch (snow_type_of(merge_in)) {
 		case SnArrayType:
@@ -113,11 +113,11 @@ SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self) {
 void snow_finalize_function(SnFunction* func) {
 }
 
-void snow_finalize_function_call_context(SnFunctionCallContext* context) {
+void snow_finalize_call_frame(SnCallFrame* context) {
 	free(context->locals);
 }
 
-VALUE snow_function_call(SnFunction* function, SnFunctionCallContext* context, VALUE self, VALUE it) {
+VALUE snow_function_call(SnFunction* function, SnCallFrame* context, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(function) == SnFunctionType);
 	if (!self)
 		self = function->definition_context ? function->definition_context->self : NULL;
@@ -154,7 +154,7 @@ SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int num_args) {
 }
 
 
-static VALUE function_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE function_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) == SnFunctionType) {
 		SnFunction* function = (SnFunction*)self;
 		return snow_string_format("[Function@%p(%s)]", self, snow_sym_to_cstr(function->descriptor->name));
@@ -162,7 +162,7 @@ static VALUE function_inspect(SnFunctionCallContext* here, VALUE self, VALUE it)
 	return snow_string_format("[Function@%p]", self);
 }
 
-static VALUE function_name(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE function_name(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) == SnFunctionType) {
 		SnFunction* function = (SnFunction*)self;
 		return snow_symbol_to_value(function->descriptor->name);
@@ -178,10 +178,10 @@ SnObject* snow_create_function_prototype() {
 	return proto;
 }
 
-static VALUE function_call_context_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	if (snow_type_of(self) != SnFunctionCallContextType) return NULL;
-	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
-	SnString* result = snow_string_format("[FunctionCallContext@%p function:%p(%s) locals:(", context, context->function, snow_sym_to_cstr(context->function->descriptor->name));
+static VALUE call_frame_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnCallFrameType) return NULL;
+	SnCallFrame* context = (SnCallFrame*)self;
+	SnString* result = snow_string_format("[CallFrame@%p function:%p(%s) locals:(", context, context->function, snow_sym_to_cstr(context->function->descriptor->name));
 	for (size_t i = 0; i < context->function->descriptor->num_locals; ++i) {
 		snow_string_append_cstr(result, snow_sym_to_cstr(context->function->descriptor->local_names[i]));
 		snow_string_append_cstr(result, " => ");
@@ -192,15 +192,15 @@ static VALUE function_call_context_inspect(SnFunctionCallContext* here, VALUE se
 	return result;
 }
 
-static VALUE function_call_context_get_arguments(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	ASSERT(snow_type_of(self) == SnFunctionCallContextType);
-	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
+static VALUE call_frame_get_arguments(SnCallFrame* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnCallFrameType);
+	SnCallFrame* context = (SnCallFrame*)self;
 	return context->arguments;
 }
 
-static VALUE function_call_context_get_locals(SnFunctionCallContext* here, VALUE self, VALUE it) {
-	if (snow_type_of(self) != SnFunctionCallContextType) return NULL;
-	SnFunctionCallContext* context = (SnFunctionCallContext*)self;
+static VALUE call_frame_get_locals(SnCallFrame* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnCallFrameType) return NULL;
+	SnCallFrame* context = (SnCallFrame*)self;
 	SnMap* map = snow_create_map_with_immediate_keys_and_insertion_order();
 	const SnFunctionDescriptor* descriptor = context->function->descriptor;
 	for (size_t i = 0; i < descriptor->num_locals; ++i) {
@@ -209,10 +209,10 @@ static VALUE function_call_context_get_locals(SnFunctionCallContext* here, VALUE
 	return map;
 }
 
-SnObject* snow_create_function_call_context_prototype() {
+SnObject* snow_create_call_frame_prototype() {
 	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", function_call_context_inspect, 0);
-	SN_DEFINE_PROPERTY(proto, "arguments", function_call_context_get_arguments, NULL);
-	SN_DEFINE_PROPERTY(proto, "locals", function_call_context_get_locals, NULL);
+	SN_DEFINE_METHOD(proto, "inspect", call_frame_inspect, 0);
+	SN_DEFINE_PROPERTY(proto, "arguments", call_frame_get_arguments, NULL);
+	SN_DEFINE_PROPERTY(proto, "locals", call_frame_get_locals, NULL);
 	return proto;
 }

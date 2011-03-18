@@ -37,7 +37,7 @@ namespace snow {
 				case SnArrayType: return "Array";
 				case SnMapType: return "Map";
 				case SnFunctionType: return "Function";
-				case SnFunctionCallContextType: return "FunctionCallContext";
+				case SnCallFrameType: return "CallFrame";
 				case SnArgumentsType: return "Arguments";
 				case SnPointerType: return "Pointer";
 				default: return "<UNKNOWN>";

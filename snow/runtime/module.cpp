@@ -157,7 +157,7 @@ namespace {
 			get_module_list()->push_back(m);
 			
 			// call module entry
-			SnFunctionCallContext* context = snow_create_function_call_context(m->entry, NULL, 0, NULL, 0, NULL);
+			SnCallFrame* context = snow_create_call_frame(m->entry, NULL, 0, NULL, 0, NULL);
 			context->module = mod;
 			VALUE result = snow_function_call(m->entry, context, mod, NULL);
 			snow_object_set_member(mod, mod, snow_sym("__module_value__"), result);

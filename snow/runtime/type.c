@@ -14,7 +14,7 @@ CAPI SnObject* snow_create_string_prototype();
 CAPI SnObject* snow_create_array_prototype();
 CAPI SnObject* snow_create_map_prototype();
 CAPI SnObject* snow_create_function_prototype();
-CAPI SnObject* snow_create_function_call_context_prototype();
+CAPI SnObject* snow_create_call_frame_prototype();
 CAPI SnObject* snow_create_arguments_prototype();
 CAPI SnObject* snow_create_pointer_prototype();
 CAPI SnObject* snow_create_continuation_prototype();
@@ -54,7 +54,7 @@ SnObject* snow_get_prototype_for_type(SnType type) {
 			case SnArrayType:    prototypes[type] = snow_create_array_prototype(); break;
 			case SnMapType:      prototypes[type] = snow_create_map_prototype(); break;
 			case SnFunctionType: prototypes[type] = snow_create_function_prototype(); break;
-			case SnFunctionCallContextType: prototypes[type] = snow_create_function_call_context_prototype(); break;
+			case SnCallFrameType: prototypes[type] = snow_create_call_frame_prototype(); break;
 			case SnArgumentsType: prototypes[type] = snow_create_arguments_prototype(); break;
 			case SnPointerType:  prototypes[type] = snow_create_pointer_prototype(); break;
 			case SnContinuationType: prototypes[type] = snow_create_continuation_prototype(); break;

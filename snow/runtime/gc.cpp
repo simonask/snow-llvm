@@ -72,8 +72,8 @@ namespace {
 				gc_mark_value(function->definition_context);
 				break;
 			}
-			case SnFunctionCallContextType: {
-				SnFunctionCallContext* context = (SnFunctionCallContext*)x;
+			case SnCallFrameType: {
+				SnCallFrame* context = (SnCallFrame*)x;
 				gc_mark_value(context->function);
 				gc_mark_value(context->caller);
 				gc_mark_value(context->self);
@@ -142,7 +142,7 @@ namespace {
 			case SnArrayType: snow_finalize_array((SnArray*)obj); break;
 			case SnMapType: snow_finalize_map((SnMap*)obj); break;
 			case SnFunctionType: snow_finalize_function((SnFunction*)obj); break;
-			case SnFunctionCallContextType: snow_finalize_function_call_context((SnFunctionCallContext*)obj); break;
+			case SnCallFrameType: snow_finalize_call_frame((SnCallFrame*)obj); break;
 			case SnPointerType:
 			default: {
 				fprintf(stderr, "GC: Cannot finalize unknown object type!\n");

@@ -138,7 +138,7 @@ static void continuation_return(SnContinuation* return_from, VALUE returned_valu
 
 //----------------------------------------------------------------------------
 
-static VALUE continuation_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE continuation_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnContinuationType) return NULL;
 	SnContinuation* c = (SnContinuation*)self;
 	
@@ -154,13 +154,13 @@ static VALUE continuation_inspect(SnFunctionCallContext* here, VALUE self, VALUE
 	return result;
 }
 
-static VALUE continuation_resume(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE continuation_resume(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnContinuationType) return NULL;
 	SnContinuation* c = (SnContinuation*)self;
 	return snow_continuation_resume(c, it);
 }
 
-static VALUE continuation_is_running(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE continuation_is_running(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnContinuationType) return NULL;
 	SnContinuation* c = (SnContinuation*)self;
 	SN_GC_RDLOCK(c);
@@ -169,7 +169,7 @@ static VALUE continuation_is_running(SnFunctionCallContext* here, VALUE self, VA
 	return snow_boolean_to_value(is_running);
 }
 
-static VALUE continuation_is_started(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE continuation_is_started(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnContinuationType) return NULL;
 	SnContinuation* c = (SnContinuation*)self;
 	SN_GC_RDLOCK(c);

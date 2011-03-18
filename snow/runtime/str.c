@@ -167,7 +167,7 @@ size_t snow_string_length(const SnString* str) {
 	return len;
 }
 
-static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE string_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnStringType);
 	SnString* s = (SnString*)self;
 	size_t size = snow_string_size(s);
@@ -179,12 +179,12 @@ static VALUE string_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return snow_create_string_with_size(buffer, size + 3);
 }
 
-static VALUE string_to_string(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE string_to_string(SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnStringType);
 	return self;
 }
 
-static VALUE string_add(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE string_add(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnStringType) return NULL;
 	
 	if (it) {
@@ -194,14 +194,14 @@ static VALUE string_add(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	return self;
 }
 
-static VALUE string_get_size(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE string_get_size(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) == SnStringType) {
 		return snow_integer_to_value((int64_t)snow_string_size((SnString*)self));
 	}
 	return NULL;
 }
 
-static VALUE string_get_length(SnFunctionCallContext* here, VALUE self, VALUE it) {
+static VALUE string_get_length(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) == SnStringType) {
 		return snow_integer_to_value((int64_t)snow_string_length((SnString*)self));
 	}
