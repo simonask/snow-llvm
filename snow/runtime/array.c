@@ -6,6 +6,7 @@
 #include "snow/str.h"
 #include "snow/function.h"
 #include "snow/numeric.h"
+#include "prefetch.h"
 
 #include <string.h>
 
@@ -50,6 +51,14 @@ size_t snow_array_size(const SnArray* array) {
 	return size;
 }
 
+static inline size_t array_get_size_and_prefetch(const SnArray* array) {
+	SN_GC_RDLOCK(array);
+	size_t sz = array->size;
+	snow_prefetch(array->data, SnPrefetchRead, SnPrefetchLocalityMedium);
+	SN_GC_UNLOCK(array);
+	return sz;
+}
+
 VALUE snow_array_get(const SnArray* array, int idx) {
 	SN_GC_RDLOCK(array);
 	VALUE val;
@@ -71,6 +80,7 @@ out:
 
 size_t snow_array_get_all(const SnArray* array, VALUE* out_values, size_t max) {
 	SN_GC_RDLOCK(array);
+	snow_prefetch(array->data, SnPrefetchRead, SnPrefetchLocalityLow);
 	size_t to_copy = array->size < max ? array->size : max;
 	memcpy(out_values, array->data, sizeof(VALUE)*max);
 	SN_GC_UNLOCK(array);
@@ -123,6 +133,7 @@ SnArray* snow_array_push(SnArray* array, VALUE val) {
 
 bool snow_array_contains(SnArray* array, VALUE val) {
 	SN_GC_RDLOCK(array);
+	snow_prefetch(array->data, SnPrefetchRead, SnPrefetchLocalityLow);
 	bool found = false;
 	for (size_t i = 0; i < array->size; ++i) {
 		if (array->data[i] == val) {
@@ -194,7 +205,8 @@ static VALUE array_multiply_or_splat(SnFunctionCallContext* here, VALUE self, VA
 static VALUE array_each(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnArrayType) return NULL;
 	SnArray* array = (SnArray*)self;
-	for (size_t i = 0; i < snow_array_size(array); ++i) {
+	size_t sz = array_get_size_and_prefetch(array);
+	for (size_t i = 0; i < sz; ++i) {
 		VALUE args[] = { snow_array_get(array, i), snow_integer_to_value(i) };
 		snow_call(it, NULL, 2, args);
 	}
