@@ -253,6 +253,7 @@ CAPI {
 	}
 	
 	VALUE snow_eval_in_global_module(const char* source) {
+		if (!source) return NULL;
 		SnObject* mod = snow_get_global_module();
 		Module* module = compile_module("<eval>", source, mod);
 		if (module) {
