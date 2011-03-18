@@ -26,7 +26,7 @@ typedef struct SnContinuation {
 	unsigned flags;
 } SnContinuation;
 
-CAPI SnContinuation* snow_create_continuation(VALUE functor);
+CAPI SnContinuation* snow_create_continuation(VALUE functor); // functor is called with arguments calling_continuation, incoming_value
 CAPI VALUE snow_continuation_resume(SnContinuation* continuation, VALUE incoming_value);
 CAPI SnContinuation* snow_get_current_continuation();
 
