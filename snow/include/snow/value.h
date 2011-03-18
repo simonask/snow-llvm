@@ -25,6 +25,7 @@ typedef enum SnType {
 	SnFunctionCallContextType,
 	SnArgumentsType,
 	SnPointerType,
+	SnContinuationType,
 	
 	SnNumTypes
 } SnType;

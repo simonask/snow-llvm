@@ -4,9 +4,12 @@
 #include "symbol.hpp"
 
 #include "snow/function.h"
+#include "snow/vm.h"
 
 static SnVM vm;
 static snow::CodeManager* code_manager = NULL;
+
+extern "C" void libsnow_continuation_start(SnContinuation* continuation, SnContinuation* caller, VALUE data, SnContinuationStartFunc start_func, SnContinuationReturnFunc return_callback);
 
 namespace snow {
 	namespace {
@@ -75,6 +78,7 @@ namespace snow {
 		vm.print_disassembly = print_disassembly;
 		vm.symbol = snow::symbol;
 		vm.symbol_to_cstr = snow::symbol_to_cstr;
+		vm.start_continuation = libsnow_continuation_start;
 		
 		code_manager->load_runtime(runtime_bitcode_path, &vm);
 	}

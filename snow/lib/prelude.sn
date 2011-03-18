@@ -82,6 +82,11 @@ Symbol.instance_prototype: __symbol_prototype__
 Symbol.__call__: __make_symbol__
 Symbol.super: Object
 
+Continuation: __make_object__(__class_prototype__)
+Continuation.instance_prototype: __continuation_prototype__
+Continuation.__call__: __make_continuation__
+Continuation.super: Object
+
 Enumerable: module {
 	.all?: [condition] {
 		if condition
