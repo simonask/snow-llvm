@@ -330,7 +330,8 @@ namespace snow {
 	
 	SnAstNode* Parser::operand_with_unary(Pos& pos) {
 		Pos p = pos;
-		if (is_operator(p->type) || p->type == Token::LOG_NOT) {
+		Token::Type type = p->type;
+		if (is_operator(type) || type == Token::LOG_NOT) {
 			GET_TOKEN_SZ(data, p);
 			++p;
 			SnAstNode* a = operand(p);
@@ -339,7 +340,7 @@ namespace snow {
 				MATCH_FAILED();
 			}
 			pos = p;
-			if (p->type == Token::LOG_NOT)
+			if (type == Token::LOG_NOT)
 				return ast->logic_not(a);
 			return ast->call(ast->member(a, snow_sym(data)), NULL);
 		}

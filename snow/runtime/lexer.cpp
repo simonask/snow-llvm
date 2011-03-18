@@ -102,9 +102,19 @@ namespace {
 		if (a < b) return a;
 		return b;
 	}
+	
+	inline bool strings_equal(const char* s1, size_t len1, const char* s2, size_t len2) {
+		if (len1 != len2) return false;
+		return strncmp(s1, s2, len1) == 0;
+	}
+	
+	inline bool strings_equal(const char* s1, size_t len1, const char* s2) {
+		size_t len2 = strlen(s2);
+		return strings_equal(s1, len1, s2, len2);
+	}
 }
 
-#define RECOGNIZE_KEYWORD(STR, TOKEN) if (word_len == strlen(STR) && strncmp(p, (STR), word_len) == 0) { type = Token::TOKEN; }
+#define RECOGNIZE_KEYWORD(STR, TOKEN) if (strings_equal(p, word_len, (STR))) { type = Token::TOKEN; }
 #define RECOGNIZE_CHAR(CHAR, TOKEN) case CHAR: { type = Token::TOKEN; break; }
 
 namespace snow {
@@ -272,21 +282,24 @@ namespace snow {
 				size_t operator_len;
 				if (is_operator(p, operator_len)) {
 					Token::Type t = Token::OPERATOR_SECOND;
-					if (strncmp(p, "*", operator_len) == 0
-					|| strncmp(p, "/", operator_len) == 0
-					|| strncmp(p, "**", operator_len) == 0
-					|| strncmp(p, "%", operator_len) == 0) {
-						t = Token::OPERATOR_THIRD;
-					} else
-					if (strncmp(p, "=", operator_len) == 0
-					|| strncmp(p, "!=", operator_len) == 0
-					|| strncmp(p, "~=", operator_len) == 0
-					|| strncmp(p, ">", operator_len) == 0
-					|| strncmp(p, "<", operator_len) == 0
-					|| strncmp(p, ">=", operator_len) == 0
-					|| strncmp(p, "<=", operator_len) == 0
-					|| strncmp(p, "==", operator_len) == 0) {
+					if (strings_equal(p, operator_len, "*")
+					|| strings_equal(p, operator_len, "/")
+					|| strings_equal(p, operator_len, "**")
+					|| strings_equal(p, operator_len, "%")) {
+						t = Token::OPERATOR_THIRD;          
+					} else                                  
+					if (strings_equal(p, operator_len, "=")
+					|| strings_equal(p, operator_len, "!=")
+					|| strings_equal(p, operator_len, "~=")
+					|| strings_equal(p, operator_len, ">")
+					|| strings_equal(p, operator_len, "<")
+					|| strings_equal(p, operator_len, ">=")
+					|| strings_equal(p, operator_len, "<=")
+					|| strings_equal(p, operator_len, "==")) {
 						t = Token::OPERATOR_FIRST;
+					} else
+					if (strings_equal(p, operator_len, "!")) {
+						t = Token::LOG_NOT;
 					}
 					
 					_buffer.push(Token(t, p, operator_len, current_line_number, current_line_begin));
