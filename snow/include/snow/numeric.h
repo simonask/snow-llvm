@@ -17,7 +17,7 @@ INLINE VALUE snow_integer_to_value(int n) {
 }
 INLINE int snow_value_to_integer(VALUE val) {
 	ASSERT(snow_is_integer(val));
-	return (int)((intptr_t)val >> 1);
+	return (int)((int64_t)val >> 1);
 }
 
 CAPI VALUE snow_big_integer_to_value(const void* bytes, size_t n_bytes);
