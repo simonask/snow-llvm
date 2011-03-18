@@ -9,7 +9,7 @@
 static SnVM vm;
 static snow::CodeManager* code_manager = NULL;
 
-extern "C" void libsnow_continuation_start(SnContinuation* continuation, SnContinuation* caller, VALUE data, SnContinuationStartFunc start_func, SnContinuationReturnFunc return_callback);
+extern "C" void libsnow_fiber_start(SnFiber* fiber, SnFiber* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback);
 
 namespace snow {
 	namespace {
@@ -78,7 +78,7 @@ namespace snow {
 		vm.print_disassembly = print_disassembly;
 		vm.symbol = snow::symbol;
 		vm.symbol_to_cstr = snow::symbol_to_cstr;
-		vm.start_continuation = libsnow_continuation_start;
+		vm.start_fiber = libsnow_fiber_start;
 		
 		code_manager->load_runtime(runtime_bitcode_path, &vm);
 	}

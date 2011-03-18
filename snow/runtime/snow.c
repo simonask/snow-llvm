@@ -15,7 +15,7 @@
 #include "snow/exception.h"
 #include "snow/gc.h"
 #include "snow/module.h"
-#include "snow/continuation.h"
+#include "snow/fiber.h"
 #include "globals.h"
 
 #include <stdarg.h>
@@ -23,7 +23,7 @@
 #include <stdlib.h>
 
 void snow_lex(const char*);
-void snow_init_continuations();
+void snow_init_fibers();
 
 struct SnAstNode;
 
@@ -35,7 +35,7 @@ SnProcess* snow_init(struct SnVM* vm) {
 	
 	const void* stk;
 	snow_init_gc(&stk);
-	snow_init_continuations();
+	snow_init_fibers();
 	snow_init_globals();
 	
 	snow_load_in_global_module("lib/prelude.sn");

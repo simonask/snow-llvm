@@ -10,7 +10,7 @@ struct SnAST;
 struct SnFunctionDescriptor;
 struct SnString;
 struct SnFunction;
-struct SnContinuation;
+struct SnFiber;
 
 typedef struct SnCompilationResult {
 	char* error_str; // freed by caller
@@ -29,9 +29,9 @@ typedef VALUE(*SnModuleInitFunc)();
 typedef int(*SnTestSuiteFunc)();
 typedef SnModuleInitFunc(*SnLoadBitcodeModuleFunc)(void* vm_state, const char* path);
 
-typedef VALUE(*SnContinuationStartFunc)(struct SnContinuation* continuation, struct SnContinuation* caller, VALUE data);
-typedef void(*SnContinuationReturnFunc)(struct SnContinuation* return_from, VALUE data);
-typedef void(*SnStartContinuationFunc)(struct SnContinuation* continuation, struct SnContinuation* caller, VALUE data, SnContinuationStartFunc start_func, SnContinuationReturnFunc return_callback);
+typedef VALUE(*SnFiberStartFunc)(struct SnFiber* fiber, struct SnFiber* caller, VALUE data);
+typedef void(*SnFiberReturnFunc)(struct SnFiber* return_from, VALUE data);
+typedef void(*SnStartFiberFunc)(struct SnFiber* fiber, struct SnFiber* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback);
 
 typedef struct SnVM {
 	void* vm_state;
@@ -42,7 +42,7 @@ typedef struct SnVM {
 	SnGetSymbolFunc symbol;
 	SnGetSymbolStringFunc symbol_to_cstr;
 	
-	SnStartContinuationFunc start_continuation;
+	SnStartFiberFunc start_fiber;
 } SnVM;
 
 CAPI void* snow_vm_load_precompiled_image(const char* file);

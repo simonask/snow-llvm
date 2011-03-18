@@ -1,9 +1,9 @@
-#include "snow/continuation.h"
+#include "snow/fiber.h"
 #include "snow/vm.h"
 
 #include <assert.h>
 
-static void _continuation_trampoline() {
+static void _fiber_trampoline() {
 	__asm__ __volatile__(
 		"movq 0x10(%%rsp), %%rdi\n"
 		"movq %%rax, %%rsi\n"     // value returned from the 
@@ -14,13 +14,13 @@ static void _continuation_trampoline() {
 }
 
 void __attribute__((noreturn))
-libsnow_continuation_start(SnContinuation* continuation, SnContinuation* caller, VALUE data, SnContinuationStartFunc start_func, SnContinuationReturnFunc return_callback)
+libsnow_fiber_start(SnFiber* fiber, SnFiber* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback)
 {
-	void** stack_top = (void**)(continuation->stack + SN_CONTINUATION_STACK_SIZE);
+	void** stack_top = (void**)(fiber->stack + SN_CONTINUATION_STACK_SIZE);
 	
-	*(stack_top-1) = continuation;
+	*(stack_top-1) = fiber;
 	*(stack_top-2) = (void*)return_callback; 
-	*(stack_top-3) = (void*)_continuation_trampoline; // "saved" rip
+	*(stack_top-3) = (void*)_fiber_trampoline; // "saved" rip
 	
 	__asm__ __volatile__(
 		"movq %0, %%rdi\n"
@@ -32,7 +32,7 @@ libsnow_continuation_start(SnContinuation* continuation, SnContinuation* caller,
 		"subq $0x10, %%rbp\n" // rbp for trampoline
 		"jmpq *%%r8\n"
 		:
-		: "r"(continuation), "r"(caller), "r"(data), "r"(start_func), "r"(stack_top-3)
+		: "r"(fiber), "r"(caller), "r"(data), "r"(start_func), "r"(stack_top-3)
 		: "%rdi", "%rsi", "%rdx", "%r8", "%rsp"
 	);
 	

@@ -9,7 +9,7 @@
 #include "snow/boolean.h"
 #include "snow/vm.h"
 #include "snow/numeric.h"
-#include "snow/continuation.h"
+#include "snow/fiber.h"
 
 static VALUE get_load_paths(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
@@ -82,8 +82,8 @@ static VALUE global_make_symbol(SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL; // XXX: TODO!
 }
 
-static VALUE global_make_continuation(SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_continuation(it);
+static VALUE global_make_fiber(SnCallFrame* here, VALUE self, VALUE it) {
+	return snow_create_fiber(it);
 }
 
 static VALUE global_disasm(SnCallFrame* here, VALUE self, VALUE it) {
@@ -123,7 +123,7 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("__make_string__", global_make_string, -1);
 	SN_DEFINE_GLOBAL("__make_boolean__", global_make_boolean, 1);
 	SN_DEFINE_GLOBAL("__make_symbol__", global_make_symbol, 1);
-	SN_DEFINE_GLOBAL("__make_continuation__", global_make_continuation, 1);
+	SN_DEFINE_GLOBAL("__make_fiber__", global_make_fiber, 1);
 	SN_DEFINE_GLOBAL("__disasm__", global_disasm, 1);
 	SN_DEFINE_GLOBAL("__resolve_symbol__", global_resolve_symbol, 1);
 	
@@ -139,5 +139,5 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("__function_prototype__"), snow_get_prototype_for_type(SnFunctionType));
 	snow_set_global(snow_sym("__call_frame_prototype__"), snow_get_prototype_for_type(SnCallFrameType));
 	snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
-	snow_set_global(snow_sym("__continuation_prototype__"), snow_get_prototype_for_type(SnContinuationType));
+	snow_set_global(snow_sym("__fiber_prototype__"), snow_get_prototype_for_type(SnFiberType));
 }
