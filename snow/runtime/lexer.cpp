@@ -115,9 +115,53 @@ namespace snow {
 		const char* end = _input+_input_length;
 		int current_line_number = 1;
 		const char* current_line_begin = p;
+		int multiline_comment_level = 0;
+		bool single_line_comment = false;
 		while (p < end) {
-			//printf("tokenizing input: %s\n", p);
 			size_t char_len;
+			
+			// Handle comments
+			if (*p == '-' && *(p+1) == '*') {
+				p += 2;
+				++multiline_comment_level;
+				continue;
+			}
+			
+			if (multiline_comment_level > 0) {
+				if (*p == '*' && *(p+1) == '-') {
+					p += 2;
+					--multiline_comment_level;
+				} else {
+					if (*p == '\n') {
+						++current_line_number;
+						current_line_begin = p+1;
+					}
+					++p;
+				}
+				continue;
+			}
+			
+			if (*p == '-' && *(p+1) == '-') {
+				p += 2;
+				single_line_comment = true;
+				continue;
+			}
+			
+			if (single_line_comment && *p == '\n') {
+				++p;
+				single_line_comment = false;
+				continue;
+			}
+			
+			if (single_line_comment) {
+				if (*p == '\n') {
+					single_line_comment = false;
+					++current_line_number;
+					current_line_begin = p+1;
+				}
+				++p;
+				continue;
+			}
 			
 			// Handle whitespace
 			if (is_whitespace(p, char_len)) {
