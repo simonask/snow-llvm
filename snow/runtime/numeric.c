@@ -148,6 +148,11 @@ static VALUE numeric_greater_than_or_equal(SnFunctionCallContext* here, VALUE se
 	}
 }
 
+static VALUE integer_complement(SnFunctionCallContext* here, VALUE self, VALUE it) {
+	if (!snow_is_integer(self)) return NULL;
+	return snow_integer_to_value(~snow_value_to_integer(self));
+}
+
 static VALUE numeric_inspect(SnFunctionCallContext* here, VALUE self, VALUE it) {
 	if (snow_is_integer(self)) {
 		char buffer[100];
@@ -167,6 +172,7 @@ SnObject* snow_create_integer_prototype() {
 	SN_DEFINE_METHOD(proto, "-", numeric_subtract, 1);
 	SN_DEFINE_METHOD(proto, "*", numeric_multiply, 1);
 	SN_DEFINE_METHOD(proto, "/", numeric_divide, 1);
+	SN_DEFINE_METHOD(proto, "~", integer_complement, 0);
 	SN_DEFINE_METHOD(proto, "<", numeric_less_than, 1);
 	SN_DEFINE_METHOD(proto, "<=", numeric_less_than_or_equal, 1);
 	SN_DEFINE_METHOD(proto, ">", numeric_greater_than, 1);
