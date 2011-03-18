@@ -61,6 +61,7 @@ namespace snow {
 		}
 		
 		bool is_numeric() const { return type == SnIntegerType || type == SnFloatType; }
+		bool is_collection() const { return type == SnArrayType || type == SnMapType; }
 		
 		operator SnType() const { return type; }
 	};
@@ -158,6 +159,8 @@ namespace snow {
 			MethodMinus,
 			MethodMultiply,
 			MethodDivide,
+			MethodModulo,
+			MethodComplement,
 			MethodGet,
 			MethodSet,
 			NumInlinableMethods
@@ -188,7 +191,9 @@ namespace snow {
 		*/
 		bool find_local(SnSymbol name, Function& function, int& out_level, int& out_index);
 		
-		Value get_numeric_operation(Builder& builder, const Value& a, const Value& b, InlinableMethod operation);
+		Value get_binary_numeric_operation(Builder& builder, const Value& a, const Value& b, InlinableMethod operation);
+		Value get_unary_numeric_operation(Builder& builder, const Value& a, InlinableMethod operation);
+		Value get_collection_operation(Builder& builder, const Value& a, const CallArguments& args, InlinableMethod operation);
 		Value compile_remove_option(Builder& builder, const Value& v);
 		llvm::Value* get_value_to_integer(Builder& builder, const Value& a);
 		llvm::Value* get_value_to_float(Builder& builder, const Value& b);

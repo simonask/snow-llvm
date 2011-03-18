@@ -721,6 +721,8 @@ namespace snow {
 			method_names_table[MethodMinus] = snow::symbol("-");
 			method_names_table[MethodMultiply] = snow::symbol("*");
 			method_names_table[MethodDivide] = snow::symbol("/");
+			method_names_table[MethodModulo] = snow::symbol("%");
+			method_names_table[MethodComplement] = snow::symbol("~");
 		}
 		
 		InlinableMethod method = NumInlinableMethods;
@@ -734,21 +736,25 @@ namespace snow {
 			return Value();
 		
 		// Handle numeric types
-		if (self.type.is_numeric()
-		 && args.values.size()
-		 && args.values[0].type.is_numeric()
-		 && method >= MethodPlus
-		 && method <= MethodDivide)
-		{
-			return get_numeric_operation(builder, self, args.values[0], method);
+		if (self.type.is_numeric()) {
+			if (args.values.size()) {
+				if (args.values[0].type.is_numeric()) {
+					return get_binary_numeric_operation(builder, self, args.values[0], method);
+				}
+			} else {
+				return get_unary_numeric_operation(builder, self, method);
+			}
+		} else if (self.type.is_collection()) {
+			return get_collection_operation(builder, self, args, method);
 		}
 		
 		// TODO: Other inlinable types
-		return Value();
+		
+		return Value(); // could not be inlined
 	}
 	
-	Value Codegen::get_numeric_operation(Builder& builder, const Value& a, const Value& b, InlinableMethod method) {
-		if (a.type.option || b.type.option) return Value();
+	Value Codegen::get_binary_numeric_operation(Builder& builder, const Value& a, const Value& b, InlinableMethod method) {
+		if (a.type.option || b.type.option) return Value(); // TODO: Insert inlined nil-check
 		
 		if (a.type == SnFloatType || b.type == SnFloatType) {
 			// one of operands is float, so convert both to floats
@@ -760,10 +766,7 @@ namespace snow {
 				case MethodMinus:    result = builder.CreateFSub(a_unshifted, b_unshifted); break;
 				case MethodMultiply: result = builder.CreateFMul(a_unshifted, b_unshifted); break;
 				case MethodDivide:   result = builder.CreateFDiv(a_unshifted, b_unshifted); break;
-				default: {
-					ASSERT(false && "Invalid operation for inlinable float operation.");
-					return Value();
-				}
+				default: return Value(); // no inlinable method
 			}
 			return get_float_to_value(builder, result);
 		} else {
@@ -775,6 +778,7 @@ namespace snow {
 				case MethodMinus:    result = builder.CreateSub(a_unshifted, b_unshifted); break;
 				case MethodMultiply: result = builder.CreateMul(a_unshifted, b_unshifted); break;
 				case MethodDivide:   result = builder.CreateSDiv(a_unshifted, b_unshifted); break;
+				case MethodModulo:   result = builder.CreateSRem(a_unshifted, b_unshifted); break;
 				default: {
 					ASSERT(false && "Invalid operation for inlinable float operation.");
 					return Value();
@@ -782,6 +786,40 @@ namespace snow {
 			}
 			return get_integer_to_value(builder, result);
 		}
+	}
+	
+	Value Codegen::get_unary_numeric_operation(Builder& builder, const Value& self, InlinableMethod operation) {
+		return Value(); // TODO: Integer complement, float-to-int conversion, int-to-float conversion, etc.
+	}
+	
+	Value Codegen::get_collection_operation(Builder& builder, const Value& self, const CallArguments& args, InlinableMethod method) {
+		if (self.type.option) return Value(); // TODO: Insert inlined nil-check
+		
+
+		if (self.type == SnArrayType && args.values.size()) {
+			llvm::Value* array_index = NULL;
+			if (args.values[0].type == SnIntegerType) {
+				array_index = builder.CreateIntCast(get_value_to_integer(builder, args.values[0]), builder.getInt32Ty(), true);
+			} else
+				return Value();
+			
+			llvm::Value* array_pointer = self.unmasked_value ? self.unmasked_value : builder.CreatePointerCast(self, get_pointer_to_struct_type("struct.SnArray"));
+			
+			if (method == MethodGet) {
+				return builder.CreateCall2(get_runtime_function("snow_array_get"), array_pointer, array_index);
+			} else if (method == MethodSet && args.values.size() >= 2) {
+				return builder.CreateCall3(get_runtime_function("snow_array_set"), array_pointer, array_index, args.values[1]);
+			}
+		} else if (self.type == SnMapType && args.values.size()) {
+			llvm::Value* map_pointer = self.unmasked_value ? self.unmasked_value : builder.CreatePointerCast(self, get_pointer_to_struct_type("struct.SnMap"));
+			if (method == MethodGet) {
+				return builder.CreateCall2(get_runtime_function("snow_map_get"), map_pointer, args.values[0]);
+			} else if (method == MethodSet && args.values.size() >= 2) {
+				return builder.CreateCall3(get_runtime_function("snow_map_set"), map_pointer, args.values[0], args.values[1]);
+			}
+		}
+		
+		return Value();
 	}
 	
 	llvm::Value* Codegen::get_value_to_integer(Builder& builder, const Value& n) {
