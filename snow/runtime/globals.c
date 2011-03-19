@@ -87,12 +87,13 @@ static VALUE global_make_fiber(SnCallFrame* here, VALUE self, VALUE it) {
 }
 
 static VALUE global_disasm(SnCallFrame* here, VALUE self, VALUE it) {
-	VALUE dummy = NULL;
-	SnFunction* function = snow_value_to_function(it, &dummy);
-	if (function) {
-		snow_vm_print_disassembly(function);
+	SnType type = snow_type_of(it);
+	if (type == SnFunctionType) {
+		snow_vm_disassemble_function((SnFunction*)it);
+	} else if (type == SnStringType) {
+		snow_vm_disassemble_runtime_function(snow_string_cstr((SnString*)it));
 	} else {
-		fprintf(stderr, "Cannot convert %p to a function.\n", it);
+		fprintf(stderr, "Cannot disassemble %p (not a function or string).\n", it);
 	}
 	return NULL;
 }

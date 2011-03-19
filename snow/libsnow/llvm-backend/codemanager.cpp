@@ -30,7 +30,8 @@ namespace snow {
 		void set_default_optimization_level(OptimizationLevel level) { _default_optimization_level = level; }
 		OptimizationLevel default_optimization_level() const { return _default_optimization_level; }
 		int run_main(int argc, const char** argv, const char* main_func);
-		void print_disassembly(const SnFunctionDescriptor* function_ptr);
+		void disassemble_function(const SnFunctionDescriptor* function_ptr);
+		void disassemble_runtime_function(const char* name);
 		bool load_runtime(const char* path, SnVM* vm);
 		bool load_precompiled_snow_code(const char* path);
 		SnModuleInitFunc load_bitcode_module(const char* path);
@@ -78,10 +79,6 @@ namespace snow {
 		return retval.IntVal.getSExtValue();
 	}
 	
-	void CodeManager::print_disassembly(const SnFunctionDescriptor* descriptor) {
-		_impl->print_disassembly(descriptor);
-	}
-	
 	const llvm::Function* CodeManager::Impl::get_function_for_address(void* _addr) {
 		// You would think this could be done by _engine->getGlobalValueAtAddress, but
 		// that causes an assertion to get hit within LLVM, so we need our own bookkeeping.
@@ -96,7 +93,11 @@ namespace snow {
 		return NULL;
 	}
 	
-	void CodeManager::Impl::print_disassembly(const SnFunctionDescriptor* descriptor) {
+	void CodeManager::disassemble_function(const SnFunctionDescriptor* descriptor) {
+		_impl->disassemble_function(descriptor);
+	}
+	
+	void CodeManager::Impl::disassemble_function(const SnFunctionDescriptor* descriptor) {
 		const llvm::Function* function = (llvm::Function*)descriptor->jit_info;
 		if (!function) function = get_function_for_address((void*)descriptor->ptr);
 		if (!function) {
@@ -110,6 +111,19 @@ namespace snow {
 			llvm::outs() << *function << '\n';
 		} else {
 			llvm::errs() << "ERROR: Descriptor " << descriptor << " does not describe a JIT'ed function!\n";
+		}
+	}
+	
+	void CodeManager::disassemble_runtime_function(const char* name) {
+		_impl->disassemble_runtime_function(name);
+	}
+	
+	void CodeManager::Impl::disassemble_runtime_function(const char* name) {
+		const llvm::Function* function = (llvm::Function*)_engine->FindFunctionNamed(name);
+		if (function) {
+			llvm::outs() << *function << '\n';
+		} else {
+			llvm::errs() << "ERROR: Function '" << name << "' does not exist in the runtime.\n";
 		}
 	}
 	

@@ -23,7 +23,8 @@ typedef void(*SnRealizeFunctionFunc)(void* vm_state, struct SnFunctionDescriptor
 typedef SnSymbol(*SnGetSymbolFunc)(const char* cstr);
 typedef const char*(*SnGetSymbolStringFunc)(SnSymbol sym);
 typedef int(*SnGetNameOf)(void* vm_state, void* ptr, char* buffer, int maxlen);
-typedef void(*SnPrintDisassemblyFunc)(void* vm_state, const struct SnFunctionDescriptor* descriptor);
+typedef void(*SnDisassembleFunctionFunc)(void* vm_state, const struct SnFunctionDescriptor* descriptor);
+typedef void(*SnDisassembleRuntimeFunctionFunc)(void* vm_state, const char* name);
 
 typedef VALUE(*SnModuleInitFunc)();
 typedef int(*SnTestSuiteFunc)();
@@ -37,7 +38,9 @@ typedef struct SnVM {
 	void* vm_state;
 	SnCompileASTFunc compile_ast;
 	SnLoadBitcodeModuleFunc load_bitcode_module;
-	SnPrintDisassemblyFunc print_disassembly;
+	SnDisassembleFunctionFunc disassemble_function;
+	SnDisassembleRuntimeFunctionFunc disassemble_runtime_function;
+	
 	
 	SnGetSymbolFunc symbol;
 	SnGetSymbolStringFunc symbol_to_cstr;
@@ -49,7 +52,8 @@ CAPI void* snow_vm_load_precompiled_image(const char* file);
 CAPI bool snow_vm_compile_ast(const char* module_name, const char* soure, const struct SnAST* ast, SnCompilationResult* out_result);
 CAPI struct SnObject* snow_vm_load_bitcode_module(const char* path);
 CAPI struct SnString* snow_vm_get_name_of(void* ptr);
-CAPI void snow_vm_print_disassembly(const struct SnFunction* function);
+CAPI void snow_vm_disassemble_function(const struct SnFunction* function);
+CAPI void snow_vm_disassemble_runtime_function(const char* name);
 
 
 #endif /* end of include guard: VM_H_QGO3BPWD */

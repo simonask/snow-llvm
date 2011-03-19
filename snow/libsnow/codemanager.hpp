@@ -16,7 +16,8 @@ namespace snow {
 		SnTestSuiteFunc load_test_suite(const char* path);
 		bool load_runtime(const char* path, SnVM* vm);
 		int run_main(int argc, const char** argv, const char* main_func = "snow_main");
-		void print_disassembly(const SnFunctionDescriptor* descriptor);
+		void disassemble_function(const SnFunctionDescriptor* descriptor);
+		void disassemble_runtime_function(const char* name);
 		
 		static void init();
 		static void finish();

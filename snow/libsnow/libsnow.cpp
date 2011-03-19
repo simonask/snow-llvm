@@ -44,7 +44,7 @@ namespace snow {
 			}
 		}
 		
-		void print_disassembly(void* cm, const SnFunctionDescriptor* descriptor) {
+		void disassemble_function(void* cm, const SnFunctionDescriptor* descriptor) {
 			CodeManager* code_manager = (CodeManager*)cm;
 			printf("Signature: %s(", snow::symbol_to_cstr(descriptor->name));
 			for (size_t i = 0; i < descriptor->num_params; ++i) {
@@ -64,7 +64,14 @@ namespace snow {
 			}
 			
 			printf("Disassembly:\n");
-			code_manager->print_disassembly(descriptor);
+			code_manager->disassemble_function(descriptor);
+		}
+		
+		void disassemble_runtime_function(void* cm, const char* name) {
+			CodeManager* code_manager = (CodeManager*)cm;
+			printf("Signature: [CAPI] %s\n\n", name);
+			printf("Disassembly:\n");
+			code_manager->disassemble_runtime_function(name);
 		}
 	}
 	
@@ -75,7 +82,8 @@ namespace snow {
 		vm.vm_state = code_manager;
 		vm.compile_ast = compile_ast;
 		vm.load_bitcode_module = load_bitcode_module;
-		vm.print_disassembly = print_disassembly;
+		vm.disassemble_function = disassemble_function;
+		vm.disassemble_runtime_function = disassemble_runtime_function;
 		vm.symbol = snow::symbol;
 		vm.symbol_to_cstr = snow::symbol_to_cstr;
 		vm.start_fiber = libsnow_fiber_start;

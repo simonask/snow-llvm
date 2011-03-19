@@ -18,7 +18,12 @@ SnObject* snow_vm_load_bitcode_module(const char* path) {
 	return NULL;
 }
 
-void snow_vm_print_disassembly(const SnFunction* function) {
+void snow_vm_disassemble_function(const SnFunction* function) {
 	SnProcess* p = snow_get_process();
-	p->vm->print_disassembly(p->vm->vm_state, function->descriptor);
+	p->vm->disassemble_function(p->vm->vm_state, function->descriptor);
+}
+
+void snow_vm_disassemble_runtime_function(const char* name) {
+	SnProcess* p = snow_get_process();
+	p->vm->disassemble_runtime_function(p->vm->vm_state, name);
 }
