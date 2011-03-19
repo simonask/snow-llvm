@@ -124,6 +124,7 @@ Enumerable: module {
 }
 Array.instance_prototype.include(Enumerable)
 Map.instance_prototype.include(Enumerable)
+Fiber.instance_prototype.include(Enumerable)
 
 MapEnumerator: class {
 	.include(Enumerable)
