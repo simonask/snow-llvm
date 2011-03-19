@@ -7,4 +7,4 @@ OBJECTS = $(patsubst %,%.bc,$(SOURCES))
 include $(LEVEL)/Makefile.rules
 
 $(TARGET): $(OBJECTS)
-	$(BC_LINK) $(BC_LINKFLAGS) -o $@ $(OBJECTS)
+	$(BC_LINK) $(BC_LINKFLAGS) $(OBJECTS) | $(BC_OPT) $(RUNTIME_OPTFLAGS) -o=$@
