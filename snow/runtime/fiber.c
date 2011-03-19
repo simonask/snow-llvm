@@ -73,7 +73,7 @@ SnFiber* snow_create_fiber(VALUE functor) {
 	return cc;
 }
 
-VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value) {
+static VALUE fiber_resume_internal(SnFiber* fiber, VALUE incoming_value, bool update_link) {
 	SnFiber* caller = snow_get_current_fiber();
 	if (caller == fiber) return incoming_value;
 	
@@ -89,7 +89,6 @@ VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value) {
 	setjmp(caller_context);
 	
 	if (came_back) {
-		set_current_fiber(caller);
 		SN_GC_WRLOCK(caller);
 		caller->flags |= SnFiberIsRunning;
 		VALUE val = caller->incoming_value;
@@ -97,12 +96,16 @@ VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value) {
 		return val;
 	} else {
 		came_back = true;
+
 		SN_GC_WRLOCK(fiber);
-		fiber->link = caller;
+		if (update_link)
+			fiber->link = caller;
+			
 		if (fiber->flags & SnFiberIsStarted) {
 			fiber->incoming_value = incoming_value;
 			void* fiber_context = fiber->context;
 			SN_GC_UNLOCK(fiber);
+			set_current_fiber(fiber);
 			longjmp(fiber_context, 1);
 		} else {
 			fiber->flags |= SnFiberIsStarted;
@@ -116,6 +119,11 @@ VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value) {
 		ASSERT(false); // unreachable
 		return NULL;
 	}
+}
+
+
+VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value) {
+	return fiber_resume_internal(fiber, incoming_value, true);
 }
 
 static VALUE fiber_start(SnFiber* fiber, SnFiber* caller, VALUE incoming_value) {
@@ -135,7 +143,7 @@ static void fiber_return(SnFiber* return_from, VALUE returned_value) {
 	SnFiber* link = return_from->link;
 	SN_GC_UNLOCK(return_from);
 	ASSERT(false);
-	snow_fiber_resume(link, returned_value);
+	fiber_resume_internal(link, returned_value, false);
 }
 
 //----------------------------------------------------------------------------
