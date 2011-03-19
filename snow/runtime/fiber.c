@@ -171,13 +171,31 @@ static VALUE fiber_is_running(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(is_running);
 }
 
+static bool _fiber_is_started(const SnFiber* fiber) {
+	SN_GC_RDLOCK(fiber);
+	bool is_started = (fiber->flags & SnFiberIsStarted) != 0;
+	SN_GC_UNLOCK(fiber);
+	return is_started;
+}
+
 static VALUE fiber_is_started(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFiberType) return NULL;
 	SnFiber* c = (SnFiber*)self;
-	SN_GC_RDLOCK(c);
-	bool is_started = (c->flags & SnFiberIsStarted) != 0;
-	SN_GC_UNLOCK(c);
-	return snow_boolean_to_value(is_started);
+	return snow_boolean_to_value(_fiber_is_started(c));
+}
+
+
+static VALUE fiber_each(SnCallFrame* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnFiberType) return NULL;
+	SnFiber* f = (SnFiber*)self;
+	bool is_started = _fiber_is_started(f);
+	VALUE first_result = snow_fiber_resume(f, NULL);
+	snow_call(it, NULL, 1, &first_result);
+	while(_fiber_is_started(f)) {
+		VALUE result = snow_fiber_resume(f, NULL);
+		snow_call(it, NULL, 1, &result);
+	}
+	return SN_NIL;
 }
 
 SnObject* snow_create_fiber_prototype() {
@@ -185,6 +203,7 @@ SnObject* snow_create_fiber_prototype() {
 	SN_DEFINE_METHOD(proto, "inspect", fiber_inspect, 0);
 	SN_DEFINE_METHOD(proto, "to_string", fiber_inspect, 0);
 	SN_DEFINE_METHOD(proto, "resume", fiber_resume, 1);
+	SN_DEFINE_METHOD(proto, "each", fiber_each, 1);
 	SN_DEFINE_PROPERTY(proto, "running?", fiber_is_running, NULL);
 	SN_DEFINE_PROPERTY(proto, "started?", fiber_is_started, NULL);
 	return proto;
