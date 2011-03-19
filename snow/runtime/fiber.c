@@ -106,6 +106,7 @@ VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value) {
 			longjmp(fiber_context, 1);
 		} else {
 			fiber->flags |= SnFiberIsStarted;
+			set_current_fiber(fiber);
 			// SN_GC_UNLOCK is called by fiber_start callback.
 			// (necessary because the platform-specific fiber starters need access
 			// to the contents of the SnFiber object, but don't have access
@@ -129,11 +130,12 @@ static VALUE fiber_start(SnFiber* fiber, SnFiber* caller, VALUE incoming_value) 
 }
 
 static void fiber_return(SnFiber* return_from, VALUE returned_value) {
-	printf("returning from fiber %p with value %p\n", return_from, returned_value);
 	SN_GC_WRLOCK(return_from);
 	return_from->flags &= ~SnFiberIsStarted;
+	SnFiber* link = return_from->link;
 	SN_GC_UNLOCK(return_from);
-	snow_fiber_resume(return_from->link, returned_value);
+	ASSERT(false);
+	snow_fiber_resume(link, returned_value);
 }
 
 //----------------------------------------------------------------------------

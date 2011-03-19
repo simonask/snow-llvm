@@ -8,7 +8,7 @@ static void _fiber_trampoline() {
 		"movq 0x10(%%rsp), %%rdi\n"
 		"movq %%rax, %%rsi\n"     // value returned from the 
 		"movq 0x8(%%rsp), %%r8\n" // return callback
-		"call *%%r8\n"
+		"jmp *%%r8\n"
 	: : : "%rdi", "%rsi", "%r8"
 	);
 }
