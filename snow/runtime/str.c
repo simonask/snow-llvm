@@ -181,7 +181,7 @@ static VALUE string_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	buffer[0] = '"';
 	buffer[size + 1] = '"';
 	buffer[size + 2] = '\0';
-	return snow_create_string_with_size(buffer, size + 3);
+	return snow_create_string_with_size(buffer, size + 2);
 }
 
 static VALUE string_to_string(SnCallFrame* here, VALUE self, VALUE it) {
