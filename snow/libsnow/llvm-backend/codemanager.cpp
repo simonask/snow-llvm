@@ -163,16 +163,16 @@ namespace snow {
 		
 		optimize(_runtime, OPTIMIZATION_AGGRESSIVE);
 		
-		_engine = llvm::EngineBuilder(_runtime)
+		llvm::EngineBuilder eb = llvm::EngineBuilder(_runtime)
 			.setErrorStr(&error)
 			.setEngineKind(llvm::EngineKind::JIT)
-			.setOptLevel(llvm::CodeGenOpt::Default)
-			.create();
+			.setOptLevel(llvm::CodeGenOpt::Default);
+		_engine = eb.create();
 		if (!_engine) {
 			fprintf(stderr, "ERROR: Error creating ExecutionEngine: %s\n", error.c_str());
 			return false;
 		}
-		_engine->DisableLazyCompilation();
+		_engine->DisableLazyCompilation(false);
 		_engine->RegisterJITEventListener(this);
 		_engine->runStaticConstructorsDestructors(_runtime, false);
 		
