@@ -35,7 +35,7 @@ SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallF
 	return obj;
 }
 
-SnCallFrame* snow_create_call_frame(SnFunction* callee, SnCallFrame* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
+SnCallFrame* snow_create_call_frame(SnFunction* callee, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args) {
 	if (!callee->descriptor->needs_context) return callee->definition_context;
 	
 	SN_GC_RDLOCK(callee);
@@ -47,7 +47,7 @@ SnCallFrame* snow_create_call_frame(SnFunction* callee, SnCallFrame* caller, siz
 	SnCallFrame* context = SN_GC_ALLOC_OBJECT(SnCallFrame);
 	SN_GC_WRLOCK(context);
 	context->function = callee;
-	context->caller = caller;
+	context->caller = NULL;
 	context->self = NULL; // set in snow_function_call
 	context->module = callee->definition_context ? callee->definition_context->module : NULL;
 	context->arguments = arguments;

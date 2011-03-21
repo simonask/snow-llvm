@@ -114,6 +114,7 @@ namespace snow {
 		ReturnPoints return_points;
 		llvm::BasicBlock* entry_point;
 		llvm::BasicBlock* exit_point;
+		llvm::BasicBlock* unwind_point;
 		
 		Names local_names;
 		Names param_names;
@@ -219,6 +220,8 @@ namespace snow {
 		Value compile_method_call(Builder& builder, Function& caller, const Value& object, SnSymbol method, const CallArguments& args);
 		Value compile_call(Builder& builder, Function& caller, const Value& object, const Value& self, const CallArguments& args);
 		llvm::CallInst* tail_call(llvm::CallInst* inst) const { inst->setTailCall(true); return inst; }
+
+		llvm::InvokeInst* invoke_call(Builder& builder, Function& caller, llvm::Function* callee, llvm::Value** arg_begin, llvm::Value** arg_end, const llvm::StringRef& value_name);
 		
 		llvm::FunctionType* get_function_type() const;
 		llvm::Function* get_runtime_function(const char* name) const;

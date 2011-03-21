@@ -53,7 +53,7 @@ typedef struct SnFunction {
 } SnFunction;
 
 CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallFrame* definition_context);
-CAPI SnCallFrame* snow_create_call_frame(SnFunction* callee, SnCallFrame* caller, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
+CAPI SnCallFrame* snow_create_call_frame(SnFunction* callee, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
 CAPI void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE mergee);
 CAPI SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self);
 

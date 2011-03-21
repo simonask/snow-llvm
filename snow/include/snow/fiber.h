@@ -4,6 +4,8 @@
 
 #include "snow/object.h"
 
+struct SnCallFrame;
+
 static const size_t SN_CONTINUATION_STACK_SIZE = 2*SN_MEMORY_PAGE_SIZE;
 
 typedef enum SnFiberFlags {
@@ -12,23 +14,21 @@ typedef enum SnFiberFlags {
 	SnFiberIsStarted = 0x2, // started, but possibly suspended
 } SnFiberFlags;
 
+
+struct SnFiberState;
+
 typedef struct SnFiber {
 	SnObjectBase base;
-	
 	VALUE functor;
 	VALUE incoming_value;
 	struct SnFiber* link;
-	
-	void* context;
-	byte* stack;
-	byte* suspended_stack_boundary;
-	
-	unsigned flags;
+	struct SnFiberState* state;
 } SnFiber;
 
 CAPI SnFiber* snow_create_fiber(VALUE functor); // functor is called with arguments calling_fiber, incoming_value
 CAPI VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value);
 CAPI SnFiber* snow_get_current_fiber();
+CAPI struct SnCallFrame* snow_fiber_get_current_frame(const SnFiber* fiber);
 
 // Internal
 CAPI void snow_fiber_begin_thread();

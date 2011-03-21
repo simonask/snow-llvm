@@ -28,7 +28,7 @@ typedef struct SnArguments {
 CAPI SnArguments* snow_create_arguments(size_t num_names, size_t size);
 CAPI SnArguments* snow_create_arguments_for_function_call(const struct SnFunctionDescriptor*, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
 CAPI void snow_arguments_grow_by(SnArguments* args, size_t num_names, size_t size);
-INLINE size_t snow_arguments_size(SnArguments* args) { return args->size; }
+INLINE size_t snow_arguments_size(const SnArguments* args) { return args->size; }
 INLINE VALUE snow_arguments_get_by_index(SnArguments* args, size_t idx) { return idx < args->size ? args->data[idx] : NULL; }
 CAPI VALUE snow_arguments_get_by_name(SnArguments* args, SnSymbol sym);
 CAPI void snow_arguments_merge(SnArguments* args, const SnArguments* other);

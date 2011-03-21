@@ -98,6 +98,7 @@ namespace snow {
 		function->name = current_assignment_symbol();
 		function->entry_point = NULL;
 		function->exit_point = NULL;
+		function->unwind_point = NULL;
 		function->self_type = SnAnyType; // TODO: Consider how type of self should be inferred.
 		function->return_type = SnAnyType;
 		function->locals_array = NULL;
@@ -151,8 +152,10 @@ namespace snow {
 		// Prepare to compile function
 		llvm::BasicBlock* entry_bb = llvm::BasicBlock::Create(context, "entry", F);
 		llvm::BasicBlock* exit_bb = llvm::BasicBlock::Create(context, "exit", F);
+		llvm::BasicBlock* unwind_bb = llvm::BasicBlock::Create(context, "unwind", F);
 		current_function.entry_point = entry_bb;
 		current_function.exit_point = exit_bb;
+		current_function.unwind_point = unwind_bb;
 		
 		// Function entry
 		Builder builder(entry_bb);
@@ -164,6 +167,7 @@ namespace snow {
 		current_function.here.value->setName("here");
 		current_function.self.value->setName("self");
 		current_function.it.value->setName("it");
+		builder.CreateCall(get_runtime_function("_snow_push_call_frame"), current_function.here);
 		if (current_function.parent) {
 			// locals_array = here->locals; // locals is the 5th member of SnCallFrame
 			current_function.locals_array = builder.CreateLoad(builder.CreateStructGEP(current_function.here, 4), ":locals");
@@ -196,12 +200,20 @@ namespace snow {
 		{
 			return_value->addIncoming(it->second, it->first);
 		}
+		builder.CreateCall(get_runtime_function("_snow_pop_call_frame"), current_function.here);
 		builder.CreateRet(return_value);
 		
 		current_function.return_type = current_function.possible_return_types[0];
 		for (size_t i = 1; i < current_function.possible_return_types.size(); ++i) {
 			current_function.return_type = current_function.return_type.combine(current_function.possible_return_types[i]);
 		}
+		
+		// Function unwind
+		// This block is executed when an exception has been thrown, and the
+		// runtime is looking for a handler.
+		builder.SetInsertPoint(unwind_bb);
+		builder.CreateCall(get_runtime_function("_snow_pop_call_frame"), current_function.here);
+		builder.CreateUnwind(); // "rethrow"
 		
 		return Value(return_value, current_function.return_type);
 	}
@@ -339,7 +351,8 @@ namespace snow {
 			case SN_AST_MEMBER: {
 				Value object = compile_ast_node(builder, node->member.object, current_function);
 				if (!object) return object;
-				Value member = tail_call(builder.CreateCall2(get_runtime_function("snow_get_member"), object, symbol(builder, node->member.name)));
+				llvm::Value* args[2] = {object, symbol(builder, node->member.name)};
+				Value member = invoke_call(builder, current_function, get_runtime_function("snow_get_member"), args, args+2, (object.value->getName() + "." + snow::symbol_to_cstr(node->member.name)).str());
 				return member;
 			}
 			case SN_AST_CALL: {
@@ -958,7 +971,8 @@ namespace snow {
 		
 		// Nothing was found at all! *sigh* Check the module, and throw an error if nothing is found.
 		// TODO: Provide source/line information to snow_get_module_value.
-		llvm::Value* v = builder.CreateCall2(get_runtime_function("snow_get_module_value"), current_function.module, symbol(builder, name), sname);
+		llvm::Value* args[2] = { current_function.module, symbol(builder, name) };
+		llvm::Value* v = invoke_call(builder, current_function, get_runtime_function("snow_get_module_value"), args, args+2, sname);
 		Value result(v);
 		current_function.local_cache[name] = result;
 		return result;
@@ -987,8 +1001,8 @@ namespace snow {
 		ASSERT(target->type == SN_AST_MEMBER);
 		
 		Value object = compile_ast_node(builder, target->member.object, current_function);
-		tail_call(builder.CreateCall3(get_runtime_function("snow_set_member"), object, symbol(builder, target->member.name), value));
-		return value; // return original value for type inference
+		llvm::Value* args[3] = { object, symbol(builder, target->member.name), value };
+		return invoke_call(builder, current_function, get_runtime_function("snow_set_member"), args, args+3, (object.value->getName() + "." + snow::symbol_to_cstr(target->member.name)).str());
 	}
 	
 	Value Codegen::compile_local_assignment(Builder& builder, Function& current_function, const SnAstNode* target, const Value& value) {
@@ -1005,8 +1019,8 @@ namespace snow {
 		
 		if (global_index >= 0) {
 			// Toplevel scope, set module member.
-			tail_call(builder.CreateCall4(get_runtime_function("snow_object_set_member"), current_function.module, cast_to_value(builder, current_function.module), symbol(builder, name), value));
-			return value;
+			llvm::Value* args[2] = { current_function.module, cast_to_value(builder, current_function.module) };
+			return invoke_call(builder, current_function, get_runtime_function("snow_object_set_member"), args, args+2, sname);
 		}
 		
 		int local_index = index_of(current_function.local_names, name);
@@ -1030,7 +1044,8 @@ namespace snow {
 			builder.CreateStore(value, builder.CreateConstGEP1_32(current_function.locals_array, local_index, sname + ":ptr"));
 		} else {
 			// Toplevel scope, set module member.
-			tail_call(builder.CreateCall4(get_runtime_function("snow_object_set_member"), current_function.module, cast_to_value(builder, current_function.module), symbol(builder, name), value));
+			llvm::Value* args[4] = { current_function.module, cast_to_value(builder, current_function.module), symbol(builder, name), value };
+			invoke_call(builder, current_function, get_runtime_function("snow_object_set_member"), args, args+4, sname);
 			_module_globals.push_back(name);
 		}
 		return value;
@@ -1045,9 +1060,9 @@ namespace snow {
 		llvm::Twine function_name = object.value->getName() + "." + snow::symbol_to_cstr(method);
 		llvm::Value* real_self_ptr = builder.CreateAlloca(get_value_type(), builder.getInt64(1), function_name + ":self_ptr");
 		builder.CreateStore(object, real_self_ptr);
-		llvm::Value* function = builder.CreateCall3(get_runtime_function("snow_get_method"), object, symbol(builder, method), real_self_ptr);
+		llvm::Value* va[3] = { object, symbol(builder, method), real_self_ptr };
+		llvm::Value* function = invoke_call(builder, caller, get_runtime_function("snow_get_method"), va, va+3, (function_name + ":method").str());
 		llvm::Value* real_self = builder.CreateLoad(real_self_ptr, function_name + ":self");
-		function->setName(function_name + ":method");
 		return compile_call(builder, caller, function, object, args);
 	}
 	
@@ -1063,7 +1078,8 @@ namespace snow {
 		if (object.type != SnFunctionType && object.value->getType() != function_type) {
 			llvm::Value* new_self_ptr = builder.CreateAlloca(get_value_type(), builder.getInt64(1), function_name + ":real_self_ptr");
 			builder.CreateStore(real_self, new_self_ptr);
-			function = builder.CreateCall2(get_runtime_function("snow_value_to_function"), cast_to_value(builder, object), new_self_ptr, function_name);
+			llvm::Value* va[2] = { cast_to_value(builder, object), new_self_ptr };
+			function = invoke_call(builder, caller, get_runtime_function("snow_value_to_function"), va, va+2, function_name.str());
 			real_self = builder.CreateLoad(new_self_ptr, function_name + ":real_self");
 		} else {
 			function = builder.CreatePointerCast(object.value, function_type, function_name);
@@ -1087,24 +1103,25 @@ namespace snow {
 			values = get_null_ptr(llvm::PointerType::getUnqual(get_value_type()));
 		}
 		
-		llvm::Value* create_context_args[6] = {
+		llvm::Value* create_context_args[5] = {
 			function,
-			caller.here,
 			builder.getInt64(args.names.size()),
 			names,
 			builder.getInt64(args.values.size()),
 			values
 		};
 		
-		llvm::Value* context = builder.CreateCall(get_runtime_function("snow_create_call_frame"), create_context_args, create_context_args + 6, function_name + ":environment");
+		llvm::Value* context = builder.CreateCall(get_runtime_function("snow_create_call_frame"), create_context_args, create_context_args + 5, function_name + ":environment");
 		
 		// merge splat arguments
 		for (size_t i = 0; i < args.splat_values.size(); ++i) {
-			builder.CreateCall2(get_runtime_function("snow_merge_splat_arguments"), context, args.splat_values[i]);
+			llvm::Value* va[2] = { context, args.splat_values[i] };
+			invoke_call(builder, caller, get_runtime_function("snow_merge_splat_arguments"), va, va+2, "");
 		}
 		
 		llvm::Value* it = args.it ? args.it.value : get_null_ptr(get_value_type());
-		return tail_call(builder.CreateCall4(get_runtime_function("snow_function_call"), function, context, real_self, it));
+		llvm::Value* va[4] = { function, context, real_self, it };
+		return invoke_call(builder, caller, get_runtime_function("snow_function_call"), va, va+4, "");
 	}
 	
 	SnSymbol Codegen::current_assignment_symbol() const {
@@ -1142,6 +1159,14 @@ namespace snow {
 	
 	const llvm::PointerType* Codegen::get_value_type() const {
 		return get_pointer_to_int_type(8);
+	}
+	
+	llvm::InvokeInst* Codegen::invoke_call(Builder& builder, Function& caller, llvm::Function* callee, llvm::Value** arg_begin, llvm::Value** arg_end, const llvm::StringRef& result_name) {
+		llvm::BasicBlock* normal = llvm::BasicBlock::Create(builder.getContext(), result_name.str() + ".i", caller.function);
+		llvm::BasicBlock* unwind = caller.unwind_point;
+		llvm::InvokeInst* result = builder.CreateInvoke(callee, normal, unwind, arg_begin, arg_end, result_name);
+		builder.SetInsertPoint(normal);
+		return result;
 	}
 	
 	llvm::FunctionType* Codegen::get_function_type() const {
