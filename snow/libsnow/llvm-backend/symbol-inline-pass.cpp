@@ -49,6 +49,6 @@ namespace snow {
 	}
 	
 	char SymbolInlinePass::ID = 0;
-	using llvm::RegisterPass;
-	INITIALIZE_PASS(SymbolInlinePass, "snow-symbol-inline", "Snow Symbol Inline Pass", false, false);
+	//using llvm::RegisterPass;
+	//INITIALIZE_PASS(SymbolInlinePass, "snow-symbol-inline", "Snow Symbol Inline Pass", false, false);
 }

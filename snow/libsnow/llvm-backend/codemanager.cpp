@@ -13,6 +13,8 @@
 #include <llvm/DerivedTypes.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/Support/MemoryBuffer.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/Support/IRReader.h>
 
 namespace snow {
 	using namespace llvm;
@@ -25,8 +27,8 @@ namespace snow {
 			OPTIMIZATION_AGGRESSIVE,
 		};
 		
-		Impl() : _default_optimization_level(OPTIMIZATION_NORMAL), _engine(NULL), _runtime(NULL) {}
-		~Impl();
+		Impl() : llvm::JITEventListener(), _default_optimization_level(OPTIMIZATION_NORMAL), _engine(NULL), _runtime(NULL) {}
+		virtual ~Impl();
 		void set_default_optimization_level(OptimizationLevel level) { _default_optimization_level = level; }
 		OptimizationLevel default_optimization_level() const { return _default_optimization_level; }
 		int run_main(int argc, const char** argv, const char* main_func);
@@ -37,6 +39,10 @@ namespace snow {
 		SnModuleInitFunc load_bitcode_module(const char* path);
 		SnTestSuiteFunc load_test_suite(const char* path);
 		bool compile_ast(const SnAST* ast, const char* source, const char* module_name, SnCompilationResult& out_result);
+		
+		// llvm::JITEventListener
+		void NotifyFunctionEmitted(const llvm::Function& f, void* code, size_t code_size, const llvm::JITEvent_EmittedFunctionDetails& details);
+		void NotifyFreeingMachineCode(void* old_ptr);
 	private:
 		struct FunctionInfo {
 			byte* code_begin;
@@ -55,10 +61,6 @@ namespace snow {
 		void optimize(llvm::Module* module, OptimizationLevel level);
 		void optimize(llvm::Function* function, OptimizationLevel level);
 		const llvm::Function* get_function_for_address(void* addr);
-		
-		// llvm::JITEventListener
-		void NotifyFunctionEmitted(const llvm::Function& f, void* code, size_t code_size, const llvm::JITEvent_EmittedFunctionDetails& details);
-		void NotifyFreeingMachineCode(void* old_ptr);
 	};
 	
 	int CodeManager::run_main(int argc, const char** argv, const char* main_func) {
@@ -128,16 +130,11 @@ namespace snow {
 	}
 	
 	llvm::Module* CodeManager::Impl::load_llvm_module(const char* path) {
-		std::string error;
-		llvm::MemoryBuffer* buffer = NULL;
-		llvm::Module* module = NULL;
-		if ((buffer = llvm::MemoryBuffer::getFile(path, &error))) {
-			module = llvm::getLazyBitcodeModule(buffer, llvm::getGlobalContext(), &error);
-			if (!module) {
-				fprintf(stderr, "ERROR: Could not load %s.\n", path);
-				delete buffer;
-				return NULL;
-			}
+		llvm::SMDiagnostic error;
+		llvm::Module* module = llvm::ParseIRFile(path, error, llvm::getGlobalContext());
+		if (module == NULL) {
+			fprintf(stderr, "ERROR: Could not load %s.\n", path);
+			error.Print("snow", errs());
 		}
 		return module;
 	}
@@ -169,6 +166,7 @@ namespace snow {
 		_engine = llvm::EngineBuilder(_runtime)
 			.setErrorStr(&error)
 			.setEngineKind(llvm::EngineKind::JIT)
+			.setOptLevel(llvm::CodeGenOpt::Default)
 			.create();
 		if (!_engine) {
 			fprintf(stderr, "ERROR: Error creating ExecutionEngine: %s\n", error.c_str());
@@ -319,6 +317,9 @@ namespace snow {
 	void CodeManager::init() {
 		llvm::InitializeNativeTarget();
 		llvm::llvm_start_multithreaded();
+		llvm::JITExceptionHandling = true;
+		llvm::JITEmitDebugInfo = true;
+		llvm::NoFramePointerElim = true;
 	}
 	
 	void CodeManager::finish() {
