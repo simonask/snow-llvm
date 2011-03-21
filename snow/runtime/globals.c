@@ -106,6 +106,37 @@ static VALUE global_resolve_symbol(SnCallFrame* here, VALUE self, VALUE it) {
 	return str ? snow_create_string_constant(str) : NULL;
 }
 
+static VALUE global_print_call_stack(SnCallFrame* here, VALUE self, VALUE it) {
+	SnFiber* fiber = snow_get_current_fiber();
+	int level = 0;
+	while (fiber) {
+		SnCallFrame* frame = snow_fiber_get_current_frame(fiber);
+		while (frame) {
+			printf("%d: %s(", level++, snow_sym_to_cstr(frame->function->descriptor->name));
+			if (frame->arguments) {
+				size_t num_args = frame->arguments->size;
+				size_t arg_i = 0;
+				for (size_t i = 0; i < frame->function->descriptor->num_params && arg_i < num_args; ++i) {
+					printf("%s: %p", snow_sym_to_cstr(frame->function->descriptor->param_names[i]), frame->arguments->data[arg_i++]);
+					if (arg_i < num_args-1) printf(", ");
+				}
+				for (size_t i = 0; i < frame->arguments->num_extra_names && arg_i < num_args; ++i) {
+					printf("%s: %p, ", snow_sym_to_cstr(frame->arguments->extra_names[i]), frame->arguments->data[arg_i++]);
+					if (arg_i < num_args-1) printf(", ");
+				}
+				for (size_t i = arg_i; i < num_args; ++i) {
+					printf("%p", frame->arguments->data[arg_i++]);
+					if (i < num_args-1) printf(", ");
+				}
+			}
+			printf(")\n");
+			frame = frame->caller;
+		}
+		fiber = fiber->link;
+	}
+	return SN_NIL;
+}
+
 static VALUE global_throw(SnCallFrame* here, VALUE self, VALUE it) {
 	snow_throw_exception(it);
 	return NULL;
@@ -133,6 +164,7 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("__make_fiber__", global_make_fiber, 1);
 	SN_DEFINE_GLOBAL("__disasm__", global_disasm, 1);
 	SN_DEFINE_GLOBAL("__resolve_symbol__", global_resolve_symbol, 1);
+	SN_DEFINE_GLOBAL("__print_call_stack__", global_print_call_stack, 0);
 	SN_DEFINE_GLOBAL("throw", global_throw, 1);
 	
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
