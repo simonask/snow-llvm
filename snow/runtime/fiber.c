@@ -73,6 +73,12 @@ SnFiber* snow_create_fiber(VALUE functor) {
 	return cc;
 }
 
+static NO_INLINE byte* get_sp() {
+	void* foo = NULL;
+	byte* ptr = (byte*)&foo;
+	return ptr;
+}
+
 static VALUE fiber_resume_internal(SnFiber* fiber, VALUE incoming_value, bool update_link) {
 	SnFiber* caller = snow_get_current_fiber();
 	if (caller == fiber) return incoming_value;
@@ -84,8 +90,7 @@ static VALUE fiber_resume_internal(SnFiber* fiber, VALUE incoming_value, bool up
 	SN_GC_WRLOCK(caller);
 	caller->flags &= ~SnFiberIsRunning;
 	void* caller_context = caller->context;
-	SN_GC_UNLOCK(caller);
-	
+	caller->suspended_stack_boundary = get_sp();
 	setjmp(caller_context);
 	
 	if (came_back) {
@@ -96,6 +101,7 @@ static VALUE fiber_resume_internal(SnFiber* fiber, VALUE incoming_value, bool up
 		return val;
 	} else {
 		came_back = true;
+		SN_GC_UNLOCK(caller);
 
 		SN_GC_WRLOCK(fiber);
 		if (update_link)
