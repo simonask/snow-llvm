@@ -55,7 +55,7 @@ INLINE void crash_and_burn() { __asm__(""); char c = *(char*)NULL; }
 #if defined(DEBUG)
 #define ASSERT(x) do { if (!(x)) { fprintf(stderr, "ASSERTION FAILED: %s\n", #x); TRAP(); } } while (0)
 #else
-#define ASSERT(x) do { if (!(x)) { fprintf(stderr, "ASSERTION FAILED at %s:%d (): %s\n", __FILE__, __LINE__, __FUNCTION__, #x); TRAP(); } } while (0)
+#define ASSERT(x)
 #endif
 
 struct SnProcess;
