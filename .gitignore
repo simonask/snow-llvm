@@ -1,4 +1,4 @@
-llvm/*
+llvm*/*
 *.deps
 *.bc
 *.o
