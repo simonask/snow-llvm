@@ -121,6 +121,20 @@ Enumerable: module {
 	.map: [block] {
 		MapEnumerator(self, block)
 	}
+	
+	.select: [block] {
+		SelectEnumerator(self, block)
+	}
+	
+	.reject: [block] {
+		SelectEnumerator(self, { !block(it) })
+	}
+	
+	.inject: [base, block] {
+		carry: base
+		.each { carry: block(carry, it) }
+		carry
+	}
 }
 Array.instance_prototype.include(Enumerable)
 Map.instance_prototype.include(Enumerable)
@@ -132,12 +146,6 @@ MapEnumerator: class {
 		.collection, .function: collection, function
 	}
 	.each: [block] {
-		.collection.each {
-			block(.function(it))
-		}
-	}
-	
-	.__call__: [block] {
 		.collection.each {
 			block(.function(it))
 		}
@@ -160,6 +168,36 @@ MapEnumerator: class {
 	.to_string: {
 		return .to_array().to_string() if .collection
 		"[MapEnumerator prototype]"
+	}
+	.inspect: {
+		if .collection
+			return .to_array().inspect()
+		else
+			return .instance_eval(Object.instance_prototype.inspect)
+		end
+	}
+}
+
+SelectEnumerator: class {
+	.include(Enumerable)
+	.initialize: [collection, function] {
+		.collection, .function: collection, function
+	}
+	.each: [block] {
+		.collection.each {
+			block(it) if .function(it)
+		}
+	}
+	
+	.to_array: {
+		array: @()
+		.each { array << it }
+		array
+	}
+	
+	.to_string: {
+		return .to_array().to_string() if .collection
+		"[SelectEnumerator prototype]"
 	}
 	.inspect: {
 		if .collection
