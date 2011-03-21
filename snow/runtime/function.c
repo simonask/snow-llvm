@@ -7,6 +7,7 @@
 #include "snow/function.h"
 #include "snow/str.h"
 #include "snow/snow.h"
+#include "snow/exception.h"
 
 #include <string.h>
 
@@ -82,8 +83,8 @@ void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE merge_in) {
 			snow_arguments_merge(args, (SnArguments*)merge_in);
 			break;
 		default: {
-			fprintf(stderr, "WARNING: Splat argument '%p' is not a map or array.\n", merge_in);
-			break;
+			snow_throw_exception_with_description("Splat argument '%s' is not a map or an array.", snow_value_inspect_cstr(merge_in));
+			return;
 		}
 	}
 	
@@ -103,8 +104,8 @@ SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self) {
 	}
 	
 	if (!functor) {
-		fprintf(stderr, "ERROR: %p is not a function, and doesn't respond to __call__.\n", val);
-		TRAP(); // TODO: Exception
+		snow_throw_exception_with_description("'%s' is not a function, and does not respond to __call__.", snow_value_inspect_cstr(val));
+		return NULL; // unreachable
 	}
 	
 	return (SnFunction*)functor;

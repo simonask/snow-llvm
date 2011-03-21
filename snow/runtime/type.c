@@ -1,5 +1,6 @@
 #include "snow/type.h"
 #include "snow/object.h"
+#include "snow/exception.h"
 
 #include <stdlib.h>
 
@@ -59,8 +60,7 @@ SnObject* snow_get_prototype_for_type(SnType type) {
 			case SnPointerType:  prototypes[type] = snow_create_pointer_prototype(); break;
 			case SnFiberType: prototypes[type] = snow_create_fiber_prototype(); break;
 			default: {
-				fprintf(stderr, "Invalid type: %d\n", type);
-				ASSERT(false && "Requested prototype for invalid type.");
+				snow_throw_exception_with_description("Invalid object type encountered (memory corruption is likely): %d\n", type);
 				break;
 			}
 		}

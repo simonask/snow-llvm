@@ -5,6 +5,7 @@
 #include "snow/str.h"
 #include "snow/function.h"
 #include "snow/vm.h"
+#include "snow/exception.h"
 
 #include <google/dense_hash_map>
 #include <string>
@@ -99,7 +100,6 @@ namespace {
 	}
 	
 	inline std::string load_source(const std::string& path) {
-		fprintf(stderr, "Loading source: %s\n", path.c_str());
 		struct stat stats;
 		if (stat(path.c_str(), &stats) == 0) {
 			char* tmp = (char*)malloc(stats.st_size+1);
@@ -184,7 +184,7 @@ namespace {
 				return NULL;
 			}
 			default: {
-				fprintf(stderr, "ERROR: Only Source and Bitcode modules are supported at this time.\n");
+				snow_throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");
 				return NULL;
 			}
 		}
@@ -219,8 +219,8 @@ CAPI {
 			}
 			return snow_load(path.c_str());
 		}
-		fprintf(stderr, "ERROR: file not found in any load path: %s\n", file);
-		return NULL; // TODO: Exception?
+		snow_throw_exception_with_description("File not found in any load path: %s", file);
+		return NULL;
 	}
 	
 	SnObject* snow_load(const char* file) {
@@ -247,7 +247,7 @@ CAPI {
 				return NULL;
 			}
 		} else {
-			fprintf(stderr, "ERROR: File not found in any load path: %s\n", file);
+			snow_throw_exception_with_description("File not found in any load path: %s", file);
 			return NULL;
 		}
 	}

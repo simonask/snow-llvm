@@ -58,8 +58,7 @@ VALUE snow_object_get_member(SnObject* object, VALUE self, SnSymbol member) {
 				if (getter) {
 					return snow_call(getter, self, 0, NULL);
 				} else {
-					// TODO: Exception
-					fprintf(stderr, "ERROR: Property '%s' is write-only on object %p (self %p).\n", snow_sym_to_cstr(member), obj, self);
+					snow_throw_exception_with_description("Property '%s' is write-only on object '%s' (self is '%s').", snow_sym_to_cstr(member), snow_value_inspect_cstr(obj), snow_value_inspect_cstr(self));
 					return NULL;
 				}
 			}
@@ -105,8 +104,7 @@ VALUE snow_object_set_member(SnObject* object, VALUE self, SnSymbol member, VALU
 				if (property->setter) {
 					return snow_call(setter, self, 1, &value);
 				} else {
-					// TODO: Exception
-					fprintf(stderr, "ERROR: Property '%s' is read-only on object %p (self %p).\n", snow_sym_to_cstr(member), obj, self);
+					snow_throw_exception_with_description("Property '%s' is read-only on object '%s' (self is '%s').", snow_sym_to_cstr(member), snow_value_inspect_cstr(obj), snow_value_inspect_cstr(self));
 					return NULL;
 				}
 			}
@@ -201,11 +199,11 @@ static VALUE object_instance_eval(SnCallFrame* here, VALUE self, VALUE it) {
 
 static VALUE object_include(SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnObjectType) {
-		fprintf(stderr, "ERROR: Trying to include a module in a non-object '%p'.\n", self);
+		snow_throw_exception_with_description("Trying to include a module in a non-object '%s'.\n", snow_value_inspect_cstr(self));
 		return NULL;
 	}
 	if (snow_type_of(it) != SnObjectType) {
-		fprintf(stderr, "ERROR: Trying to include non-object '%p' as module.\n", it);
+		snow_throw_exception_with_description("Trying to include non-object '%s' as module.\n", snow_value_inspect_cstr(it));
 		return NULL;
 	}
 	

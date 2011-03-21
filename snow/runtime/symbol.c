@@ -5,6 +5,7 @@
 #include "snow/vm.h"
 #include "snow/function.h"
 #include "snow/str.h"
+#include "snow/exception.h"
 
 #include <string.h>
 #include <alloca.h>
@@ -28,8 +29,8 @@ static VALUE symbol_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	const char* symstr = snow_sym_to_cstr(snow_value_to_symbol(self));
 	
 	if (!symstr) {
-		fprintf(stderr, "ERROR: %p is not in the symbol table.\n", self);
-		return SN_NIL;
+		snow_throw_exception_with_description("'%p' is not in the symbol table.", self);
+		return NULL;
 	}
 	
 	size_t len = strlen(symstr);

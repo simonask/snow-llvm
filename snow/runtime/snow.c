@@ -157,8 +157,7 @@ VALUE snow_value_freeze(VALUE it) {
 VALUE snow_get_module_value(SnObject* module, SnSymbol member) {
 	VALUE v = snow_get_member(module, member);
 	if (v) return v;
-	// TODO: Exception
-	fprintf(stderr, "ERROR: Variable '%s' not found in module %p.\n", snow_sym_to_cstr(member), module);
+	snow_throw_exception_with_description("Variable '%s' not found in module '%s'.", snow_sym_to_cstr(member), snow_value_inspect_cstr(module));
 	return NULL;
 }
 
@@ -186,4 +185,8 @@ SnString* snow_value_inspect(VALUE it) {
 
 const char* snow_value_to_cstr(VALUE it) {
 	return snow_string_cstr(snow_value_to_string(it));
+}
+
+const char* snow_value_inspect_cstr(VALUE it) {
+	return snow_string_cstr(snow_value_inspect(it));
 }

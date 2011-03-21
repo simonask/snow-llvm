@@ -94,7 +94,7 @@ static VALUE global_disasm(SnCallFrame* here, VALUE self, VALUE it) {
 	} else if (type == SnStringType) {
 		snow_vm_disassemble_runtime_function(snow_string_cstr((SnString*)it));
 	} else {
-		fprintf(stderr, "Cannot disassemble %p (not a function or string).\n", it);
+		snow_throw_exception_with_description("Cannot disassemble %s (not a function or name).", snow_value_inspect_cstr(it));
 	}
 	return NULL;
 }
