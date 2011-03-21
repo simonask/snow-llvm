@@ -147,9 +147,14 @@ size_t snow_string_copy_to(const SnString* self, char* buffer, size_t max) {
 SnString* snow_string_format(const char* utf8_format, ...) {
 	va_list ap;
 	va_start(ap, utf8_format);
+	SnString* str = snow_string_format_va(utf8_format, ap);
+	va_end(ap);
+	return str;
+}
+
+SnString* snow_string_format_va(const char* utf8_format, va_list ap) {
 	char* str;
 	vasprintf(&str, utf8_format, ap);
-	va_end(ap);
 	return snow_create_string_take_ownership(str);
 }
 

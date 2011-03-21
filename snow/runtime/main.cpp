@@ -7,7 +7,7 @@
 #include "snow/linkbuffer.h"
 #include "snow/str.h"
 #include "snow/array.h"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 #include "snow/module.h"
 
 #include <stdlib.h>
@@ -43,19 +43,29 @@ static void interactive_prompt()
 
 		//unfinished_expr = is_expr_unfinished(buffer.str());
 		if (!unfinished_expr) {
-			SnString* str = snow_create_string_from_linkbuffer(input_buffer);
-			VALUE result = snow_eval_in_global_module(snow_string_cstr(str));
-			VALUE inspected = SNOW_CALL_METHOD(result, "inspect", 0, NULL);
-			if (snow_type_of(inspected) != SnStringType) {
-				inspected = snow_string_format("[Object@%p]", result);
+			try {
+				SnString* str = snow_create_string_from_linkbuffer(input_buffer);
+				VALUE result = snow_eval_in_global_module(snow_string_cstr(str));
+				VALUE inspected = SNOW_CALL_METHOD(result, "inspect", 0, NULL);
+				if (snow_type_of(inspected) != SnStringType) {
+					inspected = snow_string_format("[Object@%p]", result);
+				}
+				printf("=> %s\n", snow_string_cstr((SnString*)inspected));
 			}
-			printf("=> %s\n", snow_string_cstr((SnString*)inspected));
+			catch (const snow::Exception& ex) {
+				fprintf(stderr, "ERROR: Unhandled exception: %s\n", snow_value_to_cstr(ex.value));
+			}
+			catch (...) {
+				fprintf(stderr, "ERROR: Unhandled C++ exception, rethrowing!\n");
+				snow_linkbuffer_clear(input_buffer);
+				throw;
+			}
 			snow_linkbuffer_clear(input_buffer);
 		}
 	}
 }
 
-int snow_main(int argc, char* const* argv) {
+CAPI int snow_main(int argc, char* const* argv) {
 	static int debug_mode = false;
 	static int verbose_mode = false;
 	static int interactive_mode = false;
@@ -133,6 +143,6 @@ int snow_main(int argc, char* const* argv) {
 	return 0;
 }
 
-int main(int argc, char** argv) {
+CAPI int main(int argc, char** argv) {
 	return snow_main(argc, argv);
 }

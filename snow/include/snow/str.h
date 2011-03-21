@@ -3,6 +3,7 @@
 
 #include "snow/basic.h"
 #include "snow/object.h"
+#include <stdarg.h>
 
 struct SnLinkBuffer;
 struct SnArray;
@@ -28,6 +29,7 @@ CAPI size_t snow_string_copy_to(const SnString* str, char* buffer, size_t max);
 CAPI struct SnArray* snow_string_split(const SnString* str, const SnString* separator);
 
 CAPI SnString* snow_string_format(const char* utf8_format, ...);
+CAPI SnString* snow_string_format_va(const char* utf8_format, va_list ap);
 
 INLINE const char* snow_string_cstr(const SnString* str) { return str->data; } // XXX: Inherently thread-unsafe!
 CAPI size_t snow_string_size(const SnString* str);

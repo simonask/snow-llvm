@@ -10,6 +10,7 @@
 #include "snow/vm.h"
 #include "snow/numeric.h"
 #include "snow/fiber.h"
+#include "snow/exception.h"
 
 static VALUE get_load_paths(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
@@ -105,6 +106,11 @@ static VALUE global_resolve_symbol(SnCallFrame* here, VALUE self, VALUE it) {
 	return str ? snow_create_string_constant(str) : NULL;
 }
 
+static VALUE global_throw(SnCallFrame* here, VALUE self, VALUE it) {
+	snow_throw_exception(it);
+	return NULL;
+}
+
 #define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_method(FUNCTION, snow_sym(NAME), NUM_ARGS))
 
 void snow_init_globals() {
@@ -127,6 +133,7 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("__make_fiber__", global_make_fiber, 1);
 	SN_DEFINE_GLOBAL("__disasm__", global_disasm, 1);
 	SN_DEFINE_GLOBAL("__resolve_symbol__", global_resolve_symbol, 1);
+	SN_DEFINE_GLOBAL("throw", global_throw, 1);
 	
 	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
 	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));
