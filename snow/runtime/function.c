@@ -210,10 +210,16 @@ static VALUE call_frame_get_locals(SnCallFrame* here, VALUE self, VALUE it) {
 	return map;
 }
 
+static VALUE call_frame_get_caller(SnCallFrame* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnCallFrameType) return NULL;
+	return ((SnCallFrame*)self)->caller;
+}
+
 SnObject* snow_create_call_frame_prototype() {
 	SnObject* proto = snow_create_object(NULL);
 	SN_DEFINE_METHOD(proto, "inspect", call_frame_inspect, 0);
 	SN_DEFINE_PROPERTY(proto, "arguments", call_frame_get_arguments, NULL);
 	SN_DEFINE_PROPERTY(proto, "locals", call_frame_get_locals, NULL);
+	SN_DEFINE_PROPERTY(proto, "caller", call_frame_get_caller, NULL);
 	return proto;
 }
