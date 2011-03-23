@@ -195,7 +195,7 @@ void _snow_pop_call_frame(SnCallFrame* frame) {
 
 //----------------------------------------------------------------------------
 
-static VALUE fiber_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFiberType) return NULL;
 	SnFiber* c = (SnFiber*)self;
 	
@@ -211,13 +211,13 @@ static VALUE fiber_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	return result;
 }
 
-static VALUE fiber_resume(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_resume(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFiberType) return NULL;
 	SnFiber* c = (SnFiber*)self;
 	return snow_fiber_resume(c, it);
 }
 
-static VALUE fiber_is_running(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_is_running(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFiberType) return NULL;
 	SnFiber* c = (SnFiber*)self;
 	SN_GC_RDLOCK(c);
@@ -233,14 +233,14 @@ static bool _fiber_is_started(const SnFiber* fiber) {
 	return is_started;
 }
 
-static VALUE fiber_is_started(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_is_started(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFiberType) return NULL;
 	SnFiber* c = (SnFiber*)self;
 	return snow_boolean_to_value(_fiber_is_started(c));
 }
 
 
-static VALUE fiber_each(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_each(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnFiberType) return NULL;
 	SnFiber* f = (SnFiber*)self;
 	bool is_started = _fiber_is_started(f);

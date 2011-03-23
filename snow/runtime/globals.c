@@ -12,7 +12,7 @@
 #include "snow/fiber.h"
 #include "snow/exception.h"
 
-static VALUE get_load_paths(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE get_load_paths(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
 }
 
@@ -26,7 +26,7 @@ SnObject* snow_get_vm_interface() {
 	return Snow;
 }
 
-static VALUE global_puts(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_puts(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->arguments->size; ++i) {
 		SnString* str = snow_value_to_string(here->arguments->data[i]);
 		printf("%s", snow_string_cstr(str));
@@ -35,59 +35,59 @@ static VALUE global_puts(SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE global_import(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_import(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_import(snow_string_cstr(file));
 }
 
-static VALUE global_load(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_load(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_load(snow_string_cstr(file));
 }
 
-static VALUE global_make_object(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_object(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	//ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnObjectType);
 	SnObject* obj = snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
 	return obj;
 }
 
-static VALUE global_make_array(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_array(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
 }
 
-static VALUE global_make_map(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_map(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map();
 }
 
-static VALUE global_make_map_with_immediate_keys(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_map_with_immediate_keys(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map_with_immediate_keys();
 }
 
-static VALUE global_make_map_with_insertion_order(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_map_with_insertion_order(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map_with_insertion_order();
 }
 
-static VALUE global_make_map_with_immediate_keys_and_insertion_order(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_map_with_immediate_keys_and_insertion_order(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_map_with_immediate_keys_and_insertion_order();
 }
 
-static VALUE global_make_string(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_string(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL; // XXX: TODO!
 }
 
-static VALUE global_make_boolean(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_boolean(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(snow_eval_truth(it));
 }
 
-static VALUE global_make_symbol(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_symbol(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL; // XXX: TODO!
 }
 
-static VALUE global_make_fiber(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_make_fiber(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_fiber(it);
 }
 
-static VALUE global_disasm(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_disasm(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnType type = snow_type_of(it);
 	if (type == SnFunctionType) {
 		snow_vm_disassemble_function((SnFunction*)it);
@@ -99,14 +99,14 @@ static VALUE global_disasm(SnCallFrame* here, VALUE self, VALUE it) {
 	return NULL;
 }
 
-static VALUE global_resolve_symbol(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_resolve_symbol(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(it)) return NULL;
 	int64_t n = snow_value_to_integer(it);
 	const char* str = snow_sym_to_cstr(n);
 	return str ? snow_create_string_constant(str) : NULL;
 }
 
-static VALUE global_print_call_stack(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_print_call_stack(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnFiber* fiber = snow_get_current_fiber();
 	int level = 0;
 	while (fiber) {
@@ -137,7 +137,7 @@ static VALUE global_print_call_stack(SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE global_throw(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_throw(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	snow_throw_exception(it);
 	return NULL;
 }

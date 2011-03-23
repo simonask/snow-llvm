@@ -4,7 +4,7 @@
 #include "snow/numeric.h"
 #include "snow/type.h"
 
-static VALUE fiber_function(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_function(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	printf("fiber started\n");
 	ASSERT(snow_type_of(it) == SnFiberType);
 	SnFiber* cc = (SnFiber*)it;

@@ -161,9 +161,11 @@ namespace snow {
 		Builder builder(entry_bb);
 		
 		llvm::Function::arg_iterator arg_it = F->arg_begin();
+		current_function.function_value = &*arg_it++;
 		current_function.here = &*arg_it++;
 		current_function.self = &*arg_it++;
 		current_function.it = &*arg_it++;
+		current_function.function_value->setName("function");
 		current_function.here.value->setName("here");
 		current_function.self.value->setName("self");
 		current_function.it.value->setName("it");
@@ -1174,11 +1176,13 @@ namespace snow {
 		if (!FT) {
 			ASSERT(_runtime_module != NULL); // runtime must be loaded!
 			const llvm::Type* value_type = llvm::Type::getInt8PtrTy(_runtime_module->getContext());
-			std::vector<const llvm::Type*> param_types(3, NULL);
-			param_types[0] = llvm::PointerType::getUnqual(_runtime_module->getTypeByName("struct.SnCallFrame"));
+			std::vector<const llvm::Type*> param_types(4, NULL);
+			param_types[0] = get_pointer_to_struct_type("struct.SnFunction");
 			ASSERT(param_types[0]);
-			param_types[1] = value_type;
+			param_types[1] = get_pointer_to_struct_type("struct.SnCallFrame");
+			ASSERT(param_types[1]);
 			param_types[2] = value_type;
+			param_types[3] = value_type;
 			FT = llvm::FunctionType::get(value_type, param_types, false);
 		}
 		return FT;

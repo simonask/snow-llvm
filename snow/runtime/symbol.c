@@ -24,7 +24,7 @@ const char* snow_sym_to_cstr(SnSymbol sym) {
 	return p->vm->symbol_to_cstr(sym);
 }
 
-static VALUE symbol_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE symbol_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	const char* symstr = snow_sym_to_cstr(snow_value_to_symbol(self));
 	
@@ -41,7 +41,7 @@ static VALUE symbol_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string(str);
 }
 
-static VALUE symbol_to_string(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE symbol_to_string(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	return snow_create_string_constant(snow_sym_to_cstr(snow_value_to_symbol(self)));
 }

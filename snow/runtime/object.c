@@ -186,18 +186,18 @@ bool snow_object_include_module(SnObject* object, SnObject* module) {
 }
 
 
-static VALUE object_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	char buffer[100];
 	snprintf(buffer, 100, "[Object@%p]", self);
 	return snow_create_string(buffer);
 }
 
-static VALUE object_instance_eval(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_instance_eval(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	VALUE functor = it;
 	return snow_call(functor, self, 0, NULL);
 }
 
-static VALUE object_include(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_include(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnObjectType) {
 		snow_throw_exception_with_description("Trying to include a module in a non-object '%s'.\n", snow_value_inspect_cstr(self));
 		return NULL;
@@ -211,12 +211,12 @@ static VALUE object_include(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(r);
 }
 
-static VALUE object_get_members(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_get_members(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnObject* obj = snow_get_nearest_object(self);
 	return obj->members;
 }
 
-static VALUE object_get_prototype(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_get_prototype(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_is_object(self)) {
 		SnObject* proto = ((SnObject*)self)->prototype;
 		return proto ? proto : snow_get_prototype_for_type(SnObjectType);
@@ -224,16 +224,16 @@ static VALUE object_get_prototype(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_nearest_object(self);
 }
 
-static VALUE object_compare(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_compare(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	// XXX: TODO: With accurate GC, this is unsafe.
 	return snow_integer_to_value((ssize_t)self - (ssize_t)it);
 }
 
-static VALUE object_equals(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_equals(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(self == it);
 }
 
-static VALUE object_not_equals(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE object_not_equals(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(self != it);
 }
 

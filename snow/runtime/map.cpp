@@ -437,7 +437,7 @@ CAPI {
 }
 
 
-static VALUE map_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnMapType) return NULL;
 	SnMap* map = (SnMap*)self;
 	const size_t size = snow_map_size(map);
@@ -454,12 +454,12 @@ static VALUE map_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	return result;
 }
 
-static VALUE map_index_get(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_index_get(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnMapType);
 	return snow_map_get((SnMap*)self, it);
 }
 
-static VALUE map_index_set(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_index_set(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnMapType);
 	return snow_map_set((SnMap*)self, it, here->locals[1]);
 }

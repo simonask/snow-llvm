@@ -11,7 +11,7 @@
 struct SnCallFrame;
 struct SnFunction;
 
-typedef VALUE(*SnFunctionPtr)(struct SnCallFrame* here, VALUE self, VALUE it);
+typedef VALUE(*SnFunctionPtr)(struct SnFunction* function, struct SnCallFrame* here, VALUE self, VALUE it);
 
 typedef struct SnVariableReference {
 	int level; // The number of call scopes to go up to find the variable.

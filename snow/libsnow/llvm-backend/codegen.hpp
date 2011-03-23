@@ -124,6 +124,7 @@ namespace snow {
 		Types possible_return_types;
 		std::vector<VariableReference> variable_references;
 		
+		Value function_value;
 		Value here;
 		Value self;
 		Value it;

@@ -146,7 +146,7 @@ bool snow_array_contains(SnArray* array, VALUE val) {
 }
 
 
-static VALUE array_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE array_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnArrayType);
 	SnArray* array = (SnArray*)self;
 	
@@ -184,25 +184,25 @@ static VALUE array_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string_take_ownership(str);
 }
 
-static VALUE array_index_get(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE array_index_get(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnArrayType);
 	ASSERT(snow_type_of(it) == SnIntegerType);
 	return snow_array_get((SnArray*)self, snow_value_to_integer(it));
 }
 
-static VALUE array_index_set(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE array_index_set(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnArrayType);
 	ASSERT(snow_type_of(it) == SnIntegerType);
 	VALUE val = snow_arguments_get_by_index(here->arguments, 1); // second arg
 	return snow_array_set((SnArray*)self, snow_value_to_integer(it), val);
 }
 
-static VALUE array_multiply_or_splat(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE array_multiply_or_splat(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
 	return self; // TODO: Something useful?
 }
 
-static VALUE array_each(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE array_each(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnArrayType) return NULL;
 	SnArray* array = (SnArray*)self;
 	size_t sz = array_get_size_and_prefetch(array);
@@ -213,7 +213,7 @@ static VALUE array_each(SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE array_push(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE array_push(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnArrayType) return NULL;
 	SnArray* array = (SnArray*)self;
 	snow_array_push(array, it);

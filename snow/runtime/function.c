@@ -126,7 +126,7 @@ VALUE snow_function_call(SnFunction* function, SnCallFrame* context, VALUE self,
 		// context is owned by function, don't change it if we don't own it.
 		context->self = self;
 	}
-	return function->descriptor->ptr(context, self, it);
+	return function->descriptor->ptr(function, context, self, it);
 }
 
 
@@ -155,18 +155,18 @@ SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int num_args) {
 }
 
 
-static VALUE function_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE function_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) == SnFunctionType) {
-		SnFunction* function = (SnFunction*)self;
-		return snow_string_format("[Function@%p(%s)]", self, snow_sym_to_cstr(function->descriptor->name));
+		SnFunction* f = (SnFunction*)self;
+		return snow_string_format("[Function@%p(%s)]", self, snow_sym_to_cstr(f->descriptor->name));
 	}
 	return snow_string_format("[Function@%p]", self);
 }
 
-static VALUE function_name(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE function_name(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) == SnFunctionType) {
-		SnFunction* function = (SnFunction*)self;
-		return snow_symbol_to_value(function->descriptor->name);
+		SnFunction* f = (SnFunction*)self;
+		return snow_symbol_to_value(f->descriptor->name);
 	}
 	return NULL;
 }
@@ -179,7 +179,7 @@ SnObject* snow_create_function_prototype() {
 	return proto;
 }
 
-static VALUE call_frame_inspect(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE call_frame_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnCallFrameType) return NULL;
 	SnCallFrame* context = (SnCallFrame*)self;
 	SnString* result = snow_string_format("[CallFrame@%p function:%p(%s) locals:(", context, context->function, snow_sym_to_cstr(context->function->descriptor->name));
@@ -193,13 +193,13 @@ static VALUE call_frame_inspect(SnCallFrame* here, VALUE self, VALUE it) {
 	return result;
 }
 
-static VALUE call_frame_get_arguments(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE call_frame_get_arguments(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_type_of(self) == SnCallFrameType);
 	SnCallFrame* context = (SnCallFrame*)self;
 	return context->arguments;
 }
 
-static VALUE call_frame_get_locals(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE call_frame_get_locals(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnCallFrameType) return NULL;
 	SnCallFrame* context = (SnCallFrame*)self;
 	SnMap* map = snow_create_map_with_immediate_keys_and_insertion_order();
@@ -210,7 +210,7 @@ static VALUE call_frame_get_locals(SnCallFrame* here, VALUE self, VALUE it) {
 	return map;
 }
 
-static VALUE call_frame_get_caller(SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE call_frame_get_caller(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_type_of(self) != SnCallFrameType) return NULL;
 	return ((SnCallFrame*)self)->caller;
 }
