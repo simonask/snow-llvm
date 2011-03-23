@@ -16,7 +16,7 @@ static void _fiber_trampoline() {
 void __attribute__((noreturn))
 libsnow_fiber_start(SnFiber* fiber, SnFiber* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback)
 {
-	void** stack_top = (void**)(fiber->stack + SN_CONTINUATION_STACK_SIZE);
+	void** stack_top = (void**)(fiber->stack + SN_FIBER_STACK_SIZE);
 	
 	*(stack_top-1) = fiber;
 	*(stack_top-2) = (void*)return_callback; 

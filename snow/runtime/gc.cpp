@@ -9,6 +9,7 @@
 
 #include "allocator.hpp"
 #include "lock.h"
+#include "linkheap.hpp"
 
 #include <stdlib.h>
 #include <vector>
@@ -36,6 +37,7 @@ namespace {
 	
 	static Allocator gc_allocator;
 	static Allocator fixed_allocator;
+	static LinkHeap<VALUE> external_roots;
 	static uint8_t* gc_flags = NULL;
 	
 	static const void** stack_top = NULL;
@@ -211,6 +213,18 @@ CAPI {
 		stack_bottom = NULL;*/
 	}
 	
+	VALUE* snow_gc_create_root(VALUE initial_value) {
+		VALUE* root = external_roots.alloc();
+		*root = initial_value;
+		return root;
+	}
+	
+	VALUE snow_gc_free_root(VALUE* root) {
+		VALUE v = *root;
+		external_roots.free(root);
+		return v;
+	}
+	
 	SnObjectBase* snow_gc_alloc_object(size_t sz, SnType type) {
 		ASSERT(sz <= SN_OBJECT_SIZE);
 		ASSERT(!snow_is_immediate_type(type) && type != SnAnyType);
@@ -227,7 +241,7 @@ CAPI {
 		return obj;
 	}
 	
-	SnObjectBase* snow_gc_alloc_fixed(size_t sz, SnType type) {
+	SnObjectBase* snow_gc_alloc_unmovable_object(size_t sz, SnType type) {
 		ASSERT(sz <= SN_OBJECT_SIZE);
 		ASSERT(!snow_is_immediate_type(type) && type != SnAnyType);
 		
@@ -235,12 +249,6 @@ CAPI {
 		ASSERT(((intptr_t)obj & 0xf) == 0); // unaligned object allocation!
 		obj->type = type;
 		return obj;
-	}
-	
-	void snow_gc_free_fixed(void* ptr) {
-		if (!ptr) return;
-		ASSERT(fixed_allocator.contains(ptr));
-		fixed_allocator.free((SnObjectBase*)ptr);
 	}
 	
 	void snow_gc_rdlock(const SnObjectBase* object, void* gc_root) {
