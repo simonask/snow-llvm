@@ -52,7 +52,7 @@ ifneq ($(MAKECMDGOALS),clean)
 -include .depends
 endif
 
-all: subdirs $(TARGET)
+all: $(TARGET)
 
 clean: subdirs
 	-rm -f $(OBJECTS) $(TARGET)
