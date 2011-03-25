@@ -207,8 +207,8 @@ static VALUE array_each(SnFunction* function, SnCallFrame* here, VALUE self, VAL
 	SnArray* array = (SnArray*)self;
 	size_t sz = array_get_size_and_prefetch(array);
 	for (size_t i = 0; i < sz; ++i) {
-		VALUE args[] = { snow_array_get(array, i), snow_integer_to_value(i) };
-		snow_call(it, NULL, 2, args);
+		VALUE args[] = { snow_array_get(array, i) };
+		snow_call(it, NULL, 1, args);
 	}
 	return SN_NIL;
 }
