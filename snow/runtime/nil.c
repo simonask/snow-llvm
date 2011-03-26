@@ -3,11 +3,11 @@
 #include "snow/str.h"
 #include "snow/function.h"
 
-static VALUE nil_inspect(SnCallFrame* context, VALUE self, VALUE it) {
+static VALUE nil_inspect(SnFunction* function, SnCallFrame* context, VALUE self, VALUE it) {
 	return snow_create_string_constant("nil");
 }
 
-static VALUE nil_to_string(SnCallFrame* context, VALUE self, VALUE it) {
+static VALUE nil_to_string(SnFunction* function, SnCallFrame* context, VALUE self, VALUE it) {
 	return snow_create_string_constant("");
 }
 
