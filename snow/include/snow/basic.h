@@ -30,6 +30,8 @@ typedef unsigned char byte;
 #endif
 #endif
 
+CAPI void abort();
+
 #define LIKELY(X) __builtin_expect(X, true)
 #define UNLIKELY(X) __builtin_expect(X, false)
 
@@ -43,13 +45,13 @@ static const size_t SN_MALLOC_OVERHEAD = 8; // XXX: guess...
 #define QUOTEME(X) QUOTEME_(X)
 
 #if defined(DEBUG)
-INLINE void crash_and_burn() { __asm__(""); char c = *(char*)NULL; }
+INLINE void crash_and_burn() { __asm__ __volatile__(""); char c = *(char*)NULL; }
 #endif
 
 #if defined(DEBUG)
-#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); crash_and_burn(); } while (0)
+#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); abort(); } while (0)
 #else
-#define TRAP() __builtin_abort()
+#define TRAP() __builtin_unreachable()
 #endif
 
 #if defined(DEBUG)
