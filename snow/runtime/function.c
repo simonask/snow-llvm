@@ -112,6 +112,7 @@ SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self) {
 }
 
 void snow_finalize_function(SnFunction* func) {
+	free(func->variable_references);
 }
 
 void snow_finalize_call_frame(SnCallFrame* context) {

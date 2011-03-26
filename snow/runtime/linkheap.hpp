@@ -19,8 +19,8 @@ namespace snow {
 		// features used by the GC -- use with caution!
 		bool contains(const void*) const;
 		int64_t index_of(const void*) const;
-		T* object_at_index(int64_t idx) const;
-		int64_t max_num_objects() const;
+		T* object_at_index(size_t idx) const;
+		size_t get_number_of_allocated_upper_bound() const;
 		const void* get_first_free() const;
 		const void* get_next_free(const void* x) const;
 		void get_min_max(intptr_t& out_min, intptr_t& out_max) const;
@@ -125,9 +125,9 @@ namespace snow {
 	}
 	
 	template <typename T>
-	T* LinkHeap<T>::object_at_index(int64_t idx) const {
-		int64_t page_index = idx / ELEMENTS_PER_PAGE;
-		int64_t object_index = idx % ELEMENTS_PER_PAGE;
+	T* LinkHeap<T>::object_at_index(size_t idx) const {
+		size_t page_index = idx / ELEMENTS_PER_PAGE;
+		size_t object_index = idx % ELEMENTS_PER_PAGE;
 		Page* p = _head;
 		size_t pi = 0;
 		while (p) {
@@ -144,8 +144,8 @@ namespace snow {
 	}
 	
 	template <typename T>
-	int64_t LinkHeap<T>::max_num_objects() const {
-		int64_t object_count = 0;
+	size_t LinkHeap<T>::get_number_of_allocated_upper_bound() const {
+		size_t object_count = 0;
 		Page* p = _head;
 		while (p) {
 			if (p->next) object_count += ELEMENTS_PER_PAGE;

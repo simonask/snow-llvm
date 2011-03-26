@@ -16,7 +16,6 @@ typedef enum SnFiberFlags {
 	SnFiberIsStarted = 0x2, // started, but possibly suspended
 } SnFiberFlags;
 
-
 struct SnFiberState;
 
 typedef struct SnFiber {
@@ -24,8 +23,10 @@ typedef struct SnFiber {
 	VALUE functor;
 	VALUE incoming_value;
 	byte* stack;
+	byte* suspended_stack_boundary;
 	struct SnFiber* link;
 	struct SnFiberState* state;
+	struct SnCallFrame* current_frame;
 } SnFiber;
 
 CAPI SnFiber* snow_create_fiber(VALUE functor); // functor is called with arguments calling_fiber, incoming_value
@@ -36,5 +37,6 @@ CAPI struct SnCallFrame* snow_fiber_get_current_frame(const SnFiber* fiber);
 // Internal
 CAPI void snow_fiber_begin_thread();
 CAPI void snow_fiber_end_thread();
+CAPI void snow_fiber_suspend_for_garbage_collection(SnFiber* fiber);
 
 #endif /* end of include guard: CONTINUATION_H_6NGEZ11 */

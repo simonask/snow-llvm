@@ -18,6 +18,11 @@ SnArguments* snow_create_arguments(size_t num_names, size_t size) {
 	return args;
 }
 
+void snow_finalize_arguments(SnArguments* args) {
+	free(args->data);
+	free(args->extra_names);
+}
+
 SnArguments* snow_create_arguments_for_function_call(const SnFunctionDescriptor* descriptor, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args)
 {
 	VALUE* param_args = (VALUE*)alloca(descriptor->num_params * sizeof(SnSymbol));

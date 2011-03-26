@@ -49,7 +49,7 @@ typedef struct SnFunction {
 	SnObjectBase base;
 	const SnFunctionDescriptor* descriptor;
 	SnCallFrame* definition_context;
-	VALUE** variable_references; // TODO: Consider garbage collection?
+	VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
 } SnFunction;
 
 CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallFrame* definition_context);

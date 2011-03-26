@@ -14,9 +14,7 @@ typedef struct SnFiberState {
 	// SnFiberState is necessary because SnFiber itself is subject
 	// to the size requirements of regular Snow objects.
 	jmp_buf context;
-	byte* suspended_stack_boundary;
 	unsigned flags;
-	SnCallFrame* current_frame;
 } SnFiberState;
 
 static pthread_key_t _current_fiber;
@@ -53,16 +51,16 @@ void snow_fiber_begin_thread() {
 	pthread_setspecific(_current_fiber, current_fiber_ptr);
 	
 	ASSERT(snow_get_current_fiber() == NULL);
-	SnFiber* fiber = SN_GC_ALLOC_UNMOVABLE_OBJECT(SnFiber);
+	SnFiber* fiber = SN_GC_ALLOC_OBJECT(SnFiber);
 	SN_GC_WRLOCK(fiber);
 	fiber->functor = NULL;
 	fiber->incoming_value = NULL;
 	fiber->link = NULL;
 	fiber->state = (SnFiberState*)malloc(sizeof(SnFiberState));
 	fiber->stack = NULL;
-	fiber->state->suspended_stack_boundary = NULL;
+	fiber->suspended_stack_boundary = NULL;
 	fiber->state->flags = SnFiberIsRunning | SnFiberIsStarted;
-	fiber->state->current_frame = NULL;
+	fiber->current_frame = NULL;
 	SN_GC_UNLOCK(fiber);
 	*current_fiber_ptr = fiber;
 }
@@ -76,16 +74,16 @@ void snow_fiber_end_thread() {
 }
 
 SnFiber* snow_create_fiber(VALUE functor) {
-	SnFiber* fiber = SN_GC_ALLOC_UNMOVABLE_OBJECT(SnFiber);
+	SnFiber* fiber = SN_GC_ALLOC_OBJECT(SnFiber);
 	SN_GC_WRLOCK(fiber);
 	fiber->functor = functor;
 	fiber->incoming_value = NULL;
 	fiber->link = NULL;
 	fiber->state = (SnFiberState*)malloc(sizeof(SnFiberState));
 	fiber->stack = (byte*)mmap(NULL, SN_FIBER_STACK_SIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
-	fiber->state->suspended_stack_boundary = NULL;
+	fiber->suspended_stack_boundary = NULL;
 	fiber->state->flags = SnFiberNoFlags;
-	fiber->state->current_frame = NULL;
+	fiber->current_frame = NULL;
 	SN_GC_UNLOCK(fiber);
 	return fiber;
 }
@@ -107,7 +105,7 @@ static VALUE fiber_resume_internal(SnFiber* fiber, VALUE incoming_value, bool up
 	SN_GC_WRLOCK(caller);
 	caller->state->flags &= ~SnFiberIsRunning;
 	jmp_buf* caller_context = &caller->state->context;
-	caller->state->suspended_stack_boundary = get_sp();
+	caller->suspended_stack_boundary = get_sp();
 	setjmp(*caller_context);
 	
 	if (came_back) {
@@ -170,8 +168,13 @@ static void fiber_return(SnFiber* return_from, VALUE returned_value) {
 }
 
 SnCallFrame* snow_fiber_get_current_frame(const SnFiber* fiber) {
-	SnCallFrame* frame = fiber->state->current_frame;
+	SnCallFrame* frame = fiber->current_frame;
 	return frame;
+}
+
+void snow_fiber_suspend_for_garbage_collection(SnFiber* fiber) {
+	fiber->suspended_stack_boundary = get_sp();
+	setjmp(fiber->state->context);
 }
 
 //----------------------------------------------------------------------------
@@ -181,15 +184,15 @@ SnCallFrame* snow_fiber_get_current_frame(const SnFiber* fiber) {
 void _snow_push_call_frame(SnCallFrame* frame) {
 	// TODO: Consider locking/allocation of SnCallFrame
 	SnFiber* fiber = snow_get_current_fiber();
-	frame->caller = fiber->state->current_frame;
-	fiber->state->current_frame = frame;
+	frame->caller = fiber->current_frame;
+	fiber->current_frame = frame;
 }
 
 void _snow_pop_call_frame(SnCallFrame* frame) {
 	// TODO: Consider locking/allocation of SnCallFrame
 	SnFiber* fiber = snow_get_current_fiber();
-	ASSERT(fiber->state->current_frame == frame);
-	fiber->state->current_frame = fiber->state->current_frame->caller;
+	ASSERT(fiber->current_frame == frame);
+	fiber->current_frame = fiber->current_frame->caller;
 	frame->caller = NULL;
 }
 

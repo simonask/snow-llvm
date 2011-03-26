@@ -31,8 +31,9 @@ namespace snow {
 			--block->end;
 		} else {
 			// append to free list
-			*(GCObject***)object = block->free_list_head;
-			block->free_list_head = (GCObject**)object;
+			GCObject* gco = (GCObject*)object;
+			gco->next_free = block->free_list_head;
+			block->free_list_head = gco;
 			++block->free_list_size;
 		}
 	}
@@ -46,25 +47,29 @@ namespace snow {
 	}
 	
 	Allocator::Block* Allocator::get_block_for_object_fast(const SnObjectBase* ptr) const {
-		intptr_t p = (intptr_t)ptr;
-		intptr_t offset = ptr->gc_page_offset;
-		intptr_t page_base = p - (p % SN_MEMORY_PAGE_SIZE);
-		Block* block = (Block*)(page_base - offset*SN_MEMORY_PAGE_SIZE);
+		Block* block = get_block_for_object(ptr);
 		ASSERT(block->contains(ptr));
 		return block;
 	}
 	
-	Allocator::Block* Allocator::get_block_for_object_safe(const SnObjectBase* ptr) const {
-		intptr_t p = (intptr_t)ptr;
-		intptr_t offset = ptr->gc_page_offset;
-		intptr_t page_base = p % SN_MEMORY_PAGE_SIZE;
-		Block* block = (Block*)(page_base - offset*SN_MEMORY_PAGE_SIZE);
+	Allocator::Block* Allocator::get_block_for_object_safe(const SnObjectBase* ptr, size_t* block_index, size_t* object_index) const {
 		for (size_t i = 0; i < _blocks.size(); ++i) {
-			if (_blocks[i] == block) {
-				return block->contains(ptr) ? block : NULL;
+			Block* block = _blocks[i];
+			if (block->contains(ptr)) {
+				if (block_index) *block_index = i;
+				if (object_index) *object_index = (GCObject*)ptr - (GCObject*)block->begin;
+				return block;
 			}
 		}
 		return NULL;
+	}
+	
+	Allocator::Block* Allocator::get_block_for_object(const SnObjectBase* ptr) const {
+		intptr_t p = (intptr_t)ptr;
+		intptr_t offset = ptr->gc_page_offset;
+		intptr_t page_base = p & ~(SN_MEMORY_PAGE_SIZE-1);
+		Block* block = (Block*)(page_base - offset*SN_MEMORY_PAGE_SIZE);
+		return block;
 	}
 	
 	Allocator::Block* Allocator::find_available_block() {
@@ -99,8 +104,9 @@ namespace snow {
 		SnObjectBase* object;
 		if (UNLIKELY(p->free_list_head != NULL)) {
 			// pop from free list
-			object = *p->free_list_head;
-			p->free_list_head = *(GCObject***)object;
+			GCObject* gco = p->free_list_head;
+			p->free_list_head = gco->next_free;
+			object = (SnObjectBase*)gco;
 			--p->free_list_size;
 		} else {
 			ASSERT(p->num_available());
@@ -117,5 +123,10 @@ namespace snow {
 		intptr_t block_base = (intptr_t)this;
 		unsigned int result = (page_base - block_base) / SN_MEMORY_PAGE_SIZE;
 		return result;
+	}
+	
+	bool Allocator::Block::is_allocated(const SnObjectBase* ptr) const {
+		ASSERT(contains(ptr));
+		return (ptr->gc_flags & SnGCAllocated) != SnGCNoFlags;
 	}
 }

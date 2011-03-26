@@ -12,7 +12,12 @@ namespace snow {
 	class Allocator {
 	public:
 		struct GCObject : SnObjectBase {
-			byte _[SN_OBJECT_SIZE - sizeof(SnObjectBase)];
+			union {
+				byte _[SN_OBJECT_SIZE - sizeof(SnObjectBase)];
+				struct {
+					GCObject* next_free;
+				};
+			};
 		};
 		
 		struct Block {
@@ -22,15 +27,17 @@ namespace snow {
 				GCObject* begin;
 			};
 			GCObject* end;
-			GCObject** free_list_head;
+			GCObject* free_list_head;
 			size_t free_list_size;
 			
 			Block() { SN_RWLOCK_INIT(&lock); }
 			~Block() { SN_RWLOCK_DESTROY(&lock); }
 			bool contains(const SnObjectBase* ptr) const { return ptr >= begin && ptr < end; }
-			size_t num_allocated() const { return (end - begin) - free_list_size; }
+			size_t num_allocated_upper_bound() const { return end - begin; }
+			size_t num_allocated() const { return num_allocated_upper_bound() - free_list_size; }
 			size_t num_available() const;
 			unsigned int block_offset_for(const GCObject* ptr) const;
+			bool is_allocated(const SnObjectBase* ptr) const;
 		};
 		
 		static const size_t OBJECTS_PER_BLOCK = (SN_ALLOCATION_BLOCK_SIZE - sizeof(Block)) / SN_OBJECT_SIZE;
@@ -40,9 +47,10 @@ namespace snow {
 		void free(SnObjectBase* object, Block* block);
 		bool is_allocated(SnObjectBase* object) const;
 		size_t get_num_blocks() const { return _blocks.size(); }
+		size_t get_max_num_objects() const { return get_num_blocks() * OBJECTS_PER_BLOCK; }
 		Block* get_block(unsigned i) { return _blocks[i]; }
 		Block* get_block_for_object_fast(const SnObjectBase* definitely_an_object) const;
-		Block* get_block_for_object_safe(const SnObjectBase* maybe_an_object) const;
+		Block* get_block_for_object_safe(const SnObjectBase* maybe_an_object, size_t* block_index = NULL, size_t* object_index = NULL) const;
 		bool contains(void* ptr) const { return get_block_for_object_safe((const SnObjectBase*)ptr) != NULL; }
 	private:
 		std::vector<Block*> _blocks;
@@ -50,6 +58,7 @@ namespace snow {
 		Block* find_available_block();
 		Block* create_block();
 		SnObjectBase* allocate_from_block(Block* block);
+		Block* get_block_for_object(const SnObjectBase* probably_an_object) const;
 	};
 	
 	inline size_t Allocator::Block::num_available() const {

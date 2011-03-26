@@ -18,7 +18,6 @@ INLINE bool snow_is_immediate_type(SnType type) {
 	return type < SnTypeMask && type != SnAnyType;
 }
 
-CAPI struct SnObject** snow_get_prototypes();
 CAPI struct SnObject* snow_get_prototype_for_type(SnType type);
 
 #endif /* end of include guard: TYPE_H_ZR7ZWP35 */

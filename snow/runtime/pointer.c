@@ -31,6 +31,10 @@ SnPointer* snow_pointer_copy(SnPointer* other) {
 	return obj;
 }
 
+void snow_finalize_pointer(SnPointer* ptr) {
+	snow_pointer_free(ptr);
+}
+
 void snow_pointer_free(SnPointer* ptr) {
 	if (ptr->ptr) {
 		if (ptr->free) ptr->free(ptr->ptr);
