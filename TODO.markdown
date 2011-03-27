@@ -40,3 +40,13 @@
 
 * Provide separate class objects for Integer and Float.
 * Implement a BigInteger class.
+
+### String
+
+* Support Unicode operations (UTF-8 only, for now).
+* Future: Be encoding agnostic (and less retarded about it than Ruby 1.9)
+
+### Regular Expressions
+
+* Create a RegExp class. Be encoding-agnostic.
+* Parser: Consider implementing Ruby/Perl-esque regular expression literals.
