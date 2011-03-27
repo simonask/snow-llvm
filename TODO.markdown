@@ -21,7 +21,7 @@
 
 ### Object
 
-* Implement `.is\_a?`.
+* Implement `.is_a?`.
 
 ### Array
 
