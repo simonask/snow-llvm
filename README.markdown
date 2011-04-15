@@ -11,12 +11,12 @@
 To build Snow, you need the LLVM source code. Snow is currently built against LLVM 2.9.
 
     $ cd snow
-    $ svn co http://llvm.org/svn/llvm-project/llvm/tags/RELEASE_29 llvm
+    $ svn co http://llvm.org/svn/llvm-project/llvm/tags/RELEASE_29/final llvm
 
 You will also need the Clang compiler, as Snow uses it to compile its runtime.
 
     $ cd llvm/tools
-    $ svn co http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_29 clang
+    $ svn co http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_29/final clang
 
 Now it's time to configure and build LLVM and Clang:
 
