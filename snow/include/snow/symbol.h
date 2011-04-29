@@ -24,4 +24,7 @@ INLINE SnSymbol snow_value_to_symbol(VALUE val) {
 	return (SnSymbol)((uintptr_t)val >> 4);
 }
 
+struct SnClass;
+CAPI struct SnClass* snow_get_symbol_class();
+
 #endif /* end of include guard: SYMBOL_H_RKFL2KE8 */

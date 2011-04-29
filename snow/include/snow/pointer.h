@@ -9,7 +9,7 @@ typedef void*(*SnPointerCopyFunc)(const void* ptr);
 typedef void(*SnPointerFreeFunc)(void* ptr);
 
 typedef struct SnPointer {
-	SnObjectBase base;
+	SnObject base;
 	void* ptr;
 	SnPointerCopyFunc copy;
 	SnPointerFreeFunc free;
@@ -19,5 +19,6 @@ CAPI SnPointer* snow_wrap_pointer(void* ptr, SnPointerCopyFunc copy_func, SnPoin
 CAPI SnPointer* snow_pointer_copy(SnPointer* ptr);
 INLINE void* snow_pointer_get(SnPointer* ptr) { return ptr->ptr; }
 CAPI void snow_pointer_free(SnPointer* ptr);
+CAPI struct SnClass* snow_get_pointer_class();
 
 #endif /* end of include guard: POINTER_H_EZG3FT77 */

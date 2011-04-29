@@ -1,5 +1,6 @@
 #include "snow/boolean.h"
-#include "snow/object.h"
+#include "internal.h"
+#include "snow/class.h"
 #include "snow/function.h"
 #include "snow/str.h"
 
@@ -11,10 +12,17 @@ static VALUE boolean_complement(SnFunction* function, SnCallFrame* here, VALUE s
 	return snow_boolean_to_value(!snow_value_to_boolean(self));
 }
 
-SnObject* snow_create_boolean_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "~", boolean_complement, 0);
-	SN_DEFINE_METHOD(proto, "inspect", boolean_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", boolean_inspect, 0);
-	return proto;
+SnClass* snow_get_boolean_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", boolean_inspect, 0),
+			SN_METHOD("to_string", boolean_inspect, 0),
+			SN_METHOD("~", boolean_complement, 0),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Boolean"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

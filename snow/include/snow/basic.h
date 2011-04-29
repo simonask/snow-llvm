@@ -36,7 +36,7 @@ CAPI void abort();
 #define UNLIKELY(X) __builtin_expect(X, false)
 
 static const size_t SN_CACHE_LINE_SIZE = 64; // XXX: x86 default.
-static const size_t SN_OBJECT_SIZE = SN_CACHE_LINE_SIZE;
+static const size_t SN_OBJECT_SIZE = 2*SN_CACHE_LINE_SIZE;
 static const size_t SN_MEMORY_PAGE_SIZE = 4096; // XXX: x86 default.
 static const size_t SN_ALLOCATION_BLOCK_SIZE = 4 * SN_MEMORY_PAGE_SIZE; // 16K default
 static const size_t SN_MALLOC_OVERHEAD = 8; // XXX: guess...

@@ -1,12 +1,15 @@
 #include "snow/map.h"
-#include "snow/type.h"
-#include "snow/snow.h"
-#include "snow/numeric.h"
+#include "internal.h"
+
 #include "snow/boolean.h"
-#include "snow/gc.h"
+#include "snow/class.h"
 #include "snow/exception.h"
 #include "snow/function.h"
+#include "snow/gc.h"
+#include "snow/numeric.h"
+#include "snow/snow.h"
 #include "snow/str.h"
+#include "snow/type.h"
 
 #include "lock.hpp"
 
@@ -464,11 +467,18 @@ static VALUE map_index_set(SnFunction* function, SnCallFrame* here, VALUE self, 
 	return snow_map_set((SnMap*)self, it, here->locals[1]);
 }
 
-CAPI SnObject* snow_create_map_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", map_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", map_inspect, 0);
-	SN_DEFINE_METHOD(proto, "get", map_index_get, 1);
-	SN_DEFINE_METHOD(proto, "set", map_index_set, 2);
-	return proto;
+CAPI SnClass* snow_get_map_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", map_inspect, 0),
+			SN_METHOD("to_string", map_inspect, 0),
+			SN_METHOD("get", map_index_get, 1),
+			SN_METHOD("set", map_index_set, 2),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Map"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

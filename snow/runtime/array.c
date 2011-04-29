@@ -1,5 +1,6 @@
 #include "snow/array.h"
-#include "snow/object.h"
+#include "internal.h"
+#include "snow/class.h"
 #include "snow/gc.h"
 #include "snow/snow.h"
 #include "snow/type.h"
@@ -12,21 +13,18 @@
 
 SnArray* snow_create_array() {
 	SnArray* array = SN_GC_ALLOC_OBJECT(SnArray);
-	SN_GC_WRLOCK(array);
+	_snow_object_init(&array->base, snow_get_array_class());
 	array->data = NULL;
 	array->alloc_size = 0;
 	array->size = 0;
-	SN_GC_UNLOCK(array);
 	return array;
 }
 
 SnArray* snow_create_array_with_size(size_t sz) {
-	SnArray* array = SN_GC_ALLOC_OBJECT(SnArray);
-	SN_GC_WRLOCK(array);
+	SnArray* array = snow_create_array();
 	array->data = (VALUE*)malloc(sz * sizeof(VALUE));
 	array->alloc_size = (uint32_t)sz;
 	array->size = 0;
-	SN_GC_UNLOCK(array);
 	return array;
 }
 
@@ -220,15 +218,23 @@ static VALUE array_push(SnFunction* function, SnCallFrame* here, VALUE self, VAL
 	return self;
 }
 
-SnObject* snow_create_array_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", array_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", array_inspect, 0);
-	SN_DEFINE_METHOD(proto, "get", array_index_get, 1);
-	SN_DEFINE_METHOD(proto, "set", array_index_set, 2);
-	SN_DEFINE_METHOD(proto, "*", array_multiply_or_splat, 1);
-	SN_DEFINE_METHOD(proto, "each", array_each, 1);
-	SN_DEFINE_METHOD(proto, "push", array_push, 1);
-	SN_DEFINE_METHOD(proto, "<<", array_push, 1);
-	return proto;
+SnClass* snow_get_array_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", array_inspect, 0),
+			SN_METHOD("to_string", array_inspect, 0),
+			SN_METHOD("get", array_index_get, 1),
+			SN_METHOD("set", array_index_set, 2),
+			SN_METHOD("*", array_multiply_or_splat, 1),
+			SN_METHOD("each", array_each, 1),
+			SN_METHOD("push", array_push, 1),
+			SN_METHOD("<<", array_push, 1),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Array"), NULL, 0, NULL, countof(methods), methods);
+		cls->internal_type = SnArrayType;
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

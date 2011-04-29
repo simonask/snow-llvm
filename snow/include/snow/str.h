@@ -7,9 +7,10 @@
 
 struct SnLinkBuffer;
 struct SnArray;
+struct SnString;
 
 typedef struct SnString {
-	SnObjectBase base;
+	SnObject base;
 	char* data; // null terminated
 	uint32_t size;
 	uint32_t length;
@@ -36,5 +37,6 @@ CAPI size_t snow_string_size(const SnString* str);
 CAPI size_t snow_string_length(const SnString* str);
 
 CAPI void snow_finalize_string(SnString*);
+CAPI struct SnClass* snow_get_string_class();
 
 #endif /* end of include guard: STRING_H_OYTL2E1P */

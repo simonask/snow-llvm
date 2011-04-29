@@ -1,4 +1,6 @@
 #include "snow/pointer.h"
+#include "internal.h"
+#include "snow/class.h"
 #include "snow/gc.h"
 #include "snow/function.h"
 #include "snow/str.h"
@@ -50,11 +52,16 @@ static VALUE pointer_inspect(SnFunction* function, SnCallFrame* here, VALUE self
 	return snow_string_format("[Pointer@%p]", self);
 }
 
-SnObject* snow_create_pointer_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	
-	SN_DEFINE_METHOD(proto, "inspect", pointer_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", pointer_inspect, 0);
-	
-	return proto;
+SnClass* snow_get_pointer_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", pointer_inspect, 0),
+			SN_METHOD("to_string", pointer_inspect, 0),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Pointer"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

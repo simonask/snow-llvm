@@ -287,7 +287,7 @@ namespace snow {
 		FunctionInfo info;
 		info.code_begin = (byte*)code;
 		info.code_end = info.code_begin + code_size;
-		// llvm::outs() << " at " << info.code_begin << " - " << info.code_end << " Emitting " << f.getName() << '\n';
+		// llvm::outs() << "Function at: " << info.code_begin << " - " << info.code_end << " (" << f.getName() << ")\n";
 		_function_map[&f] = info;
 	}
 	

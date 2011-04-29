@@ -5,6 +5,7 @@
 #include "snow/object.h"
 
 struct SnCallFrame;
+struct SnClass;
 
 // XXX: Really big for now, because LLVM lazy compilation requires a *lot* of stack space.
 // TODO: Consider asynchonous compilation thread, so fibers and threads don't have to worry about that.
@@ -19,7 +20,7 @@ typedef enum SnFiberFlags {
 struct SnFiberState;
 
 typedef struct SnFiber {
-	SnObjectBase base;
+	SnObject base;
 	VALUE functor;
 	VALUE incoming_value;
 	byte* stack;
@@ -33,6 +34,7 @@ CAPI SnFiber* snow_create_fiber(VALUE functor); // functor is called with argume
 CAPI VALUE snow_fiber_resume(SnFiber* fiber, VALUE incoming_value);
 CAPI SnFiber* snow_get_current_fiber();
 CAPI struct SnCallFrame* snow_fiber_get_current_frame(const SnFiber* fiber);
+CAPI struct SnClass* snow_get_fiber_class();
 
 // Internal
 CAPI void snow_fiber_begin_thread();

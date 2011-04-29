@@ -4,6 +4,11 @@
 
 #include "snow/value.h"
 
+struct SnClass;
+CAPI struct SnClass* snow_get_numeric_class();
+CAPI struct SnClass* snow_get_integer_class();
+CAPI struct SnClass* snow_get_float_class();
+
 INLINE bool snow_is_integer(VALUE val) {
 	return ((intptr_t)val & 1) != 0;
 }

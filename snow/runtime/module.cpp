@@ -160,7 +160,7 @@ namespace {
 			SnCallFrame* context = snow_create_call_frame(m->entry, 0, NULL, 0, NULL);
 			context->module = mod;
 			VALUE result = snow_function_call(m->entry, context, mod, NULL);
-			snow_object_set_member(mod, mod, snow_sym("__module_value__"), result);
+			snow_set_member(mod, snow_sym("__module_value__"), result);
 			return m;
 		} else {
 			fprintf(stderr, "ERROR: Could not compile module.\n");
@@ -241,7 +241,7 @@ CAPI {
 			ASSERT(get_module_type(path) == ModuleTypeSource); // only source modules are supported in snow_load_in_global_module
 			SnObject* mod = snow_get_global_module();
 			if (compile_module(path, load_source(file), mod)) {
-				return snow_object_get_member(mod, mod, snow_sym("__module_value__"));
+				return snow_get_member(mod, snow_sym("__module_value__"));
 			} else {
 				fprintf(stderr, "ERROR: Could not compile module: %s\n", path.c_str());
 				return NULL;
@@ -257,7 +257,7 @@ CAPI {
 		SnObject* mod = snow_get_global_module();
 		Module* module = compile_module("<eval>", source, mod);
 		if (module) {
-			return snow_object_get_member(mod, mod, snow_sym("__module_value__"));
+			return snow_get_member(mod, snow_sym("__module_value__"));
 		} else {
 			return NULL;
 		}

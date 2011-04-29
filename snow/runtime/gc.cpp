@@ -1,13 +1,15 @@
 #include "snow/gc.h"
-#include "snow/object.h"
-#include "snow/type.h"
-#include "snow/process.h"
-#include "snow/map.h"
+
 #include "snow/array.h"
-#include "snow/function.h"
-#include "snow/str.h"
+#include "snow/class.h"
 #include "snow/fiber.h"
+#include "snow/function.h"
+#include "snow/map.h"
+#include "snow/object.h"
 #include "snow/pointer.h"
+#include "snow/process.h"
+#include "snow/str.h"
+#include "snow/type.h"
 
 #include "allocator.hpp"
 #include "lock.h"
@@ -18,6 +20,7 @@
 #include <pthread.h>
 
 CAPI void snow_finalize_object(SnObject*);
+CAPI void snow_finalize_class(SnClass*);
 CAPI void snow_finalize_string(SnString*);
 CAPI void snow_finalize_array(SnArray*);
 CAPI void snow_finalize_map(SnMap*);
@@ -52,16 +55,16 @@ namespace {
 	// TODO: Per-thread stack tops.
 	static const byte* gc_system_stack_top = NULL;
 	
-	static void gc_mark_object(SnObjectBase* object);
+	static void gc_mark_object(SnObject* object);
 	static void gc_mark_value(VALUE);
 	static void gc_mark_value_range(const VALUE*, const VALUE*);
 	static void gc_mark_fiber_stack(const byte* bottom, const byte* top);
 	static void gc_mark_system_stack(const byte* bottom);
-	static void gc_free_object(SnObjectBase*);
+	static void gc_free_object(SnObject*);
 	
 	void gc_mark_value(VALUE value) {
 		if (snow_is_object(value)) {
-			SnObjectBase* object = (SnObjectBase*)value;
+			SnObject* object = (SnObject*)value;
 			size_t block_index;
 			size_t object_index;
 			Allocator::Block* block = gc_allocator.get_block_for_object_safe(object, &block_index, &object_index);
@@ -88,23 +91,38 @@ namespace {
 		}
 	}
 	
-	void gc_mark_object(SnObjectBase* x) {
+	void gc_mark_object(SnObject* x) {
 		//fprintf(stderr, "GC: Marking object %p of type 0x%x\n", x, x->type);
+		gc_mark_value(x->cls);
+		for (size_t i = 0; i < x->num_members; ++i) {
+			gc_mark_value(x->members[i]);
+		}
+		
 		switch (x->type) {
-			case SnObjectType: {
-				SnObject* object = (SnObject*)x;
-				gc_mark_value(object->prototype);
-				gc_mark_value(object->members);
-				for (size_t i = 0; i < object->num_properties; ++i) {
-					gc_mark_value(object->properties[i].getter);
-					gc_mark_value(object->properties[i].setter);
+			case SnObjectType: break;
+			case SnStringType: break;
+			case SnClassType: {
+				SnClass* cls = (SnClass*)x;
+				for (size_t i = 0; i < cls->num_methods; ++i) {
+					switch (cls->methods[i]->type) {
+						case SnMethodTypeFunction: {
+							gc_mark_value(cls->methods[i]->function);
+							break;
+						}
+						case SnMethodTypeProperty: {
+							gc_mark_value(cls->methods[i]->property.getter);
+							gc_mark_value(cls->methods[i]->property.setter);
+							break;
+						}
+						default: break;
+					}
 				}
-				gc_mark_value(object->included_modules);
+				for (size_t i = 0; i < cls->num_extensions; ++i) {
+					gc_mark_value(cls->extensions[i]);
+				}
+				gc_mark_object((SnObject*)cls->super);
 				break;
 			}
-			case SnStringType:
-				// no roots
-				break;
 			case SnArrayType: {
 				SnArray* array = (SnArray*)x;
 				gc_mark_value_range(array->data, array->data + array->size);
@@ -201,7 +219,7 @@ namespace {
 			Allocator::Block* block = gc_allocator.get_block(i);
 			for (size_t j = 0; j < block->num_allocated_upper_bound(); ++j) {
 				size_t object_index = i * Allocator::OBJECTS_PER_BLOCK + j;
-				SnObjectBase* object = (SnObjectBase*)(block->begin + j);
+				SnObject* object = (SnObject*)(block->begin + j);
 				if (block->is_allocated(object)) {
 					size_t mark_byte = object_index / 8;
 					size_t mark_bit = object_index % 8;
@@ -215,10 +233,11 @@ namespace {
 		}
 	}
 	
-	void gc_free_object(SnObjectBase* obj) {
+	void gc_free_object(SnObject* obj) {
 		//fprintf(stderr, "GC: Freeing object %p (type: 0x%x)\n", obj, obj->type);
 		switch (obj->type) {
-			case SnObjectType:    snow_finalize_object((SnObject*)obj);        break;
+			case SnObjectType:    break;
+			case SnClassType:     snow_finalize_class((SnClass*)obj);          break;
 			case SnStringType:    snow_finalize_string((SnString*)obj);        break;
 			case SnArrayType:     snow_finalize_array((SnArray*)obj);          break;
 			case SnMapType:       snow_finalize_map((SnMap*)obj);              break;
@@ -232,6 +251,7 @@ namespace {
 				TRAP();
 			}
 		}
+		snow_finalize_object(obj);
 		
 		gc_allocator.free(obj);
 		--gc_num_objects;
@@ -288,34 +308,35 @@ CAPI {
 		return v;
 	}
 	
-	SnObjectBase* snow_gc_alloc_object(size_t sz, SnType type) {
+	SnObject* snow_gc_alloc_object(SnType type) {
+		size_t sz = snow_size_of_type(type);
 		ASSERT(sz <= SN_OBJECT_SIZE);
 		ASSERT(!snow_is_immediate_type(type) && type != SnAnyType);
 		
 		if (gc_num_objects >= gc_collection_threshold) {
-			snow_gc();
+			//snow_gc();
 		}
 		
-		SnObjectBase* obj = gc_allocator.allocate();
+		SnObject* obj = gc_allocator.allocate();
 		ASSERT(((intptr_t)obj & 0xf) == 0); // unaligned object allocation!
 		obj->type = type;
 		++gc_num_objects;
 		return obj;
 	}
 	
-	void snow_gc_rdlock(const SnObjectBase* object, void* gc_root) {
+	void snow_gc_rdlock(const SnObject* object, void* gc_root) {
 		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
 		SN_RWLOCK_RDLOCK(&block->lock);
 		// TODO: Update gc_root if object has moved, and acquire new lock instead
 	}
 	
-	void snow_gc_wrlock(const SnObjectBase* object, void* gc_root) {
+	void snow_gc_wrlock(const SnObject* object, void* gc_root) {
 		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
 		SN_RWLOCK_WRLOCK(&block->lock);
 		// TODO: Update gc_root if object has moved, and acquite new lock instead
 	}
 	
-	void snow_gc_unlock(const SnObjectBase* object) {
+	void snow_gc_unlock(const SnObject* object) {
 		Allocator::Block* block = gc_allocator.get_block_for_object_fast(object);
 		SN_RWLOCK_UNLOCK(&block->lock);
 	}

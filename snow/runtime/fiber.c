@@ -1,4 +1,6 @@
 #include "snow/fiber.h"
+#include "internal.h"
+#include "snow/class.h"
 #include <pthread.h>
 #include <sys/mman.h>
 #include <setjmp.h>
@@ -256,13 +258,20 @@ static VALUE fiber_each(SnFunction* function, SnCallFrame* here, VALUE self, VAL
 	return SN_NIL;
 }
 
-SnObject* snow_create_fiber_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", fiber_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", fiber_inspect, 0);
-	SN_DEFINE_METHOD(proto, "resume", fiber_resume, 1);
-	SN_DEFINE_METHOD(proto, "each", fiber_each, 1);
-	SN_DEFINE_PROPERTY(proto, "running?", fiber_is_running, NULL);
-	SN_DEFINE_PROPERTY(proto, "started?", fiber_is_started, NULL);
-	return proto;
+SnClass* snow_get_fiber_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", fiber_inspect, 0),
+			SN_METHOD("to_string", fiber_inspect, 0),
+			SN_METHOD("resume", fiber_resume, 1),
+			SN_METHOD("each", fiber_each, 1),
+			SN_PROPERTY("running?", fiber_is_running, NULL),
+			SN_PROPERTY("started?", fiber_is_started, NULL),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Fiber"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

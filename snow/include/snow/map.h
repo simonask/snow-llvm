@@ -5,10 +5,8 @@
 #include "snow/value.h"
 #include "snow/object.h"
 
-struct SnObject;
-
 typedef struct SnMap {
-	SnObjectBase base;
+	SnObject base;
 	union {
 		/*
 			Snow Maps are adaptive. Below a certain threshold, they are a flat, associative list.
@@ -44,6 +42,8 @@ CAPI void snow_map_get_pairs(const SnMap*, SnKeyValuePair* tuples, size_t max);
 // Used by the GC
 typedef void(*SnMapForEachGCRootCallback)(VALUE);
 CAPI void snow_map_for_each_gc_root(SnMap*, SnMapForEachGCRootCallback callback);
+
+CAPI struct SnClass* snow_get_map_class();
 CAPI void snow_finalize_map(SnMap*);
 
 #endif /* end of include guard: MAP_H_MXEPAZB9 */

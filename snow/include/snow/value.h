@@ -18,9 +18,10 @@ typedef enum SnType {
 	SnTypeMask = 0xf,
 	
 	SnObjectType,
-	SnStringType,
+	SnClassType,
 	SnArrayType,
 	SnMapType,
+	SnStringType,
 	SnFunctionType,
 	SnCallFrameType,
 	SnArgumentsType,
@@ -30,6 +31,7 @@ typedef enum SnType {
 	SnNumTypes
 } SnType;
 
+static const VALUE SN_UNDEFINED = NULL;
 static const VALUE SN_NIL = (VALUE)SnNilType;
 static const VALUE SN_FALSE = (VALUE)SnFalseType;
 static const VALUE SN_TRUE = (VALUE)SnTrueType;

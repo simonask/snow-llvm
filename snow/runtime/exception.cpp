@@ -33,6 +33,7 @@ CAPI {
 
 	CAPI void snow_throw_exception(VALUE ex) {
 		// TODO: Backtrace and all that jazz
+		fprintf(stderr, "SNOW: Throwing exception %s\n", snow_value_to_cstr(ex));
 		throw snow::Exception(ex);
 	}
 

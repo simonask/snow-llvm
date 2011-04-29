@@ -6,6 +6,7 @@
 #include "snow/value.h"
 #include "snow/symbol.h"
 
+struct SnClass;
 struct SnArguments;
 struct SnProcess;
 struct SnVM;
@@ -24,7 +25,7 @@ CAPI VALUE snow_set_global(SnSymbol sym, VALUE val);
 CAPI VALUE snow_get_global(SnSymbol sym);
 
 CAPI struct SnFunction* snow_compile(const char* module_name, const char* source);
-
+CAPI struct SnClass* snow_get_class(VALUE value);
 CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, const VALUE* args);
 CAPI VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, const VALUE* args);
 CAPI VALUE snow_call_with_named_arguments(VALUE function, VALUE self, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);

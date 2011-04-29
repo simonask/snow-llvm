@@ -1,4 +1,6 @@
 #include "snow/nil.h"
+#include "internal.h"
+#include "snow/class.h"
 #include "snow/type.h"
 #include "snow/str.h"
 #include "snow/function.h"
@@ -11,9 +13,16 @@ static VALUE nil_to_string(SnFunction* function, SnCallFrame* context, VALUE sel
 	return snow_create_string_constant("");
 }
 
-SnObject* snow_create_nil_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", nil_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", nil_to_string, 0);
-	return proto;
+SnClass* snow_get_nil_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", nil_inspect, 0),
+			SN_METHOD("to_string", nil_to_string, 0),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Nil"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

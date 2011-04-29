@@ -1,13 +1,16 @@
 #include "snow/numeric.h"
-#include "snow/value.h"
-#include "snow/type.h"
+#include "internal.h"
+#include "snow/boolean.h"
+#include "snow/class.h"
+#include "snow/exception.h"
+#include "snow/function.h"
 #include "snow/object.h"
 #include "snow/process.h"
-#include "snow/function.h"
 #include "snow/snow.h"
 #include "snow/str.h"
-#include "snow/boolean.h"
-#include "snow/exception.h"
+#include "snow/type.h"
+#include "snow/value.h"
+
 
 static VALUE numeric_add(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
@@ -176,34 +179,47 @@ static VALUE numeric_inspect(SnFunction* function, SnCallFrame* here, VALUE self
 	return SN_NIL;
 }
 
-SnObject* snow_create_integer_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "+", numeric_add, 1);
-	SN_DEFINE_METHOD(proto, "-", numeric_subtract, 1);
-	SN_DEFINE_METHOD(proto, "*", numeric_multiply, 1);
-	SN_DEFINE_METHOD(proto, "/", numeric_divide, 1);
-	SN_DEFINE_METHOD(proto, "~", integer_complement, 0);
-	SN_DEFINE_METHOD(proto, "%", integer_modulo, 1);
-	SN_DEFINE_METHOD(proto, "<", numeric_less_than, 1);
-	SN_DEFINE_METHOD(proto, "<=", numeric_less_than_or_equal, 1);
-	SN_DEFINE_METHOD(proto, ">", numeric_greater_than, 1);
-	SN_DEFINE_METHOD(proto, ">=", numeric_greater_than_or_equal, 1);
-	SN_DEFINE_METHOD(proto, "inspect", numeric_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", numeric_inspect, 0);
-	return proto;
+SnClass* snow_get_numeric_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("+", numeric_add, 1),
+			SN_METHOD("-", numeric_subtract, 1),
+			SN_METHOD("*", numeric_multiply, 1),
+			SN_METHOD("/", numeric_divide, 1),
+			SN_METHOD("<", numeric_less_than, 1),
+			SN_METHOD("<=", numeric_less_than_or_equal, 1),
+			SN_METHOD(">", numeric_greater_than, 1),
+			SN_METHOD(">=", numeric_greater_than_or_equal, 1),
+			SN_METHOD("inspect", numeric_inspect, 0),
+			SN_METHOD("to_string", numeric_inspect, 0),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Numeric"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }
 
-SnObject* snow_create_float_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "+", numeric_add, 1);
-	SN_DEFINE_METHOD(proto, "-", numeric_subtract, 1);
-	SN_DEFINE_METHOD(proto, "*", numeric_multiply, 1);
-	SN_DEFINE_METHOD(proto, "/", numeric_divide, 1);
-	SN_DEFINE_METHOD(proto, "<", numeric_less_than, 1);
-	SN_DEFINE_METHOD(proto, "<=", numeric_less_than_or_equal, 1);
-	SN_DEFINE_METHOD(proto, ">", numeric_greater_than, 1);
-	SN_DEFINE_METHOD(proto, ">=", numeric_greater_than_or_equal, 1);
-	SN_DEFINE_METHOD(proto, "inspect", numeric_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", numeric_inspect, 0);
-	return proto;
+SnClass* snow_get_float_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnClass* cls = snow_define_class(snow_sym("Float"), snow_get_numeric_class(), 0, NULL, 0, NULL);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
+}
+
+SnClass* snow_get_integer_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("%", integer_modulo, 1),
+			SN_METHOD("~", integer_complement, 0),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Integer"), snow_get_numeric_class(), 0, NULL, countof(methods), NULL);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

@@ -10,6 +10,7 @@
 
 struct SnCallFrame;
 struct SnFunction;
+struct SnClass;
 
 typedef VALUE(*SnFunctionPtr)(struct SnFunction* function, struct SnCallFrame* here, VALUE self, VALUE it);
 
@@ -36,7 +37,7 @@ typedef struct SnFunctionDescriptor {
 
 typedef struct SnCallFrame {
 	// XXX: Order matters -- codegen depends on this specific ordering of members.
-	SnObjectBase base;
+	SnObject base;
 	struct SnFunction* function;
 	struct SnCallFrame* caller;
 	VALUE self;
@@ -46,7 +47,7 @@ typedef struct SnCallFrame {
 } SnCallFrame;
 
 typedef struct SnFunction {
-	SnObjectBase base;
+	SnObject base;
 	const SnFunctionDescriptor* descriptor;
 	SnCallFrame* definition_context;
 	VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
@@ -56,13 +57,15 @@ CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, Sn
 CAPI SnCallFrame* snow_create_call_frame(SnFunction* callee, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
 CAPI void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE mergee);
 CAPI SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self);
+CAPI struct SnClass* snow_get_function_class();
+CAPI struct SnClass* snow_get_call_frame_class();
 
 CAPI VALUE snow_function_call(SnFunction* function, SnCallFrame* context, VALUE self, VALUE it);
 
 // Convenience for C bindings
 CAPI SnFunction* snow_create_method(SnFunctionPtr function, SnSymbol name, int num_args);
 
-#define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_object_set_member(PROTO, PROTO, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
+#define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_set_member(PROTO, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
 
 // Used by the GC
 CAPI void snow_finalize_function(SnFunction*);

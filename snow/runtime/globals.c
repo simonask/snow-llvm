@@ -1,29 +1,43 @@
 #include "globals.h"
-#include "snow/snow.h"
-#include "snow/function.h"
-#include "snow/str.h"
-#include "snow/type.h"
+#include "internal.h"
 #include "snow/array.h"
+#include "snow/boolean.h"
+#include "snow/class.h"
+#include "snow/exception.h"
+#include "snow/fiber.h"
+#include "snow/function.h"
 #include "snow/map.h"
 #include "snow/module.h"
-#include "snow/boolean.h"
-#include "snow/vm.h"
+#include "snow/nil.h"
 #include "snow/numeric.h"
-#include "snow/fiber.h"
-#include "snow/exception.h"
+#include "snow/pointer.h"
+#include "snow/snow.h"
+#include "snow/str.h"
+#include "snow/type.h"
+#include "snow/value.h"
+#include "snow/vm.h"
+
 
 static VALUE get_load_paths(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
 }
 
+static VALUE get_version(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	return snow_create_string_constant(snow_version());
+}
+
 SnObject* snow_get_vm_interface() {
-	static SnObject* Snow = NULL;
-	if (!Snow) {
-		Snow = snow_create_object(NULL);
-		snow_object_set_member(Snow, Snow, snow_sym("version"), snow_create_string_constant(snow_version()));
-		SN_DEFINE_PROPERTY(Snow, "load_paths", get_load_paths, NULL);
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_PROPERTY("version", get_version, NULL),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("SnowVMInterface"), NULL, 0, NULL, countof(methods), methods);
+		SnObject* obj = snow_create_object(cls);
+		root = snow_gc_create_root(obj);
 	}
-	return Snow;
+	return (SnObject*)*root;
 }
 
 static VALUE global_puts(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
@@ -46,8 +60,8 @@ static VALUE global_load(SnFunction* function, SnCallFrame* here, VALUE self, VA
 }
 
 static VALUE global_make_object(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	//ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnObjectType);
-	SnObject* obj = snow_create_object(snow_eval_truth(it) ? (SnObject*)it : NULL);
+	ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnClassType);
+	SnObject* obj = snow_create_object(snow_eval_truth(it) ? (SnClass*)it : NULL);
 	return obj;
 }
 
@@ -167,17 +181,19 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("__print_call_stack__", global_print_call_stack, 0);
 	SN_DEFINE_GLOBAL("throw", global_throw, 1);
 	
-	snow_set_global(snow_sym("__integer_prototype__"), snow_get_prototype_for_type(SnIntegerType));
-	snow_set_global(snow_sym("__nil_prototype__"), snow_get_prototype_for_type(SnNilType));
-	snow_set_global(snow_sym("__boolean_prototype__"), snow_get_prototype_for_type(SnTrueType));
-	snow_set_global(snow_sym("__symbol_prototype__"), snow_get_prototype_for_type(SnSymbolType));
-	snow_set_global(snow_sym("__float_prototype__"), snow_get_prototype_for_type(SnFloatType));
-	snow_set_global(snow_sym("__object_prototype__"), snow_get_prototype_for_type(SnObjectType));
-	snow_set_global(snow_sym("__string_prototype__"), snow_get_prototype_for_type(SnStringType));
-	snow_set_global(snow_sym("__array_prototype__"), snow_get_prototype_for_type(SnArrayType));
-	snow_set_global(snow_sym("__map_prototype__"), snow_get_prototype_for_type(SnMapType));
-	snow_set_global(snow_sym("__function_prototype__"), snow_get_prototype_for_type(SnFunctionType));
-	snow_set_global(snow_sym("__call_frame_prototype__"), snow_get_prototype_for_type(SnCallFrameType));
-	snow_set_global(snow_sym("__pointer_prototype__"), snow_get_prototype_for_type(SnPointerType));
-	snow_set_global(snow_sym("__fiber_prototype__"), snow_get_prototype_for_type(SnFiberType));
+	snow_set_global(snow_sym("Integer"), snow_get_integer_class());
+	snow_set_global(snow_sym("Nil"), snow_get_nil_class());
+	snow_set_global(snow_sym("Boolean"), snow_get_boolean_class());
+	snow_set_global(snow_sym("Symbol"), snow_get_symbol_class());
+	snow_set_global(snow_sym("Float"), snow_get_float_class());
+	snow_set_global(snow_sym("Numeric"), snow_get_numeric_class());
+	snow_set_global(snow_sym("Object"), snow_get_object_class());
+	snow_set_global(snow_sym("Class"), snow_get_class_class());
+	snow_set_global(snow_sym("String"), snow_get_string_class());
+	snow_set_global(snow_sym("Array"), snow_get_array_class());
+	snow_set_global(snow_sym("Map"), snow_get_map_class());
+	snow_set_global(snow_sym("Function"), snow_get_function_class());
+	snow_set_global(snow_sym("CallFrame"), snow_get_call_frame_class());
+	snow_set_global(snow_sym("Pointer"), snow_get_pointer_class());
+	snow_set_global(snow_sym("Fiber"), snow_get_fiber_class());
 }

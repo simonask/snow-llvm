@@ -1,11 +1,13 @@
 #include "snow/symbol.h"
-#include "snow/type.h"
-#include "snow/snow.h"
-#include "snow/process.h"
-#include "snow/vm.h"
-#include "snow/function.h"
-#include "snow/str.h"
+#include "internal.h"
+#include "snow/class.h"
 #include "snow/exception.h"
+#include "snow/function.h"
+#include "snow/process.h"
+#include "snow/snow.h"
+#include "snow/str.h"
+#include "snow/type.h"
+#include "snow/vm.h"
 
 #include <string.h>
 #include <alloca.h>
@@ -46,9 +48,16 @@ static VALUE symbol_to_string(SnFunction* function, SnCallFrame* here, VALUE sel
 	return snow_create_string_constant(snow_sym_to_cstr(snow_value_to_symbol(self)));
 }
 
-SnObject* snow_create_symbol_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", symbol_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", symbol_to_string, 0);
-	return proto;
+SnClass* snow_get_symbol_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", symbol_inspect, 0),
+			SN_METHOD("to_string", symbol_to_string, 0),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Symbol"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

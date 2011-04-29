@@ -9,7 +9,6 @@ struct SnObject;
 
 typedef struct SnProcess {
 	struct SnVM* vm;
-	struct SnObject** immediate_prototypes;
 } SnProcess;
 
 #endif /* end of include guard: PROCESS_H_CGDBE46G */

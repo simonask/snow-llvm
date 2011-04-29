@@ -1,10 +1,11 @@
-#include "snow/object.h"
+#include "snow/function.h"
+#include "internal.h"
+#include "snow/class.h"
 #include "snow/type.h"
 #include "snow/array.h"
 #include "snow/map.h"
 #include "snow/gc.h"
 #include "snow/vm.h"
-#include "snow/function.h"
 #include "snow/str.h"
 #include "snow/snow.h"
 #include "snow/exception.h"
@@ -172,12 +173,19 @@ static VALUE function_name(SnFunction* function, SnCallFrame* here, VALUE self, 
 	return NULL;
 }
 
-SnObject* snow_create_function_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", function_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", function_inspect, 0);
-	SN_DEFINE_PROPERTY(proto, "name", function_name, 0);
-	return proto;
+SnClass* snow_get_function_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", function_inspect, 0),
+			SN_METHOD("to_string", function_inspect, 0),
+			SN_PROPERTY("name", function_name, NULL),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("Function"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }
 
 static VALUE call_frame_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
@@ -216,11 +224,17 @@ static VALUE call_frame_get_caller(SnFunction* function, SnCallFrame* here, VALU
 	return ((SnCallFrame*)self)->caller;
 }
 
-SnObject* snow_create_call_frame_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", call_frame_inspect, 0);
-	SN_DEFINE_PROPERTY(proto, "arguments", call_frame_get_arguments, NULL);
-	SN_DEFINE_PROPERTY(proto, "locals", call_frame_get_locals, NULL);
-	SN_DEFINE_PROPERTY(proto, "caller", call_frame_get_caller, NULL);
-	return proto;
+SnClass* snow_get_call_frame_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", call_frame_inspect, 0),
+			SN_PROPERTY("arguments", call_frame_get_arguments, NULL),
+			SN_PROPERTY("locals", call_frame_get_locals, NULL),
+			SN_PROPERTY("caller", call_frame_get_caller, NULL)
+		};
+		SnClass* cls = snow_define_class(snow_sym("CallFrame"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }

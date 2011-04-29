@@ -5,7 +5,7 @@
 #include "snow/object.h"
 
 typedef struct SnArray {
-	SnObjectBase base;
+	SnObject base;
 	VALUE* data;
 	uint32_t size;
 	uint32_t alloc_size;
@@ -26,6 +26,7 @@ CAPI SnArray* snow_array_push_range(SnArray* array, VALUE* begin, VALUE* end);
 CAPI SnArray* snow_array_concatenate(SnArray* a, SnArray* b);
 CAPI bool snow_array_contains(SnArray* a, VALUE value);
 
+CAPI struct SnClass* snow_get_array_class();
 CAPI void snow_finalize_array(SnArray* a);
 
 #endif /* end of include guard: ARRAY_H_XVGE8JQI */

@@ -1,4 +1,5 @@
 #include "snow/arguments.h"
+#include "internal.h"
 #include "snow/gc.h"
 #include "snow/object.h"
 #include "snow/function.h"
@@ -9,6 +10,7 @@
 
 SnArguments* snow_create_arguments(size_t num_names, size_t size) {
 	SnArguments* args = SN_GC_ALLOC_OBJECT(SnArguments);
+	_snow_object_init(&args->base, snow_get_arguments_class());
 	args->num_extra_names = num_names;
 	args->extra_names = num_names ? (SnSymbol*)malloc(sizeof(SnSymbol)*num_names) : NULL;
 	args->size = size;

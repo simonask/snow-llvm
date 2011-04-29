@@ -1,5 +1,6 @@
 #include "snow/linkbuffer.h"
-#include "intern.h"
+#include "internal.h"
+
 #include <stdlib.h>
 #include <string.h>
 

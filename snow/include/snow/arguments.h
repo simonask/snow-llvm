@@ -10,7 +10,7 @@ struct SnArray;
 struct SnMap;
 
 typedef struct SnArguments {
-	SnObjectBase base;
+	SnObject base;
 	const struct SnFunctionDescriptor* descriptor;
 	SnSymbol* extra_names;
 	size_t num_extra_names;
@@ -34,5 +34,6 @@ CAPI VALUE snow_arguments_get_by_name(SnArguments* args, SnSymbol sym);
 CAPI void snow_arguments_merge(SnArguments* args, const SnArguments* other);
 CAPI void snow_arguments_append_array(SnArguments* args, const struct SnArray* other);
 CAPI void snow_arguments_append_map(SnArguments* args, const struct SnMap* other);
+CAPI struct SnClass* snow_get_arguments_class();
 
 #endif /* end of include guard: ARGUMENTS_H_5M3JAXPP */

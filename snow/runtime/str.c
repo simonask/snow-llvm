@@ -1,11 +1,13 @@
-#include "intern.h"
 #include "snow/str.h"
+#include "internal.h"
+#include "snow/class.h"
+#include "snow/function.h"
 #include "snow/gc.h"
 #include "snow/linkbuffer.h"
-#include "snow/type.h"
-#include "snow/function.h"
-#include "snow/snow.h"
 #include "snow/numeric.h"
+#include "snow/snow.h"
+#include "snow/type.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +19,7 @@ SnString* snow_create_string(const char* utf8) {
 
 SnString* snow_create_string_constant(const char* utf8) {
 	SnString* obj = SN_GC_ALLOC_OBJECT(SnString);
+	_snow_object_init(&obj->base, snow_get_string_class());
 	SN_GC_WRLOCK(obj);
 	obj->size = strlen(utf8);
 	obj->length = obj->size;
@@ -213,12 +216,20 @@ static VALUE string_get_length(SnFunction* function, SnCallFrame* here, VALUE se
 	return NULL;
 }
 
-SnObject* snow_create_string_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "inspect", string_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", string_to_string, 0);
-	SN_DEFINE_METHOD(proto, "+", string_add, 1);
-	SN_DEFINE_PROPERTY(proto, "size", string_get_size, NULL);
-	SN_DEFINE_PROPERTY(proto, "length", string_get_length, NULL);
-	return proto;
+SnClass* snow_get_string_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnMethod methods[] = {
+			SN_METHOD("inspect", string_inspect, 0),
+			SN_METHOD("to_string", string_to_string, 0),
+			SN_METHOD("+", string_add, 1),
+			SN_PROPERTY("size", string_get_size, NULL),
+			SN_PROPERTY("length", string_get_length, NULL),
+		};
+		
+		SnClass* cls = snow_define_class(snow_sym("String"), NULL, 0, NULL, countof(methods), methods);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }
+
