@@ -28,7 +28,6 @@ namespace {
 	enum ModuleType {
 		ModuleTypeSource,
 		ModuleTypeCompiledSource,
-		ModuleTypeBitcode,
 		ModuleTypeDynamicLibrary
 	};
 	
@@ -123,8 +122,6 @@ namespace {
 			return ModuleTypeSource;
 		} else if (extension == "sno") {
 			return ModuleTypeCompiledSource;
-		} else if (extension == "bc") {
-			return ModuleTypeBitcode;
 		} else {
 			fprintf(stderr, "WARNING: Unknown file extension '%s', assuming source code.\n", extension.c_str());
 			return ModuleTypeSource;
@@ -172,16 +169,6 @@ namespace {
 	inline Module* load_module(const std::string& path) {
 		switch (get_module_type(path)) {
 			case ModuleTypeSource: return compile_module(path, load_source(path), snow_create_object(NULL));
-			case ModuleTypeBitcode: {
-				SnObject* mod = snow_vm_load_bitcode_module(path.c_str());
-				if (mod) {
-					Module* m = new Module;
-					m->path = path;
-					m->module = mod;
-					get_module_list()->push_back(m);
-					return m;
-				}
-				return NULL;
 			}
 			default: {
 				snow_throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");

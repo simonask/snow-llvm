@@ -1,15 +1,15 @@
-#include "libsnow/libsnow.hpp"
+#include "snow/snow.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "snow/exception.hpp"
 
 // TODO: Set up runtime paths etc.
 
-int main (int argc, char const *argv[]) {
+int main (int argc, char* const* argv) {
 	try {
-		snow::init("runtime/snow-runtime.bc");
-		int n = snow::main(argc, argv);
-		snow::finish();
+		snow_init("lib/prelude.sn");
+		int n = snow_main(argc, argv);
+		snow_finish();
 		return n;
 	}
 	catch (const snow::Exception& ex) {

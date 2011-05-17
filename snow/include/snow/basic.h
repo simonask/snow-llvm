@@ -49,7 +49,7 @@ INLINE void crash_and_burn() { __asm__ __volatile__(""); char c = *(char*)NULL; 
 #endif
 
 #if defined(DEBUG)
-#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); abort(); } while (0)
+#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); __builtin_trap(); } while (0)
 #else
 #define TRAP() __builtin_unreachable()
 #endif

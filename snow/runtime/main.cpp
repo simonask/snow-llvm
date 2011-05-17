@@ -143,7 +143,3 @@ CAPI int snow_main(int argc, char* const* argv) {
 	
 	return 0;
 }
-
-CAPI int main(int argc, char** argv) {
-	return snow_main(argc, argv);
-}

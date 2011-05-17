@@ -14,8 +14,7 @@ CAPI struct SnObject* snow_import(const char* file);
 CAPI struct SnObject* snow_load(const char* file);
 CAPI VALUE snow_load_in_global_module(const char* file);
 CAPI struct SnObject* snow_load_module_from_source(const char* source);
-CAPI struct SnObject* snow_load_precompiled_module(const char* file);
-CAPI struct SnObject* snow_load_native_module(const char* file, const char* entry_point);
+CAPI struct SnObject* snow_load_module(const char* file, const char* entry_point);
 
 CAPI VALUE snow_eval_in_global_module(const char* source);
 

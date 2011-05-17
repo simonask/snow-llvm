@@ -15,7 +15,6 @@
 #include "snow/object.h"
 #include "snow/parser.h"
 #include "snow/pointer.h"
-#include "snow/process.h"
 #include "snow/str.h"
 #include "snow/type.h"
 #include "snow/vm.h"
@@ -30,56 +29,38 @@ void snow_init_fibers();
 
 struct SnAstNode;
 
-static SnProcess main_process;
-static SnObject* immediate_prototypes[8];
-
-SnProcess* snow_init(struct SnVM* vm) {
-	main_process.vm = vm;
-	
+void snow_init(const char* lib_path) {
 	const void* stk;
 	snow_init_gc(&stk);
 	snow_init_fibers();
 	snow_init_globals();
 	
 	snow_load_in_global_module("lib/prelude.sn");
+}
+
+void snow_finish() {
 	
-	return &main_process;
 }
 
 const char* snow_version() {
-	return "0.0.1 pre-alpha [LLVM]";
-}
-
-SnProcess* snow_get_process() {
-	return &main_process;
+	return "0.0.1 pre-alpha [x86-64]";
 }
 
 VALUE snow_get_global(SnSymbol name) {
 	SnObject* go = snow_get_global_module();
-	return snow_get_member(go, name);
+	return snow_object_get_field(go, name);
 }
 
 VALUE snow_set_global(SnSymbol name, VALUE val) {
 	SnObject* go = snow_get_global_module();
-	return snow_set_member(go, name, val);
+	return snow_object_set_field(go, name, val);
 }
 
-SnFunction* snow_compile(const char* module_name, const char* source) {
-	struct SnAST* ast = snow_parse(source);
-	if (ast) {
-		SnCompilationResult result;
-		if (snow_vm_compile_ast(module_name, source, ast, &result)) {
-			return snow_create_function(result.entry_descriptor, NULL);
-		} else if (result.error_str) {
-			fprintf(stderr, "ERROR COMPILING FUNCTION: %s\n", result.error_str);
-			free(result.error_str);
-			return NULL;
-		} else {
-			fprintf(stderr, "ERROR COMPILING FUNCTION: <UNKNOWN>\n");
-			return NULL;
-		}
-	}
-	return NULL;
+VALUE snow_local_missing(SnCallFrame* frame, SnSymbol name) {
+	// XXX: TODO!!
+	return snow_get_global(name);
+	//fprintf(stderr, "LOCAL MISSING: %s\n", snow_sym_to_cstr(name));
+	//return NULL;
 }
 
 static SnClass* class_for_internal_type(SnType type) {
@@ -95,6 +76,7 @@ static SnClass* class_for_internal_type(SnType type) {
 		case SnClassType:     return snow_get_class_class();
 		case SnArrayType:     return snow_get_array_class();
 		case SnMapType:       return snow_get_map_class();
+		case SnStringType:    return snow_get_string_class();
 		case SnFunctionType:  return snow_get_function_class();
 		case SnCallFrameType: return snow_get_call_frame_class();
 		case SnArgumentsType: return snow_get_arguments_class();
