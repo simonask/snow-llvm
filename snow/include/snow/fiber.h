@@ -6,10 +6,15 @@
 
 struct SnCallFrame;
 struct SnClass;
+struct SnFiber;
 
 // XXX: Really big for now, because LLVM lazy compilation requires a *lot* of stack space.
 // TODO: Consider asynchonous compilation thread, so fibers and threads don't have to worry about that.
 static const size_t SN_FIBER_STACK_SIZE = 8*SN_MEMORY_PAGE_SIZE; 
+
+typedef VALUE(*SnFiberStartFunc)(struct SnFiber* fiber, struct SnFiber* caller, VALUE data);
+typedef void(*SnFiberReturnFunc)(struct SnFiber* return_from, VALUE data);
+typedef void(*SnStartFiberFunc)(struct SnFiber* fiber, struct SnFiber* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback);
 
 typedef enum SnFiberFlags {
 	SnFiberNoFlags   = 0x0,

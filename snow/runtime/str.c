@@ -219,15 +219,13 @@ static VALUE string_get_length(SnFunction* function, SnCallFrame* here, VALUE se
 SnClass* snow_get_string_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", string_inspect, 0),
-			SN_METHOD("to_string", string_to_string, 0),
-			SN_METHOD("+", string_add, 1),
-			SN_PROPERTY("size", string_get_size, NULL),
-			SN_PROPERTY("length", string_get_length, NULL),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("String"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("String"), NULL);
+		cls->internal_type = SnStringType;
+		snow_class_define_method(cls, "inspect", string_inspect, 0);
+		snow_class_define_method(cls, "to_string", string_to_string, 0);
+		snow_class_define_method(cls, "+", string_add, 1);
+		snow_class_define_property(cls, "size", string_get_size, NULL);
+		snow_class_define_property(cls, "length", string_get_length, NULL);
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

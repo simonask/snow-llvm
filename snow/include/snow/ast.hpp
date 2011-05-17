@@ -26,7 +26,8 @@ enum SnAstNodeType {
 	SN_AST_HERE,
 	SN_AST_IT,
 	SN_AST_ASSIGN,
-	SN_AST_MEMBER,
+	SN_AST_METHOD,
+	SN_AST_INSTANCE_VARIABLE,
 	SN_AST_CALL,
 	SN_AST_ASSOCIATION,
 	SN_AST_NAMED_ARGUMENT,
@@ -49,7 +50,8 @@ struct SnAstNode {
 		struct { SnAstNode *value; }                   return_expr;
 		struct { SnSymbol name; }                      identifier;
 		struct { SnAstNode *target, *value; }          assign;
-		struct { SnAstNode *object; SnSymbol name; }   member;
+		struct { SnAstNode *object; SnSymbol name; }   method;
+		struct { SnAstNode *object; SnSymbol name; }   instance_variable;
 		struct { SnAstNode *object, *args; }           call;
 		struct { SnAstNode *object, *args; }           association;
 		struct { SnSymbol name; SnAstNode *expr; }     named_argument;

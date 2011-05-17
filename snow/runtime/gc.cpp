@@ -7,7 +7,6 @@
 #include "snow/map.h"
 #include "snow/object.h"
 #include "snow/pointer.h"
-#include "snow/process.h"
 #include "snow/str.h"
 #include "snow/type.h"
 
@@ -104,21 +103,18 @@ namespace {
 			case SnClassType: {
 				SnClass* cls = (SnClass*)x;
 				for (size_t i = 0; i < cls->num_methods; ++i) {
-					switch (cls->methods[i]->type) {
+					switch (cls->methods[i].type) {
 						case SnMethodTypeFunction: {
-							gc_mark_value(cls->methods[i]->function);
+							gc_mark_value(cls->methods[i].function);
 							break;
 						}
 						case SnMethodTypeProperty: {
-							gc_mark_value(cls->methods[i]->property.getter);
-							gc_mark_value(cls->methods[i]->property.setter);
+							gc_mark_value(cls->methods[i].property.getter);
+							gc_mark_value(cls->methods[i].property.setter);
 							break;
 						}
 						default: break;
 					}
-				}
-				for (size_t i = 0; i < cls->num_extensions; ++i) {
-					gc_mark_value(cls->extensions[i]);
 				}
 				gc_mark_object((SnObject*)cls->super);
 				break;

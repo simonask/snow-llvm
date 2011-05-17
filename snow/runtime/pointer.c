@@ -55,12 +55,10 @@ static VALUE pointer_inspect(SnFunction* function, SnCallFrame* here, VALUE self
 SnClass* snow_get_pointer_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", pointer_inspect, 0),
-			SN_METHOD("to_string", pointer_inspect, 0),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Pointer"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("Pointer"), NULL);
+		cls->internal_type = SnPointerType;
+		snow_class_define_method(cls, "inspect", pointer_inspect, 0);
+		snow_class_define_method(cls, "to_string", pointer_inspect, 0);
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

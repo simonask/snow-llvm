@@ -6,11 +6,14 @@
 #include "snow/function.h"
 #include "snow/vm.h"
 #include "snow/exception.h"
+#include "snow/parser.h"
 
 #include <google/dense_hash_map>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+
+#include "codemanager.hpp"
 
 
 namespace {
@@ -74,6 +77,7 @@ namespace {
 			for (size_t i = 0; i < snow_array_size(load_paths); ++i) {
 				VALUE vpath = snow_array_get(load_paths, i);
 				if (snow_type_of(vpath) != SnStringType) {
+					fprintf(stderr, "ERROR: Load path is not a string: %p\n", vpath);
 					//vpath = snow_value_to_string(vpath);
 					continue;
 				}
@@ -148,27 +152,36 @@ namespace {
 		m->source = source;
 		m->module = mod;
 		
-		m->entry = snow_compile(get_module_name(path).c_str(), m->source.c_str());
-		
-		if (m->entry) {
-			get_module_list()->push_back(m);
-			
-			// call module entry
-			SnCallFrame* context = snow_create_call_frame(m->entry, 0, NULL, 0, NULL);
-			context->module = mod;
-			VALUE result = snow_function_call(m->entry, context, mod, NULL);
-			snow_set_member(mod, snow_sym("__module_value__"), result);
-			return m;
-		} else {
-			fprintf(stderr, "ERROR: Could not compile module.\n");
-			delete m;
-			return NULL;
+		struct SnAST* ast = snow_parse(m->source.c_str());
+		if (ast) {
+			snow::CodeModule* code = snow::get_code_manager()->compile_ast(ast, m->source.c_str(), get_module_name(path).c_str());
+			if (code) {
+				get_module_list()->push_back(m);
+				m->entry = snow_create_function(code->entry, NULL);
+				
+				// Call module entry
+				SnCallFrame* frame = snow_create_call_frame(m->entry, 0, NULL, 0, NULL);
+				frame->module = mod;
+				VALUE result = snow_function_call(m->entry, frame, NULL, NULL);
+				snow_object_set_field(mod, snow_sym("__module_value__"), result);
+				// Import module globals
+				for (size_t i = 0; i < code->num_globals; ++i) {
+					snow_object_set_field(mod, code->global_names[i], code->globals[i]);
+				}
+				return m;
+			}
 		}
+		delete m;
+		fprintf(stderr, "ERROR: Could not compile module.\n");
+		return NULL;
 	}
 	
 	inline Module* load_module(const std::string& path) {
 		switch (get_module_type(path)) {
-			case ModuleTypeSource: return compile_module(path, load_source(path), snow_create_object(NULL));
+			case ModuleTypeSource: {
+				SnObject* mod = snow_create_object(NULL);
+				snow_object_give_meta_class(mod);
+				return compile_module(path, load_source(path), mod);
 			}
 			default: {
 				snow_throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");
@@ -192,6 +205,7 @@ CAPI {
 		static SnObject* global_module = NULL; // TODO: GC
 		if (!global_module) {
 			global_module = snow_create_object(NULL);
+			snow_object_give_meta_class(global_module);
 		}
 		return global_module;
 	}
@@ -228,7 +242,7 @@ CAPI {
 			ASSERT(get_module_type(path) == ModuleTypeSource); // only source modules are supported in snow_load_in_global_module
 			SnObject* mod = snow_get_global_module();
 			if (compile_module(path, load_source(file), mod)) {
-				return snow_get_member(mod, snow_sym("__module_value__"));
+				return snow_object_get_field(mod, snow_sym("__module_value__"));
 			} else {
 				fprintf(stderr, "ERROR: Could not compile module: %s\n", path.c_str());
 				return NULL;
@@ -244,7 +258,7 @@ CAPI {
 		SnObject* mod = snow_get_global_module();
 		Module* module = compile_module("<eval>", source, mod);
 		if (module) {
-			return snow_get_member(mod, snow_sym("__module_value__"));
+			return snow_object_get_field(mod, snow_sym("__module_value__"));
 		} else {
 			return NULL;
 		}

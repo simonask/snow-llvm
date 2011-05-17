@@ -267,7 +267,7 @@ namespace snow {
 /*					RECOGNIZE_CHAR('´', TICK)
 					RECOGNIZE_CHAR('`', BACKTICK)*/
 					RECOGNIZE_CHAR('#', HASH)
-//					RECOGNIZE_CHAR('$', DOLLAR)
+					RECOGNIZE_CHAR('$', DOLLAR)
 					default: { found = false; break; }
 				}
 				if (found) {

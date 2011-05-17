@@ -27,7 +27,8 @@ namespace snow {
 		SnAstNode* here() { return create(SN_AST_HERE); }
 		SnAstNode* it() { return create(SN_AST_IT); }
 		SnAstNode* assign(SnAstNode* target, SnAstNode* value);
-		SnAstNode* member(SnAstNode* object, SnSymbol sym);
+		SnAstNode* method(SnAstNode* object, SnSymbol sym);
+		SnAstNode* instance_variable(SnAstNode* object, SnSymbol sym);
 		SnAstNode* call(SnAstNode* object, SnAstNode* arguments);
 		SnAstNode* association(SnAstNode* object, SnAstNode* arguments);
 		SnAstNode* named_argument(SnSymbol name, SnAstNode* expr);
@@ -105,10 +106,17 @@ namespace snow {
 		return n;
 	}
 	
-	inline SnAstNode* AST::member(SnAstNode* object, SnSymbol sym) {
-		SnAstNode* n = create(SN_AST_MEMBER);
-		n->member.object = object;
-		n->member.name = sym;
+	inline SnAstNode* AST::method(SnAstNode* object, SnSymbol sym) {
+		SnAstNode* n = create(SN_AST_METHOD);
+		n->method.object = object;
+		n->method.name = sym;
+		return n;
+	}
+	
+	inline SnAstNode* AST::instance_variable(SnAstNode* object, SnSymbol sym) {
+		SnAstNode* n = create(SN_AST_INSTANCE_VARIABLE);
+		n->instance_variable.object = object;
+		n->instance_variable.name = sym;
 		return n;
 	}
 	

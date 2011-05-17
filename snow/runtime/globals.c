@@ -29,11 +29,8 @@ static VALUE get_version(SnFunction* function, SnCallFrame* here, VALUE self, VA
 SnObject* snow_get_vm_interface() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_PROPERTY("version", get_version, NULL),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("SnowVMInterface"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("SnowVMInterface"), NULL);
+		snow_class_define_property(cls, "version", get_version, NULL);
 		SnObject* obj = snow_create_object(cls);
 		root = snow_gc_create_root(obj);
 	}
@@ -59,57 +56,9 @@ static VALUE global_load(SnFunction* function, SnCallFrame* here, VALUE self, VA
 	return snow_load(snow_string_cstr(file));
 }
 
-static VALUE global_make_object(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	ASSERT(it == SN_NIL || it == NULL || snow_type_of(it) == SnClassType);
-	SnObject* obj = snow_create_object(snow_eval_truth(it) ? (SnClass*)it : NULL);
-	return obj;
-}
-
-static VALUE global_make_array(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
-}
-
-static VALUE global_make_map(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_map();
-}
-
-static VALUE global_make_map_with_immediate_keys(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_map_with_immediate_keys();
-}
-
-static VALUE global_make_map_with_insertion_order(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_map_with_insertion_order();
-}
-
-static VALUE global_make_map_with_immediate_keys_and_insertion_order(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_map_with_immediate_keys_and_insertion_order();
-}
-
-static VALUE global_make_string(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return SN_NIL; // XXX: TODO!
-}
-
-static VALUE global_make_boolean(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_boolean_to_value(snow_eval_truth(it));
-}
-
-static VALUE global_make_symbol(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return SN_NIL; // XXX: TODO!
-}
-
-static VALUE global_make_fiber(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_fiber(it);
-}
-
 static VALUE global_disasm(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnType type = snow_type_of(it);
-	if (type == SnFunctionType) {
-		snow_vm_disassemble_function((SnFunction*)it);
-	} else if (type == SnStringType) {
-		snow_vm_disassemble_runtime_function(snow_string_cstr((SnString*)it));
-	} else {
-		snow_throw_exception_with_description("Cannot disassemble %s (not a function or name).", snow_value_inspect_cstr(it));
-	}
+	snow_throw_exception_with_description("Disassembly not supported in native x86-64.", snow_value_inspect_cstr(it));
 	return NULL;
 }
 
@@ -161,22 +110,9 @@ static VALUE global_throw(SnFunction* function, SnCallFrame* here, VALUE self, V
 void snow_init_globals() {
 	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
 	
-	SN_DEFINE_GLOBAL("@", global_make_array, -1);
-	SN_DEFINE_GLOBAL("#", global_make_map, -1);
 	SN_DEFINE_GLOBAL("puts", global_puts, -1);
 	SN_DEFINE_GLOBAL("import", global_import, 1);
 	SN_DEFINE_GLOBAL("load", global_load, 1);
-	SN_DEFINE_GLOBAL("__make_object__", global_make_object, -1);
-	SN_DEFINE_GLOBAL("__make_array__", global_make_array, -1);
-	SN_DEFINE_GLOBAL("__make_map__", global_make_map, -1);
-	SN_DEFINE_GLOBAL("__make_map_with_immediate_keys__", global_make_map_with_immediate_keys, -1);
-	SN_DEFINE_GLOBAL("__make_map_with_insertion_order__", global_make_map_with_insertion_order, -1);
-	SN_DEFINE_GLOBAL("__make_map_with_immediate_keys_and_insertion_order__", global_make_map_with_immediate_keys_and_insertion_order, -1);
-	SN_DEFINE_GLOBAL("__make_string__", global_make_string, -1);
-	SN_DEFINE_GLOBAL("__make_boolean__", global_make_boolean, 1);
-	SN_DEFINE_GLOBAL("__make_symbol__", global_make_symbol, 1);
-	SN_DEFINE_GLOBAL("__make_fiber__", global_make_fiber, 1);
-	SN_DEFINE_GLOBAL("__disasm__", global_disasm, 1);
 	SN_DEFINE_GLOBAL("__resolve_symbol__", global_resolve_symbol, 1);
 	SN_DEFINE_GLOBAL("__print_call_stack__", global_print_call_stack, 0);
 	SN_DEFINE_GLOBAL("throw", global_throw, 1);
@@ -191,7 +127,9 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("Class"), snow_get_class_class());
 	snow_set_global(snow_sym("String"), snow_get_string_class());
 	snow_set_global(snow_sym("Array"), snow_get_array_class());
+	snow_set_global(snow_sym("@"), snow_get_array_class());
 	snow_set_global(snow_sym("Map"), snow_get_map_class());
+	snow_set_global(snow_sym("#"), snow_get_map_class());
 	snow_set_global(snow_sym("Function"), snow_get_function_class());
 	snow_set_global(snow_sym("CallFrame"), snow_get_call_frame_class());
 	snow_set_global(snow_sym("Pointer"), snow_get_pointer_class());

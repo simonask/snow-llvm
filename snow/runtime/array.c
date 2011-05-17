@@ -218,22 +218,27 @@ static VALUE array_push(SnFunction* function, SnCallFrame* here, VALUE self, VAL
 	return self;
 }
 
+static VALUE array_create(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	if (here->arguments) {
+		return snow_create_array_from_range(here->arguments->data, here->arguments->data + here->arguments->size);
+	}
+	return snow_create_array();
+}
+
 SnClass* snow_get_array_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", array_inspect, 0),
-			SN_METHOD("to_string", array_inspect, 0),
-			SN_METHOD("get", array_index_get, 1),
-			SN_METHOD("set", array_index_set, 2),
-			SN_METHOD("*", array_multiply_or_splat, 1),
-			SN_METHOD("each", array_each, 1),
-			SN_METHOD("push", array_push, 1),
-			SN_METHOD("<<", array_push, 1),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Array"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("Array"), NULL);
 		cls->internal_type = SnArrayType;
+		snow_class_define_method(cls, "inspect", array_inspect, 0);
+		snow_class_define_method(cls, "to_string", array_inspect, 0);
+		snow_class_define_method(cls, "get", array_index_get, 1);
+		snow_class_define_method(cls, "set", array_index_set, 2);
+		snow_class_define_method(cls, "*", array_multiply_or_splat, 1);
+		snow_class_define_method(cls, "each", array_each, 1);
+		snow_class_define_method(cls, "push", array_push, 1);
+		snow_class_define_method(cls, "<<", array_push, 1);
+		snow_object_define_method(cls, "__call__", array_create, -1);
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

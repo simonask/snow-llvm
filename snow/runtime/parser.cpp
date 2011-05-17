@@ -64,7 +64,8 @@ namespace snow {
 		SnAstNode* chain(Pos&);
 		SnAstNode* chainable(Pos&);
 		SnAstNode* call(Pos&);
-		SnAstNode* member(Pos&);
+		SnAstNode* method(Pos&);
+		SnAstNode* instance_variable(Pos&);
 		SnAstNode* argument_list(Pos&);
 		SnAstNode* argument(Pos&);
 		SnAstNode* named_argument(Pos&);
@@ -342,7 +343,7 @@ namespace snow {
 			pos = p;
 			if (type == Token::LOG_NOT)
 				return ast->logic_not(a);
-			return ast->call(ast->member(a, snow_sym(data)), NULL);
+			return ast->call(ast->method(a, snow_sym(data)), NULL);
 		}
 		return operand(pos);
 	}
@@ -402,7 +403,7 @@ namespace snow {
 	
 	SnAstNode* Parser::lvalue(Pos& pos) {
 		/*
-			lvalue := association | member | identifier;
+			lvalue := association | instance_variable | identifier | method;
 			
 			TODO:
 			lvalue := chain_that_doesnt_end_with_call | identifier;
@@ -558,12 +559,13 @@ namespace snow {
 	
 	SnAstNode* Parser::atomic_expression(Pos& pos) {
 		/*
-			atomic_expression := literal | self | it | here | identifier | closure | '(' expression ')';
+			atomic_expression := literal | instance_variable | self | it | here | identifier | closure | '(' expression ')';
 		*/
 		
 		SnAstNode* result = NULL;
 		FIRST_MATCH({
 			MATCH(literal);
+			MATCH(instance_variable);
 			MATCH(self);
 			MATCH(it);
 			MATCH(here);
@@ -590,9 +592,24 @@ namespace snow {
 		MATCH_SUCCESS(result);
 	}
 	
+	SnAstNode* Parser::instance_variable(Pos& pos){
+		if (pos->type == Token::DOLLAR) {
+			++pos;
+			SnAstNode* id = identifier(pos);
+			if (!id) {
+				error(pos, "Expected identifier for name of instance variable, got %s.", get_token_name(pos->type));
+				MATCH_FAILED();
+			}
+			SnSymbol sym = id->identifier.name;
+			ast->free(id);
+			MATCH_SUCCESS(ast->instance_variable(ast->self(), sym));
+		}
+		MATCH_FAILED();
+	}
+	
 	SnAstNode* Parser::chain(Pos& pos) {
 		/*
-			chain := (call | member | association)+;
+			chain := (call | instance_variable | method | association)+;
 		*/
 		Pos p = pos;
 		SnAstNode* result = atomic_expression(p);
@@ -604,14 +621,26 @@ namespace snow {
 			switch (p->type) {
 				case Token::DOT: {
 					++p;
-					SnAstNode* id = identifier(p);
-					if (!id) {
-						error(p, "Expected identifier as right hand of dot operator, got %s.", get_token_name(p->type));
-						MATCH_FAILED();
+					if (p->type == Token::DOLLAR) {
+						++p;
+						SnAstNode* id = identifier(p);
+						if (!id) {
+							error(p, "Expected identifier for name of instance variable, got %s.", get_token_name(p->type));
+							MATCH_FAILED();
+						}
+						SnSymbol sym = id->identifier.name;
+						ast->free(id);
+						result = ast->instance_variable(result, sym);
+					} else {
+						SnAstNode* id = identifier(p);
+						if (!id) {
+							error(p, "Expected identifier as right hand of dot operator, got %s.", get_token_name(p->type));
+							MATCH_FAILED();
+						}
+						SnSymbol sym = id->identifier.name;
+						ast->free(id);
+						result = ast->method(result, sym);
 					}
-					SnSymbol sym = id->identifier.name;
-					ast->free(id);
-					result = ast->member(result, sym);
 					break;
 				}
 				case Token::BRACE_BEGIN:
@@ -661,6 +690,7 @@ namespace snow {
 		Pos p = pos;
 		if (p->type == Token::PARENS_BEGIN) {
 			++p;
+			while (skip_end_of_statement(p));
 			SnAstNode* seq = ast->sequence();
 			bool first = true;
 			while (p->type != Token::PARENS_END) {
@@ -670,6 +700,8 @@ namespace snow {
 						MATCH_FAILED();
 					}
 					++p;
+					while (skip_end_of_statement(p));
+					if (p->type == Token::PARENS_END) break; // permit comma at end of list
 				}
 				first = false;
 				
@@ -679,8 +711,8 @@ namespace snow {
 					MATCH_FAILED();
 				}
 				ast->sequence_push(seq, arg);
+				while (skip_end_of_statement(p));
 			}
-			
 			ASSERT(p->type == Token::PARENS_END);
 			++p; // skip PARENS_END
 			
@@ -922,7 +954,13 @@ namespace snow {
 				MATCH_SUCCESS(ast->literal(snow_vsym(data)));
 			}
 			
-			error(pos, "Expected identifier or string following symbol initiator '#', got %s.", get_token_name(pos->type));
+			if (is_operator(pos->type)) {
+				GET_TOKEN_SZ(data, pos);
+				++pos;
+				MATCH_SUCCESS(ast->literal(snow_vsym(data)));
+			}
+			
+			MATCH_SUCCESS(ast->identifier(snow_sym("#")));
 		}
 		MATCH_FAILED();
 	}
@@ -994,7 +1032,7 @@ namespace snow {
 			case Token::LOG_XOR: return ast->logic_xor(a, b);
 			default: {
 				GET_TOKEN_SZ(op_str, op);
-				return ast->call(ast->member(a, snow_sym(op_str)), ast->sequence(1, b));
+				return ast->call(ast->method(a, snow_sym(op_str)), ast->sequence(1, b));
 			}
 		}
 	}

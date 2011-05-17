@@ -6,7 +6,6 @@
 #include <setjmp.h>
 #include "snow/gc.h"
 #include "snow/snow.h"
-#include "snow/process.h"
 #include "snow/vm.h"
 #include "snow/boolean.h"
 #include "snow/str.h"
@@ -23,6 +22,7 @@ static pthread_key_t _current_fiber;
 
 static VALUE fiber_start(SnFiber* fiber, SnFiber* caller, VALUE data);
 static void fiber_return(SnFiber* return_from, VALUE data);
+void snow_start_fiber(SnFiber* fiber, SnFiber* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback);
 
 SnFiber* snow_get_current_fiber() {
 	VALUE* root = (VALUE*)pthread_getspecific(_current_fiber);
@@ -137,7 +137,7 @@ static VALUE fiber_resume_internal(SnFiber* fiber, VALUE incoming_value, bool up
 			// (necessary because the platform-specific fiber starters need access
 			// to the contents of the SnFiber object, but don't have access
 			// to the locking mechanism.)
-			snow_get_process()->vm->start_fiber(fiber, caller, incoming_value, fiber_start, fiber_return);
+			snow_start_fiber(fiber, caller, incoming_value, fiber_start, fiber_return);
 		}
 		ASSERT(false); // unreachable
 		return NULL;
@@ -258,19 +258,23 @@ static VALUE fiber_each(SnFunction* function, SnCallFrame* here, VALUE self, VAL
 	return SN_NIL;
 }
 
+static VALUE fiber_create(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	return snow_create_fiber(it);
+}
+
 SnClass* snow_get_fiber_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", fiber_inspect, 0),
-			SN_METHOD("to_string", fiber_inspect, 0),
-			SN_METHOD("resume", fiber_resume, 1),
-			SN_METHOD("each", fiber_each, 1),
-			SN_PROPERTY("running?", fiber_is_running, NULL),
-			SN_PROPERTY("started?", fiber_is_started, NULL),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Fiber"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("Fiber"), NULL);
+		cls->internal_type = SnFiberType;
+		snow_class_define_method(cls, "inspect", fiber_inspect, 0);
+		snow_class_define_method(cls, "to_string", fiber_inspect, 0);
+		snow_class_define_method(cls, "resume", fiber_resume, 1);
+		snow_class_define_method(cls, "__call__", fiber_resume, 1);
+		snow_class_define_method(cls, "each", fiber_each, 1);
+		snow_class_define_property(cls, "running?", fiber_is_running, NULL);
+		snow_class_define_property(cls, "started?", fiber_is_started, NULL);
+		snow_object_define_method(cls, "__call__", fiber_create, 1);
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

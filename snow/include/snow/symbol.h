@@ -7,7 +7,6 @@
 
 typedef uint64_t SnSymbol;
 
-CAPI VALUE snow_vsym(const char* str);
 CAPI SnSymbol snow_sym(const char* str);
 CAPI const char* snow_sym_to_cstr(SnSymbol sym);
 
@@ -22,6 +21,10 @@ INLINE VALUE snow_symbol_to_value(SnSymbol sym) {
 INLINE SnSymbol snow_value_to_symbol(VALUE val) {
 	ASSERT(snow_is_symbol(val));
 	return (SnSymbol)((uintptr_t)val >> 4);
+}
+
+INLINE VALUE snow_vsym(const char* str) {
+	return snow_symbol_to_value(snow_sym(str));
 }
 
 struct SnClass;

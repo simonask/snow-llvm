@@ -4,6 +4,7 @@
 
 #include "snow/basic.h"
 #include "snow/object.h"
+#include "snow/function.h"
 
 typedef enum SnFieldFlags {
 	SnFieldNoFlags = 0x0,    // public
@@ -32,7 +33,6 @@ typedef struct SnMethod {
 	union {
 		VALUE function;
 		SnProperty property;
-		const struct SnMethod* reference;
 	};
 } SnMethod;
 
@@ -42,39 +42,28 @@ typedef struct SnClass {
 	SnSymbol name;
 	struct SnClass* super;
 	SnField* fields;
-	SnMethod** methods;
-	SnObject** extensions;
+	SnMethod* methods;
 	uint32_t num_fields;
 	uint32_t num_methods;
-	uint32_t num_extensions;
+	bool is_meta;
 } SnClass;
 
-CAPI SnClass* snow_define_class(SnSymbol name, SnClass* super, size_t num_fields, const SnField* fields, size_t num_methods, const SnMethod* methods);
+CAPI SnClass* snow_create_class(SnSymbol name, SnClass* super);
+CAPI SnClass* snow_create_meta_class(SnClass* base);
+CAPI bool _snow_class_define_method(SnClass* cls, SnSymbol name, VALUE func);
+CAPI bool _snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter);
+CAPI size_t _snow_class_define_field(SnClass* cls, SnSymbol name, SnFieldFlags flags);
+
 CAPI SnClass* snow_get_class_class();
 
-CAPI size_t snow_class_define_field(SnClass* cls, SnSymbol name, uint8_t flags); // return: index
-CAPI ssize_t snow_class_index_of_field(const SnClass* cls, SnSymbol name, uint8_t flags);
 INLINE size_t snow_class_get_num_fields(const SnClass* cls) { return cls->num_fields; }
+CAPI VALUE snow_class_get_method(const SnClass* cls, SnSymbol name);
+CAPI int32_t snow_class_get_index_of_field(const SnClass* cls, SnSymbol name);
+CAPI int32_t snow_class_get_or_define_index_of_field(SnClass* cls, SnSymbol name);
 
-CAPI void snow_class_define_method(SnClass* cls, SnSymbol name, VALUE function);
-CAPI void snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter);
-CAPI size_t snow_class_extend_with_module(SnClass* cls, SnObject* module);
+CAPI struct SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int32_t num_args);
 
-CAPI SnClass* snow_meta_class_define_method(SnClass* cls, SnSymbol name, VALUE functor);
-CAPI SnClass* snow_meta_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter);
-
-CAPI const SnMethod* snow_find_method(SnClass* cls, SnSymbol name);
-CAPI const SnMethod* snow_resolve_method_reference(const SnMethod* method);
-CAPI const SnMethod* snow_find_and_resolve_method(SnClass* cls, SnSymbol name);
-
-#define SN_METHOD(NAME, FUNCTION, NUM_ARGS) { snow_sym(NAME), SnMethodTypeFunction, .function = snow_create_method(FUNCTION, snow_sym(NAME), NUM_ARGS) }
-#define SN_PROPERTY(NAME, GETTER, SETTER) { \
-	.name = snow_sym(NAME), \
-	.type = SnMethodTypeProperty, \
-	.property = (struct SnProperty){ \
-		.getter = (GETTER ? snow_create_method(GETTER, snow_sym(NAME), 0) : NULL), \
-		.setter = (SETTER ? snow_create_method(SETTER, snow_sym(NAME), 1) : NULL) \
-	} \
-}
+#define snow_class_define_method(CLS, NAME, PTR, NUM_ARGS) _snow_class_define_method(CLS, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
+#define snow_class_define_property(CLS, NAME, GETTER, SETTER) _snow_class_define_property(CLS, snow_sym(NAME), snow_create_method(GETTER, snow_sym(#GETTER), 0), snow_create_method(SETTER, snow_sym(#SETTER), 1))
 
 #endif /* end of include guard: CLASS_H_JLNQIJLJ */

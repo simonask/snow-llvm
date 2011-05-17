@@ -15,13 +15,10 @@ static VALUE boolean_complement(SnFunction* function, SnCallFrame* here, VALUE s
 SnClass* snow_get_boolean_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", boolean_inspect, 0),
-			SN_METHOD("to_string", boolean_inspect, 0),
-			SN_METHOD("~", boolean_complement, 0),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Boolean"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("Boolean"), NULL);
+		snow_class_define_method(cls, "inspect", boolean_inspect, 0);
+		snow_class_define_method(cls, "to_string", boolean_inspect, 0);
+		snow_class_define_method(cls, "~", boolean_complement, 0);	
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

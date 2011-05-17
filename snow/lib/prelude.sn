@@ -1,209 +1,135 @@
-__class_prototype__: __make_object__(nil)
-__class_prototype__.__call__: {
-	obj: __make_object__(.instance_prototype)
-	obj.initialize(*here.arguments)
-	obj
-}
-__class_prototype__.initialize: [super] {
-	.super: super
-}
-
-__object_prototype__.initialize: {}
-
-class: [super_or_block, block] {
-	if block
-		super: super_or_block
-		definition: block
-	else
-		super: Object
-		definition: super_or_block
-	end
-	
-	prototype: super.instance_prototype
-	
-	klass: Class(super)
-	klass.instance_prototype: __make_object__(prototype)
-	klass.instance_prototype.instance_eval(definition, klass)
-	klass
-}
-
 module: [block] {
 	m: Object()
 	m.instance_eval(block)
 	m
 }
 
-Class: __make_object__(__class_prototype__)
-Class.instance_prototype: __class_prototype__
+Class.define_method(#<<) [module] {
+	module.each_pair [name, functor] {
+		.define_method(name, functor)
+	}
+	self
+}
 
-Object: __make_object__(__class_prototype__)
-Object.instance_prototype: __object_prototype__
-Object.__call__: __make_object__
-
-Object.super: nil
-Class.super: Object
-
-Array: __make_object__(__class_prototype__)
-Array.instance_prototype: __array_prototype__
-Array.__call__: __make_array__
-Array.super: Object
-@: Array
-
-Map: __make_object__(__class_prototype__)
-Map.instance_prototype: __map_prototype__
-Map.__call__: __make_map__
-Map.with_immediate_keys: __make_map_with_immediate_keys__
-Map.with_insertion_order: __make_map_with_insertion_order__
-Map.with_immediate_keys_and_insertion_order: __make_map_with_immediate_keys_and_insertion_order__
-Map.super: Object
-
-Integer: __make_object__(__class_prototype__)
-Integer.instance_prototype: __integer_prototype__
-Integer.__call__: [n] { n }
-Integer.super: Object
-
-Float: __make_object__(__class_prototype__)
-Float.instance_prototype: __float_prototype__
-Float.__call__: [f] { f }
-Float.super: Object
-
-String: __make_object__(__class_prototype__)
-String.instance_prototype: __string_prototype__
-String.__call__: __make_string__
-String.super: Object
-
-Boolean: __make_object__(__class_prototype__)
-Boolean.instance_prototype: __boolean_prototype__
-Boolean.__call__: __make_boolean__
-Boolean.super: Object
-
-Symbol: __make_object__(__class_prototype__)
-Symbol.instance_prototype: __symbol_prototype__
-Symbol.__call__: __make_symbol__
-Symbol.super: Object
-
-Fiber: __make_object__(__class_prototype__)
-Fiber.instance_prototype: __fiber_prototype__
-Fiber.__call__: __make_fiber__
-Fiber.super: Object
-Fiber.instance_prototype.__call__: Fiber.instance_prototype.resume
-
-Enumerable: module {
-	.all?: [condition] {
+Enumerable: #(
+	all?: [condition] {
 		condition: condition or { it }
 		fiber: Fiber [yield] {
 			.each { yield(false) unless condition(it) }
 			true
 		}
 		fiber()
-	}
+	},
 	
-	.any?: [condition] {
+	any?: [condition] {
 		condition: condition or { it }
 		fiber: Fiber [yield] {
 			.each { yield(true) if condition(it) }
 			false
 		}
 		fiber()
-	}
+	},
 	
-	.count: [condition] {
+	count: [condition] {
 		i: 0
 		condition: condition or { it }
 		.each { i: i + 1 if condition(it) }
 		return i
-	}
+	},
 	
-	.find: [condition_or_object] {
+	find: [condition_or_object] {
 		-- TODO: is_a?() required to implement this
-	}
+	},
 	
-	.map: [block] {
+	map: [block] {
 		MapEnumerator(self, block)
-	}
+	},
 	
-	.select: [block] {
+	select: [block] {
 		SelectEnumerator(self, block)
-	}
+	},
 	
-	.reject: [block] {
+	reject: [block] {
 		SelectEnumerator(self, { !block(it) })
-	}
+	},
 	
-	.inject: [base, block] {
+	inject: [base, block] {
 		carry: base
 		.each { carry: block(carry, it) }
 		carry
-	}
-}
-Array.instance_prototype.include(Enumerable)
-Map.instance_prototype.include(Enumerable)
-Fiber.instance_prototype.include(Enumerable)
+	},
+)
 
-MapEnumerator: class {
-	.include(Enumerable)
-	.initialize: [collection, function] {
-		.collection, .function: collection, function
-	}
-	.each: [block] {
-		.collection.each {
-			block(.function(it))
-		}
-	}
+Array << Enumerable
+Map << Enumerable 
+Fiber << Enumerable
+
+MapEnumerator: Class(Enumerable) << #(
+	initialize: [collection, function] {
+		$collection, $function: collection, function
+	},
 	
-	.to_array: {
+	each: [block] {
+		$collection.each {
+			block($function(it))
+		}
+	},
+	
+	to_array: {
 		array: @()
 		.each { array << it }
 		array
-	}
+	},
 	
-	.to_map: {
+	to_map: {
 		map: Map()
-		.collection.each {
-			map[it]: .function(it)
+		$collection.each {
+			map[it]: $function(it)
 		}
 		map
-	}
+	},
 	
-	.to_string: {
-		return .to_array().to_string() if .collection
+	to_string: {
+		return .to_array().to_string() if $collection
 		"[MapEnumerator prototype]"
-	}
-	.inspect: {
-		if .collection
+	},
+	
+	inspect: {
+		if $collection
 			return .to_array().inspect()
 		else
-			return .instance_eval(Object.instance_prototype.inspect)
+			return "[MapEnumerator]"
 		end
-	}
-}
+	},
+)
 
-SelectEnumerator: class {
-	.include(Enumerable)
-	.initialize: [collection, function] {
-		.collection, .function: collection, function
-	}
-	.each: [block] {
-		.collection.each {
-			block(it) if .function(it)
-		}
-	}
+SelectEnumerator: Class() << Enumerable << #(
+	initialize: [collection, function] {
+		$collection, $function: collection, function
+	},
 	
-	.to_array: {
+	each: [block] {
+		$collection.each {
+			block(it) if $function(it)
+		}
+	},
+	
+	to_array: {
 		array: @()
 		.each { array << it }
 		array
-	}
+	},
 	
-	.to_string: {
-		return .to_array().to_string() if .collection
+	to_string: {
+		return .to_array().to_string() if $collection
 		"[SelectEnumerator prototype]"
-	}
-	.inspect: {
-		if .collection
+	},
+	
+	inspect: {
+		if $collection
 			return .to_array().inspect()
 		else
-			return .instance_eval(Object.instance_prototype.inspect)
+			return "[SelectEnumerator]"
 		end
-	}
-}
+	},
+)

@@ -53,8 +53,12 @@ namespace snow {
 					this->free(node->assign.value);
 					break;
 				}
-				case SN_AST_MEMBER: {
-					this->free(node->member.object);
+				case SN_AST_METHOD: {
+					this->free(node->method.object);
+					break;
+				}
+				case SN_AST_INSTANCE_VARIABLE: {
+					this->free(node->instance_variable.object);
 					break;
 				}
 				case SN_AST_CALL: {
@@ -162,11 +166,18 @@ namespace snow {
 				print_r(n->assign.value, indent+2);
 				break;
 			}
-			case SN_AST_MEMBER: {
-				inprintf(indent, "MEMBER:\n");
-				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->member.name));
+			case SN_AST_METHOD: {
+				inprintf(indent, "METHOD:\n");
+				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->method.name));
 				inprintf(indent+1, "OBJECT:\n");
-				print_r(n->member.object, indent+2);
+				print_r(n->method.object, indent+2);
+				break;
+			}
+			case SN_AST_INSTANCE_VARIABLE: {
+				inprintf(indent, "INSTANCE VARIABLE:\n");
+				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->instance_variable.name));
+				inprintf(indent+1, "OBJECT:\n");
+				print_r(n->instance_variable.object, indent+2);
 				break;
 			}
 			case SN_AST_CALL: {

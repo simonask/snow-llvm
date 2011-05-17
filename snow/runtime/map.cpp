@@ -167,6 +167,7 @@ namespace {
 CAPI {
 	static SnMap* create_map_with_flags(uint32_t flags) {
 		SnMap* map = SN_GC_ALLOC_OBJECT(SnMap);
+		_snow_object_init(&map->base, snow_get_map_class());
 		SN_GC_SCOPED_WRLOCK(map);
 		memset(&map->flat, 0, sizeof(map->flat));
 		map->flags = MAP_FLAT | flags;
@@ -444,7 +445,7 @@ static VALUE map_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VA
 	if (snow_type_of(self) != SnMapType) return NULL;
 	SnMap* map = (SnMap*)self;
 	const size_t size = snow_map_size(map);
-	SnString* result = snow_create_string_constant("%(");
+	SnString* result = snow_create_string_constant("#(");
 	SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
 	snow_map_get_pairs(map, pairs, size);
 	for (size_t i = 0; i < size; ++i) {
@@ -467,17 +468,56 @@ static VALUE map_index_set(SnFunction* function, SnCallFrame* here, VALUE self, 
 	return snow_map_set((SnMap*)self, it, here->locals[1]);
 }
 
+static VALUE map_each_pair(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnMapType);
+	const SnMap* s = (const SnMap*)self;
+	size_t sz = snow_map_size(s);
+	SnKeyValuePair pairs[sz];
+	snow_map_get_pairs(s, pairs, sz);
+	for (size_t i = 0; i < sz; ++i) {
+		snow_call(it, NULL, 2, pairs[i]);
+	}
+	return SN_NIL;
+}
+
+static VALUE map_create(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	const SnArguments* args = here->arguments;
+	if (!args) return snow_create_map();
+	if ((args->size - args->num_extra_names) % 2) {
+		snow_throw_exception_with_description("Cannot create map with odd number (%lu) of arguments.", args->size - args->num_extra_names);
+	}
+	bool immediate_keys = true;
+	for (size_t i = args->num_extra_names; i < args->size; i += 2) {
+		if (snow_is_object(args->data[i])) {
+			immediate_keys = false;
+			break;
+		}
+	}
+	
+	SnMap* map = immediate_keys ? snow_create_map_with_immediate_keys() : snow_create_map();
+	
+	for (size_t i = 0; i < args->num_extra_names; ++i) {
+		snow_map_set(map, snow_symbol_to_value(args->extra_names[i]), args->data[i]);
+	}
+	
+	for (size_t i = args->num_extra_names; i < args->size; i += 2) {
+		snow_map_set(map, args->data[i], args->data[i+1]);
+	}
+	
+	return map;
+}
+
 CAPI SnClass* snow_get_map_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", map_inspect, 0),
-			SN_METHOD("to_string", map_inspect, 0),
-			SN_METHOD("get", map_index_get, 1),
-			SN_METHOD("set", map_index_set, 2),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Map"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("Map"), NULL);
+		cls->internal_type = SnMapType;
+		snow_class_define_method(cls, "inspect", map_inspect, 0);
+		snow_class_define_method(cls, "to_string", map_inspect, 0);
+		snow_class_define_method(cls, "get", map_index_get, 1);
+		snow_class_define_method(cls, "set", map_index_set, 2);
+		snow_class_define_method(cls, "each_pair", map_each_pair, 1);
+		snow_object_define_method(cls, "__call__", map_create, -1);
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

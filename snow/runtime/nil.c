@@ -16,12 +16,9 @@ static VALUE nil_to_string(SnFunction* function, SnCallFrame* context, VALUE sel
 SnClass* snow_get_nil_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", nil_inspect, 0),
-			SN_METHOD("to_string", nil_to_string, 0),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Nil"), NULL, 0, NULL, countof(methods), methods);
+		SnClass* cls = snow_create_class(snow_sym("Nil"), NULL);
+		snow_class_define_method(cls, "inspect", nil_inspect, 0);
+		snow_class_define_method(cls, "to_string", nil_to_string, 0);
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

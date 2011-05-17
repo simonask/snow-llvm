@@ -1,81 +1,43 @@
 #include "snow/class.h"
 #include "snow/function.h"
 #include "snow/str.h"
+#include "snow/exception.h"
 #include "internal.h"
 #include "linkheap.hpp"
 #include "util.hpp"
 
+#include <algorithm>
+
 namespace {
-	static snow::LinkHeap<SnMethod> method_allocator;
-	
-	SnClass* create_derived_class(SnSymbol name, SnClass* super) {
-		SnClass* cls = SN_GC_ALLOC_OBJECT(SnClass);
-		_snow_object_init(&cls->base, snow_get_class_class());
-		cls->name = name;
-		cls->internal_type = SnObjectType;
-		cls->super = super;
-		cls->fields = NULL;
-		cls->methods = NULL;
-		cls->extensions = NULL;
-		cls->num_fields = 0;
-		cls->num_methods = 0;
-		cls->num_extensions = 0;
-		if (super) {
-			cls->internal_type = super->internal_type;
-			
-			cls->fields = snow::alloc_range<SnField>(super->num_fields);
-			snow::copy_construct_range(cls->fields, super->fields, super->num_fields);
-			cls->num_fields = super->num_fields;
-			
-			// Create method references for all methods of super.
-			// This is to allow efficient lookup and inline caching, at the
-			// expense of extra memory usage.
-			cls->methods = snow::alloc_range<SnMethod*>(super->num_methods);
-			for (size_t i = 0; i < super->num_methods; ++i) {
-				// super->methods are already correctly sorted
-				cls->methods[i] = method_allocator.alloc();
-				cls->methods[i]->name = super->methods[i]->name;
-				cls->methods[i]->type = SnMethodTypeReference;
-				cls->methods[i]->reference = super->methods[i];
-			}
-			cls->num_methods = super->num_methods;
-			
-			// TODO: Consider extensions. Should they be optimized, or should
-			// they always mean a full method lookup?
+	struct MethodComparer {
+		bool operator()(const SnMethod& a, const SnMethod& b) {
+			return a.name < b.name;
 		}
-		
-		return cls;
-	}
-	
-	ssize_t compare_method_name(const SnMethod* a, const SnMethod* b) {
-		return a->name - b->name;
-	}
-	
-	void define_method(SnClass* cls, const SnMethod* method) {
-		SnMethod** end = cls->methods + cls->num_methods;
-		SnMethod** pmethod = snow::binary_search_lower_bound(cls->methods, end, method, compare_method_name);
-		if ((*pmethod)->name != method->name) {
-			// add the method
-			size_t position = pmethod - cls->methods;
-			SnMethod* new_method = method_allocator.alloc();
-			*new_method = *method;
-			cls->methods = snow::insert_in_range(cls->methods, end, pmethod, new_method);
-			++cls->num_methods;
-		} else {
-			// change the method
-			**pmethod = *method;
-		}
-	}
+	};
 }
 
 CAPI {
-	SnClass* snow_define_class(SnSymbol name, SnClass* super, size_t num_fields, const SnField* fields, size_t num_methods, const SnMethod* methods) {
-		SnClass* cls = create_derived_class(name, super);
-		for (size_t i = 0; i < num_fields; ++i) {
-			snow_class_define_field(cls, fields[i].name, fields[i].flags);
-		}
-		for (size_t i = 0; i < num_methods; ++i) {
-			define_method(cls, methods + i);
+	using namespace snow;
+	
+	SnClass* snow_create_class(SnSymbol name, SnClass* super) {
+		SnClass* cls = SN_GC_ALLOC_OBJECT(SnClass);
+		_snow_object_init(&cls->base, snow_get_class_class());
+		cls->name = name;
+		cls->super = super;
+		cls->is_meta = false;
+		if (!super) {
+			cls->internal_type = SnObjectType;
+			cls->fields = NULL;
+			cls->methods = NULL;
+			cls->num_fields = 0;
+			cls->num_methods = 0;
+		} else {
+			cls->internal_type = super->internal_type;
+			cls->fields = super->fields ? alloc_range<SnField>(super->num_fields) : NULL;
+			copy_construct_range(cls->fields, super->fields, super->num_fields);
+			cls->num_fields = super->num_fields;
+			cls->methods = NULL;
+			cls->num_methods = 0;
 		}
 		return cls;
 	}
@@ -83,51 +45,44 @@ CAPI {
 	void snow_finalize_class(SnClass* cls) {
 		free(cls->fields);
 		free(cls->methods);
-		free(cls->extensions);
 	}
 	
-	size_t snow_class_define_field(SnClass* cls, SnSymbol name, uint8_t flags) {
-		ssize_t i = snow_class_index_of_field(cls, name, flags);
-		if (i >= 0) return i;
-		
-		cls->fields = (SnField*)realloc(cls->fields, (cls->num_fields+1) * sizeof(SnField));
-		const size_t idx = cls->num_fields++;
-		cls->fields[idx].name = name;
-		cls->fields[idx].flags = flags;
-		return idx;
+	SnClass* snow_create_meta_class(SnClass* base) {
+		SnClass* meta = snow_create_class(base->name, base);
+		meta->is_meta = true;
+		return meta;
 	}
 	
-	ssize_t snow_class_index_of_field(const SnClass* cls, SnSymbol name, uint8_t flags) {
-		for (ssize_t i = 0; i < cls->num_fields; ++i) {
-			if (cls->fields[i].name == name && cls->fields[i].flags == flags)
-				return i;
+	bool _snow_class_define_method(SnClass* cls, SnSymbol name, VALUE func) {
+		SnMethod key = { name, SnMethodTypeFunction, .function = func };
+		SnMethod* insertion_point = std::lower_bound(cls->methods, cls->methods + cls->num_methods, key, MethodComparer());
+		if (insertion_point && insertion_point->name == name)
+			return false; // already defined
+		int32_t insertion_index = insertion_point - cls->methods;
+		cls->methods = realloc_range<SnMethod>(cls->methods, cls->num_methods, cls->num_methods+1);
+		cls->num_methods += 1;
+		for (int32_t i = cls->num_methods-1; i >= insertion_index; --i) {
+			cls->methods[i] = cls->methods[i-1];
 		}
-		return -1;
+		cls->methods[insertion_index] = key;
+		return true;
 	}
 	
-	void snow_class_define_method(SnClass* cls, SnSymbol name, VALUE function) {
-		SnMethod method = { name, SnMethodTypeFunction, .function = function };
-		define_method(cls, &method);
+	bool _snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter) {
+		return false; // XXX: TODO
 	}
 	
-	void snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter) {
-		SnMethod method = { name, SnMethodTypeProperty, .property = { getter, setter } };
-		define_method(cls, &method);
-	}
-	
-	const SnMethod* snow_find_method(SnClass* cls, SnSymbol name) {
-		SnClass* c = (SnClass*)cls;
-		SnClass* object_class = snow_get_object_class();
-		while (c) {
-			SnMethod key = { name, SnMethodTypeFunction /* irrelevant */, .function = NULL /* irrelevant */ };
-			SnMethod** end = cls->methods + cls->num_methods;
-			SnMethod** method = snow::binary_search(cls->methods, end, &key, compare_method_name);
-			if (method != end) {
-				// TODO: Consider creating method references.
-				return *method;
+	VALUE snow_class_get_method(const SnClass* cls, SnSymbol name) {
+		const SnClass* c = cls;
+		const SnClass* object_class = snow_get_object_class();
+		SnMethod key = { name, SnMethodTypeFunction, .function = NULL };
+		while (c != NULL) {
+			const SnMethod* begin = c->methods;
+			const SnMethod* end = c->methods + c->num_methods;
+			const SnMethod* x = std::lower_bound(begin, end, key, MethodComparer());
+			if (x != end && x->name == name) {
+				return x->function;
 			}
-			
-			// TODO: Class extensions
 			
 			if (c != object_class) {
 				c = c->super ? c->super : object_class;
@@ -135,20 +90,26 @@ CAPI {
 				c = NULL;
 			}
 		}
+		snow_throw_exception_with_description("Method '%s' not found on class %s@%p.\n", snow_sym_to_cstr(name), snow_sym_to_cstr(cls->name), cls);
 		return NULL;
 	}
 	
-	const SnMethod* snow_resolve_method_reference(const SnMethod* method) {
-		if (UNLIKELY(!method)) return NULL;
-		const SnMethod* m = method;
-		while (m->type == SnMethodTypeReference) {
-			m = m->reference;
+	int32_t snow_class_get_index_of_field(const SnClass* cls, SnSymbol name) {
+		for (int32_t i = 0; i < cls->num_fields; ++i) {
+			if (cls->fields[i].name == name) return i;
 		}
-		return m;
+		return -1;
 	}
 	
-	const SnMethod* snow_find_and_resolve_method(SnClass* cls, SnSymbol name) {
-		return snow_resolve_method_reference(snow_find_method(cls, name));
+	int32_t snow_class_get_or_define_index_of_field(SnClass* cls, SnSymbol name) {
+		int32_t idx = snow_class_get_index_of_field(cls, name);
+		if (idx < 0) {
+			cls->fields = realloc_range<SnField>(cls->fields, cls->num_fields, cls->num_fields+1);
+			idx = cls->num_fields++;
+			cls->fields[idx].name = name;
+			cls->fields[idx].flags = SnFieldNoFlags;
+		}
+		return idx;
 	}
 }
 
@@ -164,17 +125,38 @@ static VALUE class_call(SnFunction* function, SnCallFrame* here, VALUE self, VAL
 	return snow_create_object(cls);
 }
 
+static VALUE class_define_method(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	ASSERT(snow_type_of(self) == SnClassType);
+	ASSERT(snow_type_of(it) == SnSymbolType);
+	SnSymbol name = snow_value_to_symbol(it);
+	VALUE method = snow_arguments_get_by_index(here->arguments, 1);
+	SnClass* cls = (SnClass*)self;
+	if (!_snow_class_define_method(cls, name, method)) {
+		snow_throw_exception_with_description("Method '%s' is already defined for class %s@%p.", snow_sym_to_cstr(name), snow_sym_to_cstr(cls->name), cls);
+	}
+	return self;
+}
+
 CAPI SnClass* snow_get_class_class() {
 	static VALUE* root = NULL;
 	if (!root) {
-		SnMethod methods[] = {
-			SN_METHOD("inspect", class_inspect, 0),
-			SN_METHOD("to_string", class_inspect, 0),
-			SN_METHOD("__call__", class_call, -1),
-		};
-		
-		SnClass* cls = snow_define_class(snow_sym("Class"), NULL, 0, NULL, countof(methods), methods);
+		// We cannot use snow_define_class, since that would cause an infinite loop, so do it manually.
+		SnClass* cls = SN_GC_ALLOC_OBJECT(SnClass);
+		cls->is_meta = false;
 		cls->internal_type = SnClassType;
+		cls->name = snow_sym("Class");
+		cls->super = NULL;
+		cls->fields = NULL;
+		cls->methods = NULL;
+		cls->num_fields = 0;
+		cls->num_methods = 0;
+		_snow_object_init(&cls->base, cls);
+		
+		snow_class_define_method(cls, "inspect", class_inspect, 0);
+		snow_class_define_method(cls, "to_string", class_inspect, 0);
+		snow_class_define_method(cls, "__call__", class_call, -1);
+		snow_class_define_method(cls, "define_method", class_define_method, 2);
+		
 		root = snow_gc_create_root(cls);
 	}
 	return (SnClass*)*root;

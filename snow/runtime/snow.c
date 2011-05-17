@@ -97,6 +97,11 @@ SnClass* snow_get_class(VALUE value) {
 	return class_for_internal_type(snow_type_of(value));
 }
 
+VALUE snow_get_method(VALUE val, SnSymbol name) {
+	SnClass* cls = snow_get_class(val);
+	return snow_class_get_method(cls, name);
+}
+
 VALUE snow_call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
 	SnFunction* function = snow_value_to_function(functor, &self);
 	SnCallFrame* context = snow_create_call_frame(function, 0, NULL, num_args, args);
@@ -104,10 +109,12 @@ VALUE snow_call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
 }
 
 VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, const VALUE* args) {
-	SnFunction* method = snow_get_method(self, method_name, &self);
-	if (!method) return NULL;
-	ASSERT(snow_type_of(method) == SnFunctionType);
-	return snow_call(method, self, num_args, args);
+	SnClass* cls = snow_get_class(self);
+	VALUE func = snow_class_get_method(cls, method_name);
+	if (func) {
+		return snow_call(func, self, num_args, args);
+	}
+	return NULL;
 }
 
 struct named_arg { SnSymbol name; VALUE value; };
@@ -135,75 +142,13 @@ VALUE snow_call_with_named_arguments(VALUE functor, VALUE self, size_t num_names
 	return snow_function_call(function, context, self, it);
 }
 
-VALUE snow_call_method_with_named_arguments(VALUE self, SnSymbol method_name, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args) {
-	SnFunction* method = snow_get_method(self, method_name, &self);
-	return snow_call_with_named_arguments(method, self, num_names, names, num_args, args);
-}
-
-SnFunction* snow_get_method(VALUE object, SnSymbol member, VALUE* new_self) {
-	SnClass* cls = snow_get_class(object);
-	const SnMethod* method = snow_find_and_resolve_method(cls, member);
-	if (!method) {
-		snow_throw_exception_with_description("Object %p does not respond to method '%s'.", object, snow_sym_to_cstr(member));
-		return NULL;
-	}
-	
-	VALUE f;
-	if (method->type == SnMethodTypeProperty) {
-		if (!method->property.getter) {
-			snow_throw_exception_with_description("Property '%s' is read-only on object %p.", snow_sym_to_cstr(member), object);
-			return NULL;
-		}
-		f = snow_call(method->property.getter, object, 0, NULL);
-	} else {
-		f = method->function;
-	}
-	
-	*new_self = object;
-	return snow_value_to_function(f, new_self);
-}
-
-VALUE snow_get_member(VALUE self, SnSymbol member) {
-	if (snow_is_object(self)) {
-		SnObject* object = (SnObject*)self;
-		SnClass* cls = snow_get_class(self);
-		ssize_t idx = snow_class_index_of_field(cls, member, SnFieldNoFlags);
-		if (idx < 0) return NULL;
-		if (idx >= object->num_members) return NULL;
-		return object->members[idx];
-	}
-	return NULL;
-}
-
-VALUE snow_set_member(VALUE self, SnSymbol member, VALUE val) {
-	if (snow_is_object(self)) {
-		SnObject* object = (SnObject*)self;
-		SnClass* cls = snow_get_class(self);
-		size_t idx = snow_class_define_field(cls, member, SnFieldNoFlags);
-		ASSERT(idx < cls->num_fields);
-		if (object->num_members < idx+1) {
-			size_t old_size = object->num_members;
-			object->members = realloc(object->members, sizeof(VALUE) * cls->num_fields);
-			for (size_t i = old_size; i < cls->num_fields; ++i) {
-				object->members[i] = NULL;
-			}
-			object->num_members = cls->num_fields;
-		}
-		object->members[idx] = val;
-		return val;
-	}
-	
-	snow_throw_exception_with_description("Immediate of type %d cannot have member variables.", snow_type_of(val));
-	return NULL;
-}
-
 VALUE snow_value_freeze(VALUE it) {
 	// TODO!!
 	return it;
 }
 
 VALUE snow_get_module_value(SnObject* module, SnSymbol member) {
-	VALUE v = snow_get_member(module, member);
+	VALUE v = snow_object_get_field(module, member);
 	if (v) return v;
 	snow_throw_exception_with_description("Variable '%s' not found in module '%s'.", snow_sym_to_cstr(member), snow_value_inspect_cstr(module));
 	return NULL;

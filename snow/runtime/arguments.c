@@ -1,12 +1,14 @@
 #include "snow/arguments.h"
 #include "internal.h"
-#include "snow/gc.h"
-#include "snow/object.h"
-#include "snow/function.h"
-#include "snow/str.h"
-#include "snow/snow.h"
 #include "snow/array.h"
+#include "snow/class.h"
+#include "snow/function.h"
+#include "snow/gc.h"
 #include "snow/map.h"
+#include "snow/object.h"
+#include "snow/snow.h"
+#include "snow/str.h"
+
 
 SnArguments* snow_create_arguments(size_t num_names, size_t size) {
 	SnArguments* args = SN_GC_ALLOC_OBJECT(SnArguments);
@@ -205,10 +207,15 @@ static VALUE arguments_splat(SnFunction* function, SnCallFrame* here, VALUE self
 	return self;
 }
 
-SnObject* snow_create_arguments_prototype() {
-	SnObject* proto = snow_create_object(NULL);
-	SN_DEFINE_METHOD(proto, "*", arguments_splat, 0);
-	SN_DEFINE_METHOD(proto, "inspect", arguments_inspect, 0);
-	SN_DEFINE_METHOD(proto, "to_string", arguments_inspect, 0);
-	return proto;
+SnClass* snow_get_arguments_class() {
+	static VALUE* root = NULL;
+	if (!root) {
+		SnClass* cls = snow_create_class(snow_sym("Arguments"), NULL);
+		cls->internal_type = SnArgumentsType;
+		snow_class_define_method(cls, "*", arguments_splat, 0);
+		snow_class_define_method(cls, "inspect", arguments_inspect, 0);
+		snow_class_define_method(cls, "to_string", arguments_inspect, 0);
+		root = snow_gc_create_root(cls);
+	}
+	return (SnClass*)*root;
 }
