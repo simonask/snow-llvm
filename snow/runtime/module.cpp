@@ -193,21 +193,23 @@ namespace {
 
 CAPI {
 	SnArray* snow_get_load_paths() {
-		static SnArray* load_paths = NULL; // TODO: GC
-		if (!load_paths) {
-			load_paths = snow_create_array_with_size(10);
+		static VALUE* root = NULL;
+		if (!root) {
+			SnArray* load_paths = snow_create_array_with_size(10);
 			snow_array_push(load_paths, snow_create_string_constant("./"));
+			root = snow_gc_create_root(load_paths);
 		}
-		return load_paths;
+		return (SnArray*)*root;
 	}
 	
 	SnObject* snow_get_global_module() {
-		static SnObject* global_module = NULL; // TODO: GC
-		if (!global_module) {
-			global_module = snow_create_object(NULL);
+		static VALUE* root = NULL;
+		if (!root) {
+			SnObject* global_module = snow_create_object(NULL);
 			snow_object_give_meta_class(global_module);
+			root = snow_gc_create_root(global_module);
 		}
-		return global_module;
+		return (SnObject*)*root;
 	}
 	
 	SnObject* snow_import(const char* file) {
