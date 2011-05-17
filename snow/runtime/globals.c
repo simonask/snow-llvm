@@ -51,6 +51,12 @@ static VALUE global_import(SnFunction* function, SnCallFrame* here, VALUE self, 
 	return snow_import(snow_string_cstr(file));
 }
 
+static VALUE global_import_global(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	SnString* file = snow_value_to_string(it);
+	snow_load_in_global_module(snow_string_cstr(file));
+	return SN_TRUE;
+}
+
 static VALUE global_load(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	SnString* file = snow_value_to_string(it);
 	return snow_load(snow_string_cstr(file));
@@ -112,6 +118,7 @@ void snow_init_globals() {
 	
 	SN_DEFINE_GLOBAL("puts", global_puts, -1);
 	SN_DEFINE_GLOBAL("import", global_import, 1);
+	SN_DEFINE_GLOBAL("import_global", global_import_global, 1);
 	SN_DEFINE_GLOBAL("load", global_load, 1);
 	SN_DEFINE_GLOBAL("__resolve_symbol__", global_resolve_symbol, 1);
 	SN_DEFINE_GLOBAL("__print_call_stack__", global_print_call_stack, 0);
