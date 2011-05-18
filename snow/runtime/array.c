@@ -225,6 +225,11 @@ static VALUE array_create(SnFunction* function, SnCallFrame* here, VALUE self, V
 	return snow_create_array();
 }
 
+static VALUE array_get_size(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	if (snow_type_of(self) != SnArrayType) return NULL;
+	return snow_integer_to_value(((SnArray*)self)->size);
+}
+
 SnClass* snow_get_array_class() {
 	static VALUE* root = NULL;
 	if (!root) {
@@ -238,6 +243,7 @@ SnClass* snow_get_array_class() {
 		snow_class_define_method(cls, "each", array_each, 1);
 		snow_class_define_method(cls, "push", array_push, 1);
 		snow_class_define_method(cls, "<<", array_push, 1);
+		snow_class_define_property(cls, "size", array_get_size, NULL);
 		snow_object_define_method(cls, "__call__", array_create, -1);
 		root = snow_gc_create_root(cls);
 	}

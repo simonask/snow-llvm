@@ -53,13 +53,13 @@ CAPI {
 		return meta;
 	}
 	
-	bool _snow_class_define_method(SnClass* cls, SnSymbol name, VALUE func) {
-		SnMethod key = { name, SnMethodTypeFunction, .function = func };
-		SnMethod* insertion_point = std::lower_bound(cls->methods, cls->methods + cls->num_methods, key, MethodComparer());
-		if (insertion_point && insertion_point->name == name)
-			return false; // already defined
-		int32_t insertion_index = insertion_point - cls->methods;
-		cls->methods = realloc_range<SnMethod>(cls->methods, cls->num_methods, cls->num_methods+1);
+	static bool class_define_method(SnClass* cls, const SnMethod& key) {
+		SnMethod* begin = cls->methods;
+		SnMethod* end = cls->methods + cls->num_methods;
+		SnMethod* insertion_point = std::lower_bound(begin, end, key, MethodComparer());
+		if (insertion_point != end && insertion_point->name == key.name) return false;
+		int32_t insertion_index = insertion_point - begin;
+		cls->methods = realloc_range<SnMethod>(begin, cls->num_methods, cls->num_methods+1);
 		cls->num_methods += 1;
 		for (int32_t i = cls->num_methods-1; i >= insertion_index; --i) {
 			cls->methods[i] = cls->methods[i-1];
@@ -68,20 +68,27 @@ CAPI {
 		return true;
 	}
 	
-	bool _snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter) {
-		return false; // XXX: TODO
+	bool _snow_class_define_method(SnClass* cls, SnSymbol name, VALUE func) {
+		SnMethod key = { name, SnMethodTypeFunction, .function = func };
+		return class_define_method(cls, key);
 	}
 	
-	VALUE snow_class_get_method(const SnClass* cls, SnSymbol name) {
+	bool _snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter) {
+		SnMethod key = { name, SnMethodTypeProperty, .property = {.getter = getter, .setter = setter} };
+		return class_define_method(cls, key);
+	}
+	
+	bool snow_class_lookup_method_or_property(const SnClass* cls, SnSymbol name, SnMethod* out_method_or_property) {
 		const SnClass* c = cls;
 		const SnClass* object_class = snow_get_object_class();
-		SnMethod key = { name, SnMethodTypeFunction, .function = NULL };
+		SnMethod key = { name, SnNoMethodType, .function = NULL };
 		while (c != NULL) {
 			const SnMethod* begin = c->methods;
 			const SnMethod* end = c->methods + c->num_methods;
 			const SnMethod* x = std::lower_bound(begin, end, key, MethodComparer());
 			if (x != end && x->name == name) {
-				return x->function;
+				memcpy(out_method_or_property, x, sizeof(SnMethod));
+				return true;
 			}
 			
 			if (c != object_class) {
@@ -90,8 +97,13 @@ CAPI {
 				c = NULL;
 			}
 		}
-		snow_throw_exception_with_description("Method '%s' not found on class %s@%p.\n", snow_sym_to_cstr(name), snow_sym_to_cstr(cls->name), cls);
-		return NULL;
+		return false;
+	}
+	
+	void snow_class_get_method_or_property(const SnClass* cls, SnSymbol name, SnMethod* out_method_or_property) {
+		if (!snow_class_lookup_method_or_property(cls, name, out_method_or_property)) {
+			snow_throw_exception_with_description("Method or property '%s' not found on class %s@%p.\n", snow_sym_to_cstr(name), snow_sym_to_cstr(cls->name), cls);
+		}
 	}
 	
 	int32_t snow_class_get_index_of_field(const SnClass* cls, SnSymbol name) {

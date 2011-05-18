@@ -26,6 +26,7 @@ CAPI VALUE snow_object_set_field_by_index(SnObject* obj, int32_t idx, VALUE val)
 CAPI void snow_object_give_meta_class(SnObject* obj);
 CAPI VALUE _snow_object_define_method(VALUE obj, SnSymbol name, VALUE func);
 #define snow_object_define_method(OBJ, NAME, FUNC, NUM_ARGS) _snow_object_define_method(OBJ, snow_sym(NAME), snow_create_method(FUNC, snow_sym(#FUNC), NUM_ARGS))
+CAPI VALUE snow_object_set_property_or_define_method(VALUE self, SnSymbol name, VALUE val);
 
 INLINE SnType snow_type_of(const void* val) {
 	if (!val) return SnNilType;

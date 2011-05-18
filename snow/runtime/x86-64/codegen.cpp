@@ -118,7 +118,7 @@ namespace snow {
 		bool compile_call(const SnAstNode* call);
 		void compile_call(const Operand& functor, const Operand& self, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
 		void compile_method_call(const Operand& self, SnSymbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
-		void compile_get_method_inline_cache(const Operand& self, SnSymbol name, const Register& target);
+		void compile_get_method_or_property_inline_cache(const Operand& self, SnSymbol name, const Register& out_type, const Register& out_method_or_property);
 		void compile_get_index_of_field_inline_cache(const Operand& self, SnSymbol name, const Register& target);
 		Operand compile_get_address_for_local(const Register& reg, SnSymbol name, bool can_define = false);
 		Function* compile_function(const SnAstNode* function);
@@ -247,29 +247,41 @@ namespace snow {
 			}
 			case SN_AST_METHOD: {
 				if (!compile_ast_node(node->method.object)) return false;
-				compile_get_method_inline_cache(RAX, node->method.name, RAX);
+				Temporary self(*this);
+				movq(RAX, self);
+				compile_get_method_or_property_inline_cache(RAX, node->method.name, RAX, RDI);
+				Label* get_method = label();
+				Label* after = label();
+				
+				cmpb(SnMethodTypeFunction, RAX);
+				j(CC_EQUAL, get_method);
+				
+				{
+					// get property
+					xorq(RCX, RCX);
+					compile_call(RDI, self, 0, RCX);
+					jmp(after);
+				}
+				
+				{
+					// get method proxy wrapper
+					bind_label(get_method);
+					movq(RDI, RSI);
+					movq(self, RDI);
+					CALL(snow_create_method_proxy);
+					// jmp(after);
+				}
+				
+				bind_label(after);
 				return true;
 			}
 			case SN_AST_INSTANCE_VARIABLE: {
 				if (!compile_ast_node(node->method.object)) return false;
-				movq(RAX, RBX);
-				compile_get_index_of_field_inline_cache(RBX, node->instance_variable.name, RAX);
-				
-				Label* ivar_not_found = label();
-				Label* after = label();
-				cmpq(0, RAX);
-				j(CC_LESS, ivar_not_found);
-				movq(address(RBX, offsetof(SnObject, num_members)), RDI);
-				cmpq(RAX, RDI);
-				j(CC_GREATER_EQUAL, ivar_not_found);
-				movq(address(RBX, offsetof(SnObject, members)), RDI);
-				movq(sib(SIB_SCALE_8, RAX, RDI), RAX);
-				jmp(after);
-				
-				bind_label(ivar_not_found);
-				movq((uint64_t)NULL, RAX);
-				
-				bind_label(after);
+				Temporary self(*this);
+				movq(RAX, self);
+				compile_get_index_of_field_inline_cache(RAX, node->instance_variable.name, RSI);
+				movq(self, RDI);
+				CALL(snow_object_get_field_by_index);
 				return true;
 			}
 			case SN_AST_CALL: {
@@ -507,7 +519,7 @@ namespace snow {
 					if (i <= num_values)
 						movq(values[i], RDX);
 					else
-						movq((uint64_t)SN_NIL, RDX);
+						xorq(RDX, RDX);
 					CALL(snow_object_set_field_by_index);
 					break;
 				}
@@ -517,6 +529,16 @@ namespace snow {
 					movq(values[i], RAX);
 					movq(RAX, local_addr);
 					break;
+				}
+				case SN_AST_METHOD: {
+					if (!compile_ast_node(target->method.object)) return false;
+					movq(RAX, RDI);
+					movq(target->method.name, RSI);
+					if (i <= num_values)
+						movq(values[i], RDX);
+					else
+						xorq(RDX, RDX);
+					CALL(snow_object_set_property_or_define_method);
 				}
 				default:
 					fprintf(stderr, "CODEGEN: Invalid target for assignment! (type=%d)", target->type);
@@ -668,13 +690,17 @@ namespace snow {
 		movq(functor, RDI);
 		movq(self, RSI);
 		if (num_names) {
+			ASSERT(num_args >= num_names);
 			movq(num_names, RDX);
 			movq(names_ptr, RCX);
 			movq(num_args, R8);
 			movq(args_ptr, R9);
 			CALL(snow_call_with_named_arguments);
 		} else {
-			movq(num_args, RDX);
+			if (num_args)
+				movq(num_args, RDX);
+			else
+				xorq(RDX, RDX);
 			movq(args_ptr, RCX);
 			CALL(snow_call);
 		}
@@ -685,11 +711,33 @@ namespace snow {
 		if (num_names) ASSERT(names_ptr.is_memory());
 		Temporary self(*this);
 		movq(in_self, self);
-		compile_get_method_inline_cache(in_self, method_name, RDI);
-		compile_call(RDI, self, num_args, args_ptr, num_names, names_ptr);
+		
+		Label* property_call = label();
+		Label* after = label();
+		
+		compile_get_method_or_property_inline_cache(in_self, method_name, RSI, RDI);
+		cmpl(SnMethodTypeFunction, RSI);
+		j(CC_NOT_EQUAL, property_call);
+		
+		{
+			// Method call
+			compile_call(RDI, self, num_args, args_ptr, num_names, names_ptr);
+			jmp(after);
+		}
+		
+		{
+			// Property call
+			bind_label(property_call);
+			xorq(RCX, RCX);
+			compile_call(RDI, self, 0, RCX);
+			compile_call(RAX, self, num_args, args_ptr, num_names, names_ptr);
+			// jmp(after);
+		}
+		
+		bind_label(after);
 	}
 	
-	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, SnSymbol name, const Register& target) {
+	void Codegen::Function::compile_get_method_or_property_inline_cache(const Operand& object, SnSymbol name, const Register& out_type, const Register& out_method_or_property_getter) {
 		Label* uninitialized = label();
 		Label* monomorphic = label();
 		Label* miss = label();
@@ -700,43 +748,54 @@ namespace snow {
 		// Data labels
 		Label* state_jmp_data = label();
 		Label* monomorphic_class_data = label();
+		Label* monomorphic_method_type_data = label();
 		Label* monomorphic_method_data = label();
 		
 		movq(object, RDI);
 		CALL(snow_get_class);
 		bind_label_at(state_jmp_data, jmp(uninitialized));
 		
-		bind_label(uninitialized);
-		movq(RAX, RBX);
-		movq(RAX, RDI);
-		movq(name, RSI);
-		CALL(snow_class_get_method);
-		// cache result only if non-NULL
-		movq(RAX, target);
-		cmpq(0, target);
-		j(CC_EQUAL, after);
-		// change state to monomorphic
-		movl_label_to_jmp(monomorphic, state_jmp_data); // XXX: Modifying code
-		// set monomorphic info
-		movq(RBX, Operand(monomorphic_class_data)); // XXX: Modifying code
-		movq(RAX, Operand(monomorphic_method_data)); // XXX: Modifying code
-		jmp(after);
+		{
+			bind_label(uninitialized);
+			Alloca _1(*this, RBX, sizeof(SnClass*) + sizeof(SnMethod), 1);
+			movq(RAX, address(RBX));
+			movq(RAX, RDI);
+			movq(name, RSI);
+			leaq(address(RBX, sizeof(SnClass*)), RDX);
+			CALL(snow_class_get_method_or_property);
+			movl_label_to_jmp(monomorphic, state_jmp_data);
+			movq(address(RBX), RAX);
+			movq(RAX, Operand(monomorphic_class_data));
+			movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, type)), out_type);
+			movq(out_type, Operand(monomorphic_method_type_data));
+			movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, function)), out_method_or_property_getter);
+			movq(out_method_or_property_getter, Operand(monomorphic_method_data));
+			jmp(after);
+		}
 		
-		bind_label(monomorphic);
-		// compare incoming class (in RAX from call to snow_get_class) with cached value
-		bind_label_at(monomorphic_class_data, movq(0, RDI));
-		cmpq(RDI, RAX); // cmpq does not support 8-byte immediates
-		gc_root_offsets.push_back(monomorphic_class_data->offset);
-		j(CC_NOT_EQUAL, miss);
-		bind_label_at(monomorphic_method_data, movq(0, target));
-		gc_root_offsets.push_back(monomorphic_method_data->offset);
-		jmp(after);
+		{
+			bind_label(monomorphic);
+			// compare incoming class (in RAX from call to snow_get_class) with cached value
+			bind_label_at(monomorphic_class_data, movq(0, RDI));
+			cmpq(RDI, RAX); // cmpq does not support 8-byte immediates
+			gc_root_offsets.push_back(monomorphic_class_data->offset);
+			j(CC_NOT_EQUAL, miss);
+			bind_label_at(monomorphic_method_type_data, movq(0, out_type));
+			bind_label_at(monomorphic_method_data, movq(0, out_method_or_property_getter));
+			gc_root_offsets.push_back(monomorphic_method_data->offset);
+			jmp(after);
+		}
 		
-		bind_label(miss);
-		movq(RAX, RDI); // incoming class
-		movq(name, RSI);
-		CALL(snow_class_get_method);
-		movq(RAX, target);
+		{
+			bind_label(miss);
+			Alloca _1(*this, RBX, sizeof(SnMethod), 1);
+			movq(RBX, RDX);
+			movq(RAX, RDI);
+			movq(name, RSI);
+			CALL(snow_class_get_method_or_property);
+			movq(address(RBX, offsetof(SnMethod, type)), out_type);
+			movq(address(RBX, offsetof(SnMethod, function)), out_method_or_property_getter);
+		}
 		
 		bind_label(after);
 	}
@@ -753,8 +812,7 @@ namespace snow {
 		Label* monomorphic_class_data = label();
 		Label* monomorphic_iv_offset_data = label();
 		
-		movq(object, RBX);
-		movq(RBX, RDI);
+		movq(object, RDI);
 		CALL(snow_get_class);
 		bind_label_at(state_jmp_data, jmp(uninitialized));
 		

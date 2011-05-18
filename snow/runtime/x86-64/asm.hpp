@@ -63,6 +63,7 @@ namespace snow {
 		
 		bool operator==(const Register& other) const { return reg == other.reg && ext == other.ext; }
 		bool operator!=(const Register& other) const { return !(*this == other); }
+		bool is_valid() const { return reg != 0xff; }
 	};
 	
 	struct Label {

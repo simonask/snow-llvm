@@ -57,7 +57,8 @@ CAPI size_t _snow_class_define_field(SnClass* cls, SnSymbol name, SnFieldFlags f
 CAPI SnClass* snow_get_class_class();
 
 INLINE size_t snow_class_get_num_fields(const SnClass* cls) { return cls->num_fields; }
-CAPI VALUE snow_class_get_method(const SnClass* cls, SnSymbol name);
+CAPI bool snow_class_lookup_method_or_property(const SnClass* cls, SnSymbol name, SnMethod* out_method_or_property);
+CAPI void snow_class_get_method_or_property(const SnClass* cls, SnSymbol name, SnMethod* out_method_or_property);
 CAPI int32_t snow_class_get_index_of_field(const SnClass* cls, SnSymbol name);
 CAPI int32_t snow_class_get_or_define_index_of_field(SnClass* cls, SnSymbol name);
 

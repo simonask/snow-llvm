@@ -29,6 +29,7 @@ CAPI VALUE snow_local_missing(struct SnCallFrame* frame, SnSymbol name);
 
 CAPI struct SnClass* snow_get_class(VALUE value);
 CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, const VALUE* args);
+CAPI VALUE snow_call_with_arguments(VALUE function, VALUE self, struct SnArguments* args);
 CAPI VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, const VALUE* args);
 CAPI VALUE snow_call_with_named_arguments(VALUE function, VALUE self, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);
 CAPI VALUE snow_call_method_with_named_arguments(VALUE self, SnSymbol method_name, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args);

@@ -55,6 +55,7 @@ typedef struct SnFunction {
 
 CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallFrame* definition_context);
 CAPI SnCallFrame* snow_create_call_frame(SnFunction* callee, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
+CAPI SnCallFrame* snow_create_call_frame_with_arguments(SnFunction* callee, SnArguments* args);
 CAPI void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE mergee);
 CAPI SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self);
 CAPI struct SnClass* snow_get_function_class();
@@ -64,6 +65,7 @@ CAPI VALUE snow_function_call(SnFunction* function, SnCallFrame* context, VALUE 
 
 // Convenience for C bindings
 CAPI SnFunction* snow_create_method(SnFunctionPtr function, SnSymbol name, int num_args);
+CAPI SnObject* snow_create_method_proxy(VALUE self, VALUE method);
 
 #define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_set_member(PROTO, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
 

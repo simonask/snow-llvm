@@ -97,20 +97,28 @@ SnClass* snow_get_class(VALUE value) {
 	return class_for_internal_type(snow_type_of(value));
 }
 
-VALUE snow_get_method(VALUE val, SnSymbol name) {
-	SnClass* cls = snow_get_class(val);
-	return snow_class_get_method(cls, name);
-}
-
 VALUE snow_call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
 	SnFunction* function = snow_value_to_function(functor, &self);
 	SnCallFrame* context = snow_create_call_frame(function, 0, NULL, num_args, args);
 	return snow_function_call(function, context, self, num_args ? args[0] : NULL);
 }
 
+VALUE snow_call_with_arguments(VALUE functor, VALUE self, SnArguments* args) {
+	SnFunction* function = snow_value_to_function(functor, &self);
+	SnCallFrame* context = snow_create_call_frame_with_arguments(function, args);
+	return snow_function_call(function, context, self, args ? (args->size ? args->data[0] : NULL) : NULL);
+}
+
 VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, const VALUE* args) {
 	SnClass* cls = snow_get_class(self);
-	VALUE func = snow_class_get_method(cls, method_name);
+	SnMethod method;
+	snow_class_get_method_or_property(cls, method_name, &method);
+	VALUE func = NULL;
+	if (method.type == SnMethodTypeFunction) {
+		func = method.function;
+	} else if (method.type == SnMethodTypeProperty) {
+		func = snow_call(method.property.getter, self, 0, NULL);
+	}
 	if (func) {
 		return snow_call(func, self, num_args, args);
 	}

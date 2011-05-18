@@ -75,6 +75,27 @@ VALUE _snow_object_define_method(VALUE obj, SnSymbol name, VALUE func) {
 	return func;
 }
 
+VALUE snow_object_set_property_or_define_method(VALUE obj, SnSymbol name, VALUE func) {
+	SnMethod method_or_property;
+	SnClass* cls = snow_get_class(obj);
+	if (snow_class_lookup_method_or_property(cls, name, &method_or_property)) {
+		if (method_or_property.type == SnMethodTypeProperty) {
+			if (method_or_property.property.setter) {
+				return snow_call(method_or_property.property.setter, obj, 1, &func);
+			}
+			snow_throw_exception_with_description("Property '%s' is not writable on objects of class %s.", snow_sym_to_cstr(cls->name));
+		}
+	}
+	
+	if (snow_is_object(obj)) {
+		_snow_object_define_method(obj, name, func);
+		return func;
+	}
+	
+	snow_throw_exception_with_description("Cannot define object methods on immediates of type %s.", snow_sym_to_cstr(cls->name));
+	return NULL;
+}
+
 static VALUE object_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
 	char buffer[100];
 	snprintf(buffer, 100, "[%s@%p]", snow_sym_to_cstr(snow_get_class(self)->name), self);

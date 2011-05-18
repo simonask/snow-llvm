@@ -45,22 +45,29 @@ SnCallFrame* snow_create_call_frame(SnFunction* callee, size_t num_names, const 
 	
 	SnArguments* arguments = snow_create_arguments_for_function_call(descriptor, num_names, names, num_args, args);
 	
+	return snow_create_call_frame_with_arguments(callee, arguments);
+}
+
+SnCallFrame* snow_create_call_frame_with_arguments(SnFunction* callee, SnArguments* args) {
+	if (!callee->descriptor->needs_context) return callee->definition_context;
+	
 	SnCallFrame* context = SN_GC_ALLOC_OBJECT(SnCallFrame);
+	_snow_object_init(&context->base, snow_get_call_frame_class());
 	SN_GC_WRLOCK(context);
 	context->function = callee;
 	context->caller = NULL;
 	context->self = NULL; // set in snow_function_call
 	context->module = callee->definition_context ? callee->definition_context->module : NULL;
-	context->arguments = arguments;
+	context->arguments = args;
 	
 	// arguments are also the first locals
+	const SnFunctionDescriptor* descriptor = callee->descriptor;
 	const size_t num_locals = descriptor->num_locals;
 	context->locals = num_locals ? (VALUE*)malloc(sizeof(VALUE)*num_locals) : NULL;
 	memset(context->locals, 0, sizeof(VALUE)*num_locals);
 	size_t num_set_arguments = context->arguments->size > descriptor->num_params ? descriptor->num_params : context->arguments->size;
 	memcpy(context->locals, context->arguments->data, sizeof(VALUE)*num_set_arguments);
 	SN_GC_UNLOCK(context);
-	
 	return context;
 }
 
@@ -101,7 +108,17 @@ SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self) {
 	VALUE functor = val;
 	while (functor && snow_type_of(functor) != SnFunctionType) {
 		*in_out_new_self = functor;
-		functor = snow_get_method(functor, snow_sym("__call__"));
+		SnClass* cls = snow_get_class(functor);
+		SnMethod method;
+		if (snow_class_lookup_method_or_property(cls, snow_sym("__call__"), &method)) {
+			if (method.type == SnMethodTypeFunction) {
+				functor = method.function;
+			} else {
+				functor = snow_call(method.property.getter, functor, 0, NULL);
+			}
+		} else {
+			functor = NULL;
+		}
 	}
 	
 	if (!functor) {
@@ -154,6 +171,22 @@ SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int num_args) {
 	}
 	
 	return snow_create_function(descriptor, NULL);
+}
+
+static VALUE method_proxy_call(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	ASSERT(snow_is_object(self));
+	SnObject* s = (SnObject*)self;
+	VALUE obj = snow_object_get_field(s, snow_sym("object"));
+	VALUE method = snow_object_get_field(s, snow_sym("method"));
+	return snow_call_with_arguments(method, obj, here->arguments);
+}
+
+SnObject* snow_create_method_proxy(VALUE self, VALUE method) {
+	SnObject* obj = snow_create_object(NULL);
+	snow_object_define_method(obj, "__call__", method_proxy_call, -1);
+	snow_object_set_field(obj, snow_sym("object"), self);
+	snow_object_set_field(obj, snow_sym("method"), method);
+	return obj;
 }
 
 
