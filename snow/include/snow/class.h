@@ -22,9 +22,9 @@ typedef struct SnProperty {
 } SnProperty;
 
 typedef enum SnMethodType {
+	SnNoMethodType,
 	SnMethodTypeFunction,
 	SnMethodTypeProperty,
-	SnMethodTypeReference, // inherited method
 } SnMethodType;
 
 typedef struct SnMethod {
