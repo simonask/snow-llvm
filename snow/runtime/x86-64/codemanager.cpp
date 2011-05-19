@@ -23,7 +23,11 @@ namespace snow {
 	public:
 		CodeModule* compile_ast(const SnAST* ast, const char* source, const char* module_name)
 		{
-			Codegen codegen;
+			CodegenSettings settings = {
+				.use_inline_cache = true,
+			};
+			
+			Codegen codegen(settings);
 			if (codegen.compile_ast(ast)) {
 				CodeModule* mod = new CodeModule(module_name);
 				mod->code_size = codegen.compiled_size();

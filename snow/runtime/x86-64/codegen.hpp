@@ -7,8 +7,13 @@
 #include <vector>
 
 namespace snow {
+	struct CodegenSettings {
+		bool use_inline_cache;
+	};
+	
 	class Codegen {
 	public:
+		Codegen(const CodegenSettings& settings) : _settings(settings) {}
 		bool compile_ast(const SnAST* ast);
 		size_t compiled_size() const;
 		size_t materialize_at(byte* destination);
@@ -17,6 +22,8 @@ namespace snow {
 		class Function;
 		std::vector<SnSymbol> module_globals;
 	private:
+		const CodegenSettings& _settings;
+		
 		friend class Function;
 		Function* _entry;
 		std::vector<Function*> _functions;

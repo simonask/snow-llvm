@@ -75,6 +75,7 @@ namespace snow {
 		
 		Function(Codegen& codegen) :
 			codegen(codegen),
+			settings(codegen._settings),
 			materialized_descriptor_offset(0),
 			materialized_code_offset(0),
 			parent(NULL),
@@ -85,6 +86,7 @@ namespace snow {
 		{}
 
 		Codegen& codegen;
+		const CodegenSettings& settings;
 		size_t materialized_descriptor_offset;
 		size_t materialized_code_offset;
 		Function* parent;
@@ -738,121 +740,142 @@ namespace snow {
 	}
 	
 	void Codegen::Function::compile_get_method_or_property_inline_cache(const Operand& object, SnSymbol name, const Register& out_type, const Register& out_method_or_property_getter) {
-		Label* uninitialized = label();
-		Label* monomorphic = label();
-		Label* miss = label();
-		Label* after = label();
-		
-		// TODO: Make this work for W^X systems.
-		
-		// Data labels
-		Label* state_jmp_data = label();
-		Label* monomorphic_class_data = label();
-		Label* monomorphic_method_type_data = label();
-		Label* monomorphic_method_data = label();
-		
-		movq(object, RDI);
-		CALL(snow_get_class);
-		bind_label_at(state_jmp_data, jmp(uninitialized));
-		
-		{
-			bind_label(uninitialized);
-			Alloca _1(*this, RBX, sizeof(SnClass*) + sizeof(SnMethod), 1);
-			movq(RAX, address(RBX));
+		if (settings.use_inline_cache) {
+			Label* uninitialized = label();
+			Label* monomorphic = label();
+			Label* miss = label();
+			Label* after = label();
+
+			// TODO: Make this work for W^X systems.
+
+			// Data labels
+			Label* state_jmp_data = label();
+			Label* monomorphic_class_data = label();
+			Label* monomorphic_method_type_data = label();
+			Label* monomorphic_method_data = label();
+
+			movq(object, RDI);
+			CALL(snow_get_class);
+			bind_label_at(state_jmp_data, jmp(uninitialized));
+
+			{
+				bind_label(uninitialized);
+				Alloca _1(*this, RBX, sizeof(SnClass*) + sizeof(SnMethod), 1);
+				movq(RAX, address(RBX));
+				movq(RAX, RDI);
+				movq(name, RSI);
+				leaq(address(RBX, sizeof(SnClass*)), RDX);
+				CALL(snow_class_get_method_or_property);
+				movl_label_to_jmp(monomorphic, state_jmp_data);
+				movq(address(RBX), RAX);
+				movq(RAX, Operand(monomorphic_class_data));
+				movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, type)), out_type);
+				movq(out_type, Operand(monomorphic_method_type_data));
+				movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, function)), out_method_or_property_getter);
+				movq(out_method_or_property_getter, Operand(monomorphic_method_data));
+				jmp(after);
+			}
+
+			{
+				bind_label(monomorphic);
+				// compare incoming class (in RAX from call to snow_get_class) with cached value
+				bind_label_at(monomorphic_class_data, movq(0, RDI));
+				cmpq(RDI, RAX); // cmpq does not support 8-byte immediates
+				gc_root_offsets.push_back(monomorphic_class_data->offset);
+				j(CC_NOT_EQUAL, miss);
+				bind_label_at(monomorphic_method_type_data, movq(0, out_type));
+				bind_label_at(monomorphic_method_data, movq(0, out_method_or_property_getter));
+				gc_root_offsets.push_back(monomorphic_method_data->offset);
+				jmp(after);
+			}
+
+			{
+				bind_label(miss);
+				Alloca _1(*this, RBX, sizeof(SnMethod), 1);
+				movq(RBX, RDX);
+				movq(RAX, RDI);
+				movq(name, RSI);
+				CALL(snow_class_get_method_or_property);
+				movq(address(RBX, offsetof(SnMethod, type)), out_type);
+				movq(address(RBX, offsetof(SnMethod, function)), out_method_or_property_getter);
+			}
+
+			bind_label(after);
+		} else {
+			movq(object, RDI);
+			CALL(snow_get_class);
+			Alloca _1(*this, RBX, sizeof(SnMethod));
 			movq(RAX, RDI);
 			movq(name, RSI);
-			leaq(address(RBX, sizeof(SnClass*)), RDX);
-			CALL(snow_class_get_method_or_property);
-			movl_label_to_jmp(monomorphic, state_jmp_data);
-			movq(address(RBX), RAX);
-			movq(RAX, Operand(monomorphic_class_data));
-			movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, type)), out_type);
-			movq(out_type, Operand(monomorphic_method_type_data));
-			movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, function)), out_method_or_property_getter);
-			movq(out_method_or_property_getter, Operand(monomorphic_method_data));
-			jmp(after);
-		}
-		
-		{
-			bind_label(monomorphic);
-			// compare incoming class (in RAX from call to snow_get_class) with cached value
-			bind_label_at(monomorphic_class_data, movq(0, RDI));
-			cmpq(RDI, RAX); // cmpq does not support 8-byte immediates
-			gc_root_offsets.push_back(monomorphic_class_data->offset);
-			j(CC_NOT_EQUAL, miss);
-			bind_label_at(monomorphic_method_type_data, movq(0, out_type));
-			bind_label_at(monomorphic_method_data, movq(0, out_method_or_property_getter));
-			gc_root_offsets.push_back(monomorphic_method_data->offset);
-			jmp(after);
-		}
-		
-		{
-			bind_label(miss);
-			Alloca _1(*this, RBX, sizeof(SnMethod), 1);
 			movq(RBX, RDX);
-			movq(RAX, RDI);
-			movq(name, RSI);
 			CALL(snow_class_get_method_or_property);
 			movq(address(RBX, offsetof(SnMethod, type)), out_type);
 			movq(address(RBX, offsetof(SnMethod, function)), out_method_or_property_getter);
 		}
-		
-		bind_label(after);
 	}
 	
 	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, SnSymbol name, const Register& target) {
-		Label* uninitialized = label();
-		Label* monomorphic = label();
-		Label* miss = label();
-		Label* after = label();
-		
-		// TODO: Make this work for W^X systems.
-		
-		Label* state_jmp_data = label();
-		Label* monomorphic_class_data = label();
-		Label* monomorphic_iv_offset_data = label();
-		
-		movq(object, RDI);
-		CALL(snow_get_class);
-		bind_label_at(state_jmp_data, jmp(uninitialized));
-		
-		{
-			bind_label(uninitialized);
-			Temporary in_class(*this);
-			movq(RAX, in_class);
-			movq(RAX, RDI);
-			movq(name, RSI);
-			CALL(snow_class_get_index_of_field);
-			movq(RAX, target);
-			cmpq(0, target);
-			j(CC_LESS, after);
-			// change state to monomorphic
-			movl_label_to_jmp(monomorphic, state_jmp_data); // XXX: Modifying code
-			movq(in_class, RDI);
-			movq(RDI, Operand(monomorphic_class_data));
-			movl(target, Operand(monomorphic_iv_offset_data)); // XXX: Modifying code
-			jmp(after);
-		}
-		
-		{
-			bind_label(monomorphic);
-			bind_label_at(monomorphic_class_data, movq(0, RDI));
-			gc_root_offsets.push_back(monomorphic_class_data->offset);
-			cmpq(RDI, RAX);
-			j(CC_NOT_EQUAL, miss);
-			bind_label_at(monomorphic_iv_offset_data, movl(0, target));
-			jmp(after);
-		}
+		if (settings.use_inline_cache) {
+			Label* uninitialized = label();
+			Label* monomorphic = label();
+			Label* miss = label();
+			Label* after = label();
 
-		{
-			bind_label(miss);
+			// TODO: Make this work for W^X systems.
+
+			Label* state_jmp_data = label();
+			Label* monomorphic_class_data = label();
+			Label* monomorphic_iv_offset_data = label();
+
+			movq(object, RDI);
+			CALL(snow_get_class);
+			bind_label_at(state_jmp_data, jmp(uninitialized));
+
+			{
+				bind_label(uninitialized);
+				Temporary in_class(*this);
+				movq(RAX, in_class);
+				movq(RAX, RDI);
+				movq(name, RSI);
+				CALL(snow_class_get_index_of_field);
+				movq(RAX, target);
+				cmpq(0, target);
+				j(CC_LESS, after);
+				// change state to monomorphic
+				movl_label_to_jmp(monomorphic, state_jmp_data); // XXX: Modifying code
+				movq(in_class, RDI);
+				movq(RDI, Operand(monomorphic_class_data));
+				movl(target, Operand(monomorphic_iv_offset_data)); // XXX: Modifying code
+				jmp(after);
+			}
+
+			{
+				bind_label(monomorphic);
+				bind_label_at(monomorphic_class_data, movq(0, RDI));
+				gc_root_offsets.push_back(monomorphic_class_data->offset);
+				cmpq(RDI, RAX);
+				j(CC_NOT_EQUAL, miss);
+				bind_label_at(monomorphic_iv_offset_data, movl(0, target));
+				jmp(after);
+			}
+
+			{
+				bind_label(miss);
+				movq(RAX, RDI);
+				movq(name, RSI);
+				CALL(snow_class_get_index_of_field);
+				movq(RAX, target);
+			}
+
+			bind_label(after);
+		} else {
+			movq(object, RDI);
+			CALL(snow_get_class);
 			movq(RAX, RDI);
 			movq(name, RSI);
 			CALL(snow_class_get_index_of_field);
 			movq(RAX, target);
 		}
-		
-		bind_label(after);
 	}
 	
 	void Codegen::Function::call_direct(void(*callee)(void)) {
