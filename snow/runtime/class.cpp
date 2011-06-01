@@ -149,6 +149,11 @@ static VALUE class_define_method(SnFunction* function, SnCallFrame* here, VALUE 
 	return self;
 }
 
+static VALUE class_create(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+	ASSERT(!snow_eval_truth(it) || (snow_type_of(it) == SnClassType));
+	return snow_create_class(snow_sym("<unnamed>"), (SnClass*)it);
+}
+
 CAPI SnClass* snow_get_class_class() {
 	static VALUE* root = NULL;
 	if (!root) {
@@ -163,13 +168,13 @@ CAPI SnClass* snow_get_class_class() {
 		cls->num_fields = 0;
 		cls->num_methods = 0;
 		_snow_object_init(&cls->base, cls);
+		root = snow_gc_create_root(cls);
 		
 		snow_class_define_method(cls, "inspect", class_inspect, 0);
 		snow_class_define_method(cls, "to_string", class_inspect, 0);
 		snow_class_define_method(cls, "__call__", class_call, -1);
 		snow_class_define_method(cls, "define_method", class_define_method, 2);
-		
-		root = snow_gc_create_root(cls);
+		snow_object_define_method(cls, "__call__", class_create, 1);
 	}
 	return (SnClass*)*root;
 }
