@@ -64,7 +64,7 @@ Array << Enumerable
 Map << Enumerable 
 Fiber << Enumerable
 
-MapEnumerator: Class(Enumerable) << #(
+MapEnumerator: Class() << Enumerable << #(
 	initialize: [collection, function] {
 		$collection, $function: collection, function
 	},
