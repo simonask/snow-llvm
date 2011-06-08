@@ -25,7 +25,6 @@ typedef enum SnType {
 	SnFunctionType,
 	SnCallFrameType,
 	SnArgumentsType,
-	SnPointerType,
 	SnFiberType,
 	
 	SnNumTypes

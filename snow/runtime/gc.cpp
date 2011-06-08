@@ -6,7 +6,6 @@
 #include "snow/function.h"
 #include "snow/map.h"
 #include "snow/object.h"
-#include "snow/pointer.h"
 #include "snow/str.h"
 #include "snow/type.h"
 
@@ -26,7 +25,6 @@ CAPI void snow_finalize_map(SnMap*);
 CAPI void snow_finalize_function(SnFunction*);
 CAPI void snow_finalize_call_frame(SnCallFrame*);
 CAPI void snow_finalize_arguments(SnArguments*);
-CAPI void snow_finalize_pointer(SnPointer*);
 CAPI void snow_finalize_fiber(SnFiber*);
 
 namespace {

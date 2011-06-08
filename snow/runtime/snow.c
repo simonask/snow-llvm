@@ -14,7 +14,6 @@
 #include "snow/numeric.h"
 #include "snow/object.h"
 #include "snow/parser.h"
-#include "snow/pointer.h"
 #include "snow/str.h"
 #include "snow/type.h"
 #include "snow/vm.h"
@@ -80,7 +79,6 @@ static SnClass* class_for_internal_type(SnType type) {
 		case SnFunctionType:  return snow_get_function_class();
 		case SnCallFrameType: return snow_get_call_frame_class();
 		case SnArgumentsType: return snow_get_arguments_class();
-		case SnPointerType:   return snow_get_pointer_class();
 		case SnFiberType:     return snow_get_fiber_class();
 		default: {
 			ASSERT(false && "Unknown type!");

@@ -10,7 +10,6 @@
 #include "snow/module.h"
 #include "snow/nil.h"
 #include "snow/numeric.h"
-#include "snow/pointer.h"
 #include "snow/snow.h"
 #include "snow/str.h"
 #include "snow/type.h"
@@ -139,6 +138,5 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("#"), snow_get_map_class());
 	snow_set_global(snow_sym("Function"), snow_get_function_class());
 	snow_set_global(snow_sym("CallFrame"), snow_get_call_frame_class());
-	snow_set_global(snow_sym("Pointer"), snow_get_pointer_class());
 	snow_set_global(snow_sym("Fiber"), snow_get_fiber_class());
 }
