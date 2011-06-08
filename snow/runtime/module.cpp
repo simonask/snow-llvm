@@ -14,12 +14,13 @@
 #include <sys/stat.h>
 
 #include "codemanager.hpp"
+#include "function-internal.hpp"
 
 
 namespace {
 	struct Module {
 		SnObject* module;
-		SnFunction* entry;
+		SnObject* entry;
 		std::string path;
 		std::string source;
 		// AST?
@@ -60,6 +61,13 @@ namespace {
 		return false;
 	}
 	
+	void string_to_std_string(const SnObject* str, std::string& out_str) {
+		size_t sz = snow_string_size(str);
+		char buffer[sz];
+		snow_string_copy_to(str, buffer, sz);
+		out_str.assign(buffer, sz);
+	}
+	
 	bool file_exists(const std::string& path) {
 		struct stat buf;
 		return stat(path.c_str(), &buf) == 0;
@@ -70,29 +78,26 @@ namespace {
 			path = file;
 			return file_exists(path);
 		} else {
-			static const char* file_suffixes[] = {"", ".sn", ".sno", ".bc" /* TODO: Dynamic libraries? */};
+			static const char* file_suffixes[] = {"", ".sn", ".sno" /* TODO: Dynamic libraries? */};
 			static const size_t num_file_suffixes = sizeof(file_suffixes) / sizeof(const char*);
 			
-			SnArray* load_paths = snow_get_load_paths();
+			SnObject* load_paths = snow_get_load_paths();
 			for (size_t i = 0; i < snow_array_size(load_paths); ++i) {
 				VALUE vpath = snow_array_get(load_paths, i);
-				if (snow_type_of(vpath) != SnStringType) {
-					fprintf(stderr, "ERROR: Load path is not a string: %p\n", vpath);
-					//vpath = snow_value_to_string(vpath);
-					continue;
+				if (!snow_is_string(vpath)) {
+					snow_throw_exception_with_description("Load path is not a string: %p.", vpath);
 				}
-				SnString* spath = (SnString*)vpath;
-				size_t spath_len = snow_string_size(spath);
-				const char* spath_cstr = snow_string_cstr(spath);
-				if (spath_len && spath_cstr[spath_len-1] != '/') {
-					snow_string_append_cstr(spath, "/");
-					spath_cstr = snow_string_cstr(spath);
-					++spath_len;
+				
+				std::string spath;
+				string_to_std_string((SnObject*)vpath, spath);
+				if (spath.size() && spath[spath.size()-1] != '/') {
+					spath += '/';
 				}
 				
 				for (size_t j = 0; j < num_file_suffixes; ++j) {
-					std::string candidate = std::string(spath_cstr) + file + std::string(file_suffixes[j]);
-					if (file_exists(candidate.c_str())) {
+					// TODO: This can be made much, much faster with a stringref-like class
+					std::string candidate = spath + file + file_suffixes[j];
+					if (file_exists(candidate)) {
 						path = candidate;
 						return true;
 					}
@@ -157,16 +162,26 @@ namespace {
 			snow::CodeModule* code = snow::get_code_manager()->compile_ast(ast, m->source.c_str(), get_module_name(path).c_str());
 			if (code) {
 				get_module_list()->push_back(m);
-				m->entry = snow_create_function(code->entry, NULL);
+				m->entry = snow::create_function_for_descriptor(code->entry, NULL);
 				
 				// Call module entry
-				SnCallFrame* frame = snow_create_call_frame(m->entry, 0, NULL, 0, NULL);
-				frame->module = mod;
-				VALUE result = snow_function_call(m->entry, frame, NULL, NULL);
-				snow_object_set_field(mod, snow_sym("__module_value__"), result);
+				SnCallFrame frame = {
+					.function = m->entry,
+					.self = NULL,
+					.locals = NULL,
+					.args = {
+						.num_names = 0,
+						.names = NULL,
+						.size = 0,
+						.data = NULL
+					},
+					.as_object = NULL
+				};
+				VALUE result = snow_function_call(m->entry, &frame);
+				snow_object_set_instance_variable(mod, snow_sym("__module_value__"), result);
 				// Import module globals
 				for (size_t i = 0; i < code->num_globals; ++i) {
-					snow_object_set_field(mod, code->global_names[i], code->globals[i]);
+					snow_object_set_instance_variable(mod, code->global_names[i], code->globals[i]);
 				}
 				return m;
 			}
@@ -177,90 +192,102 @@ namespace {
 	}
 	
 	inline Module* load_module(const std::string& path) {
+		ASSERT(path.size() && path[0] == '/'); // path must be expanded!
+		Module* module = NULL;
 		switch (get_module_type(path)) {
 			case ModuleTypeSource: {
-				SnObject* mod = snow_create_object(NULL);
+				SnObject* mod = snow_create_object(snow_get_object_class(), 0, NULL);
 				snow_object_give_meta_class(mod);
-				return compile_module(path, load_source(path), mod);
+				module = compile_module(path, load_source(path), mod);
+				break;
 			}
 			default: {
 				snow_throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");
 				return NULL;
 			}
 		}
+		ModuleMap& map = *get_module_map();
+		map[path] = module;
+		return module;
 	}
 }
 
 CAPI {
-	SnArray* snow_get_load_paths() {
-		static VALUE* root = NULL;
+	SnObject* snow_get_load_paths() {
+		static SnObject** root = NULL;
 		if (!root) {
-			SnArray* load_paths = snow_create_array_with_size(10);
+			SnObject* load_paths = snow_create_array_with_size(10);
 			snow_array_push(load_paths, snow_create_string_constant("./"));
 			root = snow_gc_create_root(load_paths);
 		}
-		return (SnArray*)*root;
+		return *root;
 	}
 	
 	SnObject* snow_get_global_module() {
-		static VALUE* root = NULL;
+		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* global_module = snow_create_object(NULL);
+			SnObject* global_module = snow_create_object(snow_get_object_class(), 0, NULL);
 			snow_object_give_meta_class(global_module);
 			root = snow_gc_create_root(global_module);
 		}
-		return (SnObject*)*root;
+		return *root;
 	}
 	
-	SnObject* snow_import(const char* file) {
+	SnObject* snow_import(SnObject* _file) {
+		std::string file;
+		string_to_std_string(_file, file);
 		std::string path;
 		if (expand_load_path(file, path))
 		{
 			Module* module = NULL;
 			if (module_is_loaded(path, module)) {
 				return module->module;
+			} else {
+				return load_module(path)->module;
 			}
-			return snow_load(path.c_str());
 		}
-		snow_throw_exception_with_description("File not found in any load path: %s", file);
+		snow_throw_exception_with_description("File not found in any load path: %s", file.c_str());
 		return NULL;
 	}
 	
-	SnObject* snow_load(const char* file) {
+	SnObject* snow_load(SnObject* _file) {
+		std::string file;
+		string_to_std_string(_file, file);
 		std::string path;
 		if (expand_load_path(file, path)) {
 			Module* module = load_module(path);
-			
-			ModuleMap& map = *get_module_map();
-			map[path] = module;
 			return module->module;
 		}
 		return NULL;
 	}
 	
-	VALUE snow_load_in_global_module(const char* file) {
+	VALUE snow_load_in_global_module(SnObject* _file) {
+		std::string file;
+		string_to_std_string(_file, file);
 		std::string path;
 		if (expand_load_path(file, path)) {
 			ASSERT(get_module_type(path) == ModuleTypeSource); // only source modules are supported in snow_load_in_global_module
 			SnObject* mod = snow_get_global_module();
 			if (compile_module(path, load_source(file), mod)) {
-				return snow_object_get_field(mod, snow_sym("__module_value__"));
+				return snow_object_get_instance_variable(mod, snow_sym("__module_value__"));
 			} else {
 				fprintf(stderr, "ERROR: Could not compile module: %s\n", path.c_str());
 				return NULL;
 			}
 		} else {
-			snow_throw_exception_with_description("File not found in any load path: %s", file);
+			snow_throw_exception_with_description("File not found in any load path: %s", file.c_str());
 			return NULL;
 		}
 	}
 	
-	VALUE snow_eval_in_global_module(const char* source) {
-		if (!source) return NULL;
+	VALUE snow_eval_in_global_module(SnObject* _source) {
+		std::string source;
+		string_to_std_string(_source, source);
+		if (!source.size()) return NULL;
 		SnObject* mod = snow_get_global_module();
 		Module* module = compile_module("<eval>", source, mod);
 		if (module) {
-			return snow_object_get_field(mod, snow_sym("__module_value__"));
+			return snow_object_get_instance_variable(mod, snow_sym("__module_value__"));
 		} else {
 			return NULL;
 		}

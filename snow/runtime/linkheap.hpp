@@ -40,7 +40,7 @@ namespace snow {
 			};
 		};
 
-		static const size_t ELEMENTS_PER_PAGE = (SN_MEMORY_PAGE_SIZE - SN_MALLOC_OVERHEAD - sizeof(PageInfo)) / sizeof(Element);
+		static const size_t ELEMENTS_PER_PAGE = (SN_MEMORY_PAGE_SIZE - sizeof(PageInfo)) / sizeof(Element);
 
 		struct Page : public PageInfo {
 			Element data[ELEMENTS_PER_PAGE];

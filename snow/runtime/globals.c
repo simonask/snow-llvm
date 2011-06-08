@@ -17,100 +17,84 @@
 #include "snow/vm.h"
 
 
-static VALUE get_load_paths(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE get_load_paths(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
 }
 
-static VALUE get_version(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE get_version(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string_constant(snow_version());
 }
 
 SnObject* snow_get_vm_interface() {
-	static VALUE* root = NULL;
+	static SnObject** root = NULL;
 	if (!root) {
-		SnClass* cls = snow_create_class(snow_sym("SnowVMInterface"), NULL);
+		SnObject* cls = snow_create_class(snow_sym("SnowVMInterface"), NULL);
 		snow_class_define_property(cls, "version", get_version, NULL);
-		SnObject* obj = snow_create_object(cls);
+		SnObject* obj = snow_create_object(cls, 0, NULL);
 		root = snow_gc_create_root(obj);
 	}
-	return (SnObject*)*root;
+	return *root;
 }
 
-static VALUE global_puts(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	for (size_t i = 0; i < here->arguments->size; ++i) {
-		SnString* str = snow_value_to_string(here->arguments->data[i]);
-		printf("%s", snow_string_cstr(str));
+static VALUE global_puts(const SnCallFrame* here, VALUE self, VALUE it) {
+	for (size_t i = 0; i < here->args.size; ++i) {
+		SnObject* str = snow_value_to_string(here->args.data[i]);
+		size_t sz = snow_string_size(str);
+		char* buffer = (char*)alloca(sz+1);
+		snow_string_copy_to(str, buffer, sz);
+		buffer[sz] = '\0';
+		fputs(buffer, stdout);
 	}
 	printf("\n");
 	return SN_NIL;
 }
 
-static VALUE global_import(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	SnString* file = snow_value_to_string(it);
-	return snow_import(snow_string_cstr(file));
+static VALUE global_import(const SnCallFrame* here, VALUE self, VALUE it) {
+	SnObject* file = snow_value_to_string(it);
+	return snow_import(file);
 }
 
-static VALUE global_import_global(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	SnString* file = snow_value_to_string(it);
-	snow_load_in_global_module(snow_string_cstr(file));
+static VALUE global_import_global(const SnCallFrame* here, VALUE self, VALUE it) {
+	SnObject* file = snow_value_to_string(it);
+	snow_load_in_global_module(file);
 	return SN_TRUE;
 }
 
-static VALUE global_load(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	SnString* file = snow_value_to_string(it);
-	return snow_load(snow_string_cstr(file));
+static VALUE global_load(const SnCallFrame* here, VALUE self, VALUE it) {
+	SnObject* file = snow_value_to_string(it);
+	return snow_load(file);
 }
 
-static VALUE global_disasm(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	SnType type = snow_type_of(it);
-	snow_throw_exception_with_description("Disassembly not supported in native x86-64.", snow_value_inspect_cstr(it));
-	return NULL;
-}
-
-static VALUE global_resolve_symbol(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_resolve_symbol(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(it)) return NULL;
 	int64_t n = snow_value_to_integer(it);
 	const char* str = snow_sym_to_cstr(n);
 	return str ? snow_create_string_constant(str) : NULL;
 }
 
-static VALUE global_print_call_stack(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
-	SnFiber* fiber = snow_get_current_fiber();
+static VALUE global_print_call_stack(const SnCallFrame* here, VALUE self, VALUE it) {
+	SnObject* fiber = snow_get_current_fiber();
 	int level = 0;
 	while (fiber) {
 		SnCallFrame* frame = snow_fiber_get_current_frame(fiber);
 		while (frame) {
-			printf("%d: %s(", level++, snow_sym_to_cstr(frame->function->descriptor->name));
-			if (frame->arguments) {
-				size_t num_args = frame->arguments->size;
-				size_t arg_i = 0;
-				for (size_t i = 0; i < frame->function->descriptor->num_params && arg_i < num_args; ++i) {
-					printf("%s: %p", snow_sym_to_cstr(frame->function->descriptor->param_names[i]), frame->arguments->data[arg_i++]);
-					if (arg_i < num_args-1) printf(", ");
-				}
-				for (size_t i = 0; i < frame->arguments->num_extra_names && arg_i < num_args; ++i) {
-					printf("%s: %p, ", snow_sym_to_cstr(frame->arguments->extra_names[i]), frame->arguments->data[arg_i++]);
-					if (arg_i < num_args-1) printf(", ");
-				}
-				for (size_t i = arg_i; i < num_args; ++i) {
-					printf("%p", frame->arguments->data[arg_i++]);
-					if (i < num_args-1) printf(", ");
-				}
-			}
+			SnSymbol function_name = snow_function_get_name(frame->function);
+			printf("%d: %s(", level++, snow_sym_to_cstr(function_name));
+			// TODO: Print arguments
 			printf(")\n");
 			frame = frame->caller;
 		}
-		fiber = fiber->link;
+		fiber = snow_fiber_get_link(fiber);
 	}
 	return SN_NIL;
 }
 
-static VALUE global_throw(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_throw(const SnCallFrame* here, VALUE self, VALUE it) {
 	snow_throw_exception(it);
-	return NULL;
+	return NULL; // unreachable
 }
 
-#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_method(FUNCTION, snow_sym(NAME), NUM_ARGS))
+#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_function(FUNCTION, snow_sym(NAME)))
 
 void snow_init_globals() {
 	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());

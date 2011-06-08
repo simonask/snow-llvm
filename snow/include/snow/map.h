@@ -5,45 +5,24 @@
 #include "snow/value.h"
 #include "snow/object.h"
 
-typedef struct SnMap {
-	SnObject base;
-	union {
-		/*
-			Snow Maps are adaptive. Below a certain threshold, they are a flat, associative list.
-			Above the threshold, they turn into full-blown hash maps.
-		*/
-		
-		struct {
-			VALUE* keys;
-			VALUE* values;
-			uint32_t size;
-			uint32_t alloc_size;
-		} flat;
-		
-		void* hash_map;
-	};
-	uint32_t flags;
-} SnMap;
+CAPI SnObjectType SnMapType;
 
-CAPI SnMap* snow_create_map();
-CAPI SnMap* snow_create_map_with_immediate_keys();  // i.e., will never call .hash on keys
-CAPI SnMap* snow_create_map_with_insertion_order(); // i.e., will never be a full-blown hash map
-CAPI SnMap* snow_create_map_with_immediate_keys_and_insertion_order();
+CAPI SnObject* snow_create_map();
+CAPI SnObject* snow_create_map_with_immediate_keys();  // i.e., will never call .hash on keys
+CAPI SnObject* snow_create_map_with_insertion_order(); // i.e., will never be a full-blown hash map
+CAPI SnObject* snow_create_map_with_immediate_keys_and_insertion_order();
 
-CAPI size_t snow_map_size(const SnMap*);
-CAPI VALUE snow_map_get(const SnMap*, VALUE key);
-CAPI VALUE snow_map_set(SnMap*, VALUE key, VALUE value);
-CAPI VALUE snow_map_erase(SnMap*, VALUE key);
-CAPI void snow_map_reserve(SnMap*, size_t num_items);
-CAPI void snow_map_get_keys_and_values(const SnMap*, VALUE* keys, VALUE* values, size_t max);
+CAPI size_t snow_map_size(const SnObject*);
+CAPI VALUE snow_map_get(const SnObject*, VALUE key);
+CAPI VALUE snow_map_set(SnObject*, VALUE key, VALUE value);
+CAPI VALUE snow_map_erase(SnObject*, VALUE key);
+CAPI void snow_map_reserve(SnObject*, size_t num_items);
+CAPI void snow_map_clear(SnObject*, bool free_allocated_memory);
 typedef VALUE SnKeyValuePair[2];
-CAPI void snow_map_get_pairs(const SnMap*, SnKeyValuePair* tuples, size_t max);
+CAPI size_t snow_map_get_pairs(const SnObject*, SnKeyValuePair* tuples, size_t max);
 
-// Used by the GC
-typedef void(*SnMapForEachGCRootCallback)(VALUE);
-CAPI void snow_map_for_each_gc_root(SnMap*, SnMapForEachGCRootCallback callback);
+CAPI struct SnObject* snow_get_map_class();
 
-CAPI struct SnClass* snow_get_map_class();
-CAPI void snow_finalize_map(SnMap*);
+INLINE bool snow_is_map(const SnObject* obj) { return snow_object_is_of_type(obj, &SnMapType); }
 
 #endif /* end of include guard: MAP_H_MXEPAZB9 */

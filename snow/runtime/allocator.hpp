@@ -13,7 +13,7 @@ namespace snow {
 	public:
 		struct GCObject : SnObject {
 			union {
-				byte _[SN_OBJECT_SIZE - sizeof(SnObject)];
+				byte _[SN_CACHE_LINE_SIZE - sizeof(SnObject)];
 				struct {
 					GCObject* next_free;
 				};

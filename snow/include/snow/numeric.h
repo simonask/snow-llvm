@@ -4,17 +4,16 @@
 
 #include "snow/value.h"
 
-struct SnClass;
-CAPI struct SnClass* snow_get_numeric_class();
-CAPI struct SnClass* snow_get_integer_class();
-CAPI struct SnClass* snow_get_float_class();
+CAPI struct SnObject* snow_get_numeric_class();
+CAPI struct SnObject* snow_get_integer_class();
+CAPI struct SnObject* snow_get_float_class();
 
 INLINE bool snow_is_integer(VALUE val) {
 	return ((intptr_t)val & 1) != 0;
 }
 
 INLINE bool snow_is_float(VALUE val) {
-	return ((intptr_t)val & SnTypeMask) == SnFloatType;
+	return ((intptr_t)val & SnValueTypeMask) == SnFloatType;
 }
 
 INLINE VALUE snow_integer_to_value(int n) {

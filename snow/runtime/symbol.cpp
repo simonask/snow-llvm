@@ -22,7 +22,7 @@ static SymbolTable& symbol_table() {
 	return *t;
 }
 
-static VALUE symbol_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE symbol_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	const char* symstr = snow_sym_to_cstr(snow_value_to_symbol(self));
 
@@ -39,7 +39,7 @@ static VALUE symbol_inspect(SnFunction* function, SnCallFrame* here, VALUE self,
 	return snow_create_string(str);
 }
 
-static VALUE symbol_to_string(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE symbol_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	return snow_create_string_constant(snow_sym_to_cstr(snow_value_to_symbol(self)));
 }
@@ -68,14 +68,14 @@ CAPI {
 		return NULL;
 	}
 
-	SnClass* snow_get_symbol_class() {
-		static VALUE* root = NULL;
+	SnObject* snow_get_symbol_class() {
+		static SnObject** root = NULL;
 		if (!root) {
-			SnClass* cls = snow_create_class(snow_sym("Symbol"), NULL);
-			snow_class_define_method(cls, "inspect", symbol_inspect, 0);
-			snow_class_define_method(cls, "to_string", symbol_to_string, 0);
+			SnObject* cls = snow_create_class(snow_sym("Symbol"), NULL);
+			snow_class_define_method(cls, "inspect", symbol_inspect);
+			snow_class_define_method(cls, "to_string", symbol_to_string);
 			root = snow_gc_create_root(cls);
 		}
-		return (SnClass*)*root;
+		return *root;
 	}
 }

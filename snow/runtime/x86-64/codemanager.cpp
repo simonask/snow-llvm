@@ -41,7 +41,7 @@ namespace snow {
 					mod->global_names[i] = codegen.module_globals[i];
 				}
 				mod->num_globals = codegen.module_globals.size();
-				mod->entry = (const SnFunctionDescriptor*)((byte*)mod->code + codegen.get_offset_for_entry_descriptor());
+				mod->entry = (const FunctionDescriptor*)((byte*)mod->code + codegen.get_offset_for_entry_descriptor());
 				
 				_modules.push_back(mod);
 				return mod;

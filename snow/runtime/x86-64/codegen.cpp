@@ -1,6 +1,7 @@
 #include "codegen.hpp"
 #include "asm.hpp"
 #include "../util.hpp"
+#include "../function-internal.hpp"
 
 #include "snow/snow.h"
 #include "snow/array.h"
@@ -13,10 +14,6 @@
 
 namespace {
 	using namespace snow;
-	
-	struct VariableReference : public SnVariableReference {
-		bool operator==(const VariableReference& other) const { return level == other.level && index == other.index; }
-	};
 	
 	struct Alloca {
 		Alloca(Asm& a, const snow::Operand& target, size_t num_elements, size_t element_size = 1)
@@ -63,7 +60,7 @@ namespace {
 		
 		size_t size;
 	private:
-		struct Element { byte _[sizeof(Temporary)]; };
+		typedef Placeholder<Temporary> Element;
 		Element* elements;
 	};
 }
@@ -120,7 +117,7 @@ namespace snow {
 		bool compile_call(const SnAstNode* call);
 		void compile_call(const Operand& functor, const Operand& self, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
 		void compile_method_call(const Operand& self, SnSymbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
-		void compile_get_method_or_property_inline_cache(const Operand& self, SnSymbol name, const Register& out_type, const Register& out_method_or_property);
+		void compile_get_method_inline_cache(const Operand& self, SnSymbol name, const Register& out_type, const Register& out_method);
 		void compile_get_index_of_field_inline_cache(const Operand& self, SnSymbol name, const Register& target);
 		Operand compile_get_address_for_local(const Register& reg, SnSymbol name, bool can_define = false);
 		Function* compile_function(const SnAstNode* function);
@@ -251,7 +248,7 @@ namespace snow {
 				if (!compile_ast_node(node->method.object)) return false;
 				Temporary self(*this);
 				movq(RAX, self);
-				compile_get_method_or_property_inline_cache(RAX, node->method.name, RAX, RDI);
+				compile_get_method_inline_cache(RAX, node->method.name, RAX, RDI);
 				Label* get_method = label();
 				Label* after = label();
 				
@@ -283,7 +280,7 @@ namespace snow {
 				movq(RAX, self);
 				compile_get_index_of_field_inline_cache(RAX, node->instance_variable.name, RSI);
 				movq(self, RDI);
-				CALL(snow_object_get_field_by_index);
+				CALL(snow_object_get_instance_variable_by_index);
 				return true;
 			}
 			case SN_AST_CALL: {
@@ -522,7 +519,7 @@ namespace snow {
 						movq(values[i], RDX);
 					else
 						xorq(RDX, RDX);
-					CALL(snow_object_set_field_by_index);
+					CALL(snow_object_set_instance_variable_by_index);
 					break;
 				}
 				case SN_AST_IDENTIFIER: {
@@ -582,16 +579,10 @@ namespace snow {
 		}
 		if (index >= 0) {
 			// local found!
-			movq(REG_CALL_FRAME, reg); // 'here'
-			for (ssize_t i = 0; i < level; ++i) {
-				// TODO: It would be nice not to have to go through this whole
-				// chain whenever we want to get the address of a local in a parent scope.
-				// Oh well, at least there's no calls.
-				// TODO: Variable references
-				movq(address(reg, offsetof(SnCallFrame, function)), reg);
-				movq(address(reg, offsetof(SnFunction, definition_context)), reg);
-			}
-			movq(address(reg, offsetof(SnCallFrame, locals)), reg);
+			movq(REG_CALL_FRAME, RDI);
+			movq(level, RSI);
+			CALL(snow_get_locals_from_higher_lexical_scope);
+			movq(RAX, reg);
 			return address(reg, index * sizeof(VALUE));
 		}
 		
@@ -717,7 +708,7 @@ namespace snow {
 		Label* property_call = label();
 		Label* after = label();
 		
-		compile_get_method_or_property_inline_cache(in_self, method_name, RSI, RDI);
+		compile_get_method_inline_cache(in_self, method_name, RSI, RDI);
 		cmpl(SnMethodTypeFunction, RSI);
 		j(CC_NOT_EQUAL, property_call);
 		
@@ -739,7 +730,7 @@ namespace snow {
 		bind_label(after);
 	}
 	
-	void Codegen::Function::compile_get_method_or_property_inline_cache(const Operand& object, SnSymbol name, const Register& out_type, const Register& out_method_or_property_getter) {
+	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, SnSymbol name, const Register& out_type, const Register& out_method_getter) {
 		if (settings.use_inline_cache) {
 			Label* uninitialized = label();
 			Label* monomorphic = label();
@@ -760,19 +751,19 @@ namespace snow {
 
 			{
 				bind_label(uninitialized);
-				Alloca _1(*this, RBX, sizeof(SnClass*) + sizeof(SnMethod), 1);
+				Alloca _1(*this, RBX, sizeof(SnObject*) + sizeof(SnMethod), 1);
 				movq(RAX, address(RBX));
 				movq(RAX, RDI);
 				movq(name, RSI);
-				leaq(address(RBX, sizeof(SnClass*)), RDX);
-				CALL(snow_class_get_method_or_property);
+				leaq(address(RBX, sizeof(SnObject*)), RDX);
+				CALL(snow_class_get_method);
 				movl_label_to_jmp(monomorphic, state_jmp_data);
 				movq(address(RBX), RAX);
 				movq(RAX, Operand(monomorphic_class_data));
-				movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, type)), out_type);
+				movq(address(RBX, sizeof(SnObject*) + offsetof(SnMethod, type)), out_type);
 				movq(out_type, Operand(monomorphic_method_type_data));
-				movq(address(RBX, sizeof(SnClass*) + offsetof(SnMethod, function)), out_method_or_property_getter);
-				movq(out_method_or_property_getter, Operand(monomorphic_method_data));
+				movq(address(RBX, sizeof(SnObject*) + offsetof(SnMethod, function)), out_method_getter);
+				movq(out_method_getter, Operand(monomorphic_method_data));
 				jmp(after);
 			}
 
@@ -784,7 +775,7 @@ namespace snow {
 				gc_root_offsets.push_back(monomorphic_class_data->offset);
 				j(CC_NOT_EQUAL, miss);
 				bind_label_at(monomorphic_method_type_data, movq(0, out_type));
-				bind_label_at(monomorphic_method_data, movq(0, out_method_or_property_getter));
+				bind_label_at(monomorphic_method_data, movq(0, out_method_getter));
 				gc_root_offsets.push_back(monomorphic_method_data->offset);
 				jmp(after);
 			}
@@ -795,9 +786,9 @@ namespace snow {
 				movq(RBX, RDX);
 				movq(RAX, RDI);
 				movq(name, RSI);
-				CALL(snow_class_get_method_or_property);
+				CALL(snow_class_get_method);
 				movq(address(RBX, offsetof(SnMethod, type)), out_type);
-				movq(address(RBX, offsetof(SnMethod, function)), out_method_or_property_getter);
+				movq(address(RBX, offsetof(SnMethod, function)), out_method_getter);
 			}
 
 			bind_label(after);
@@ -808,9 +799,9 @@ namespace snow {
 			movq(RAX, RDI);
 			movq(name, RSI);
 			movq(RBX, RDX);
-			CALL(snow_class_get_method_or_property);
+			CALL(snow_class_get_method);
 			movq(address(RBX, offsetof(SnMethod, type)), out_type);
-			movq(address(RBX, offsetof(SnMethod, function)), out_method_or_property_getter);
+			movq(address(RBX, offsetof(SnMethod, function)), out_method_getter);
 		}
 	}
 	
@@ -837,7 +828,7 @@ namespace snow {
 				movq(RAX, in_class);
 				movq(RAX, RDI);
 				movq(name, RSI);
-				CALL(snow_class_get_index_of_field);
+				CALL(snow_class_get_index_of_instance_variable);
 				movq(RAX, target);
 				cmpq(0, target);
 				j(CC_LESS, after);
@@ -863,7 +854,7 @@ namespace snow {
 				bind_label(miss);
 				movq(RAX, RDI);
 				movq(name, RSI);
-				CALL(snow_class_get_index_of_field);
+				CALL(snow_class_get_index_of_instance_variable);
 				movq(RAX, target);
 			}
 
@@ -873,7 +864,7 @@ namespace snow {
 			CALL(snow_get_class);
 			movq(RAX, RDI);
 			movq(name, RSI);
-			CALL(snow_class_get_index_of_field);
+			CALL(snow_class_get_index_of_instance_variable);
 			movq(RAX, target);
 		}
 	}
@@ -909,7 +900,7 @@ namespace snow {
 	size_t Codegen::compiled_size() const {
 		size_t accum = module_globals.size() * sizeof(VALUE);
 		for (size_t i = 0; i < _functions.size(); ++i) {
-			accum += sizeof(SnFunctionDescriptor);
+			accum += sizeof(FunctionDescriptor);
 			accum += _functions[i]->code().size();
 		}
 		return accum;
@@ -927,24 +918,22 @@ namespace snow {
 			Function* f = _functions[i];
 			f->materialized_descriptor_offset = offset;
 			
-			SnFunctionDescriptor* descriptor = (SnFunctionDescriptor*)(destination + offset);
-			offset += sizeof(SnFunctionDescriptor);
+			FunctionDescriptor* descriptor = (FunctionDescriptor*)(destination + offset);
+			offset += sizeof(FunctionDescriptor);
 			
 			descriptor->ptr = 0; // linked later
 			descriptor->name = f->name;
 			descriptor->return_type = SnAnyType;
 			size_t num_params = f->param_names.size();
 			descriptor->num_params = num_params;
-			descriptor->param_types = (SnType*)(destination + offset);
-			offset += sizeof(SnType) * num_params;
+			descriptor->param_types = (SnValueType*)(destination + offset);
+			offset += sizeof(SnValueType) * num_params;
 			descriptor->param_names = (SnSymbol*)(destination + offset);
 			offset += sizeof(SnSymbol) * num_params;
 			for (size_t j = 0; j < num_params; ++j) {
 				descriptor->param_types[j] = SnAnyType; // TODO
 				descriptor->param_names[j] = f->param_names[j];
 			}
-			
-			descriptor->it_index = f->it_index;
 			
 			size_t num_locals = f->local_names.size();
 			descriptor->num_locals = num_locals;
@@ -954,8 +943,6 @@ namespace snow {
 				descriptor->local_names[j] = f->local_names[j];
 			}
 			
-			descriptor->needs_context = f->needs_environment;
-			descriptor->jit_info = NULL;
 			descriptor->num_variable_references = 0; // TODO
 			descriptor->variable_references = NULL;
 		}
@@ -969,7 +956,7 @@ namespace snow {
 			f->link_globals(offset);
 			f->materialize_at(destination + offset);
 			f->materialized_code_offset = offset;
-			SnFunctionDescriptor* descriptor = (SnFunctionDescriptor*)(destination + f->materialized_descriptor_offset);
+			FunctionDescriptor* descriptor = (FunctionDescriptor*)(destination + f->materialized_descriptor_offset);
 			descriptor->ptr = (SnFunctionPtr)(destination + offset);
 			
 			// collect descriptor references

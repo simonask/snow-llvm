@@ -6,8 +6,8 @@
 #include "snow/type.h"
 #include <stdlib.h>
 
-struct SnProcess;
 struct SnObject;
+struct SnObjectType;
 
 typedef enum SnGCFlags {
 	SnGCNoFlags   = 0x0,
@@ -15,24 +15,12 @@ typedef enum SnGCFlags {
 	SnGCReachable = 0x2,
 } SnGCFlags;
 
-typedef struct SnGCInfo {
-	union {
-		struct {
-			unsigned flags       : 8;
-			unsigned page_offset : 8;
-		};
-		
-		void* _; // padding
-	};
-} SnGCInfo;
-
 CAPI void snow_init_gc(const void** stack_top);
 CAPI void snow_gc();
-CAPI struct SnObject* snow_gc_alloc_object(SnType internal_type);
-CAPI VALUE* snow_gc_create_root(VALUE initial_value);
-CAPI VALUE  snow_gc_free_root(VALUE* root); 
+CAPI struct SnObject* snow_gc_allocate_object(const struct SnObjectType*);
+CAPI struct SnObject** snow_gc_create_root(struct SnObject* initial_value);
+CAPI struct SnObject*  snow_gc_free_root(struct SnObject** root); 
 
-#define SN_GC_ALLOC_OBJECT(TYPE) (struct TYPE*)snow_gc_alloc_object(TYPE ## Type)
 #define SN_GC_RDLOCK(OBJECT) snow_gc_rdlock((const struct SnObject*)(OBJECT), &(OBJECT))
 #define SN_GC_WRLOCK(OBJECT) snow_gc_wrlock((const struct SnObject*)(OBJECT), &(OBJECT))
 #define SN_GC_UNLOCK(OBJECT) snow_gc_unlock((const struct SnObject*)(OBJECT))

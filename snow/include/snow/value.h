@@ -6,8 +6,8 @@
 
 typedef void* VALUE;
 
-typedef enum SnType {
-	SnAnyType = 0x0,
+typedef enum SnValueType {
+	SnPointerType = 0x0,
 	SnIntegerType = 0x1,
 	SnNilType = 0x2,   // == SN_NIL
 	SnFalseType = 0x4, // == SN_FALSE
@@ -15,20 +15,9 @@ typedef enum SnType {
 	SnSymbolType = 0x8,
 	SnFloatType = 0xa,
 	
-	SnTypeMask = 0xf,
-	
-	SnObjectType,
-	SnClassType,
-	SnArrayType,
-	SnMapType,
-	SnStringType,
-	SnFunctionType,
-	SnCallFrameType,
-	SnArgumentsType,
-	SnFiberType,
-	
-	SnNumTypes
-} SnType;
+	SnValueTypeMask = 0xf,
+	SnAnyType
+} SnValueType;
 
 static const VALUE SN_UNDEFINED = NULL;
 static const VALUE SN_NIL = (VALUE)SnNilType;
@@ -36,7 +25,11 @@ static const VALUE SN_FALSE = (VALUE)SnFalseType;
 static const VALUE SN_TRUE = (VALUE)SnTrueType;
 
 INLINE bool snow_is_object(VALUE val) {
-	return val && (((uintptr_t)val & SnTypeMask) == 0);
+	return val && (((uintptr_t)val & SnValueTypeMask) == SnPointerType);
+}
+
+INLINE bool snow_is_immediate(VALUE val) {
+	return !snow_is_object(val);
 }
 
 INLINE bool snow_eval_truth(VALUE val) {

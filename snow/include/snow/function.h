@@ -9,68 +9,39 @@
 #include "snow/arguments.h"
 
 struct SnCallFrame;
-struct SnFunction;
-struct SnClass;
 
-typedef VALUE(*SnFunctionPtr)(struct SnFunction* function, struct SnCallFrame* here, VALUE self, VALUE it);
+typedef VALUE(*SnFunctionPtr)(const struct SnCallFrame* here, VALUE self, VALUE it);
 
-typedef struct SnVariableReference {
-	int level; // The number of call scopes to go up to find the variable.
-	int index; // The index of the variable in that scope.
-} SnVariableReference;
-
-typedef struct SnFunctionDescriptor {
-	SnFunctionPtr ptr;
-	SnSymbol name;
-	SnType return_type;
-	size_t num_params;
-	SnType* param_types;
-	SnSymbol* param_names;
-	int it_index; // index for the `it` argument -- necessary because param_names is sorted at compile-time
-	SnSymbol* local_names;
-	uint32_t num_locals; // num_locals >= num_params (locals include arguments)
-	bool needs_context;
-	void* jit_info;
-	size_t num_variable_references;
-	SnVariableReference* variable_references;
-} SnFunctionDescriptor;
+CAPI SnObjectType SnFunctionType;
+CAPI SnObjectType SnCallFrameType;
 
 typedef struct SnCallFrame {
-	// XXX: Order matters -- codegen depends on this specific ordering of members.
-	SnObject base;
-	struct SnFunction* function;
+	SnObject* function;
 	struct SnCallFrame* caller;
 	VALUE self;
-	VALUE* locals;  // locals in the function, including named args. size: descriptor.num_locals
-	struct SnArguments* arguments;
-	SnObject* module;
+	VALUE* locals; // size: function->descriptor.num_locals
+	SnArguments args;
+	SnObject* as_object;
 } SnCallFrame;
 
-typedef struct SnFunction {
-	SnObject base;
-	const SnFunctionDescriptor* descriptor;
-	SnCallFrame* definition_context;
-	VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
-} SnFunction;
+CAPI struct SnObject* snow_get_function_class();
+CAPI struct SnObject* snow_get_call_frame_class();
 
-CAPI SnFunction* snow_create_function(const SnFunctionDescriptor* descriptor, SnCallFrame* definition_context);
-CAPI SnCallFrame* snow_create_call_frame(SnFunction* callee, size_t num_names, const SnSymbol* names, size_t num_args, const VALUE* args);
-CAPI SnCallFrame* snow_create_call_frame_with_arguments(SnFunction* callee, SnArguments* args);
+CAPI SnObject* snow_create_function(SnFunctionPtr ptr, SnSymbol name); // TODO: Type inference info
+CAPI SnObject* snow_call_frame_as_object(const SnCallFrame* frame);
+CAPI VALUE* snow_get_locals_from_higher_lexical_scope(const SnCallFrame* frame, size_t num_levels);
+CAPI SnObject* snow_call_frame_get_function(const SnObject* obj);
+CAPI VALUE* snow_call_frame_get_locals(const SnObject* obj);
+
 CAPI void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE mergee);
-CAPI SnFunction* snow_value_to_function(VALUE val, VALUE* in_out_new_self);
-CAPI struct SnClass* snow_get_function_class();
-CAPI struct SnClass* snow_get_call_frame_class();
+CAPI SnObject* snow_value_to_function(VALUE val, VALUE* out_new_self);
 
-CAPI VALUE snow_function_call(SnFunction* function, SnCallFrame* context, VALUE self, VALUE it);
+CAPI VALUE snow_function_call(SnObject* function, SnCallFrame* frame);
+CAPI SnSymbol snow_function_get_name(const SnObject* obj);
+CAPI size_t snow_function_get_num_locals(const SnObject* obj);
+CAPI SnObject* snow_function_get_definition_scope(const SnObject* obj);
 
 // Convenience for C bindings
-CAPI SnFunction* snow_create_method(SnFunctionPtr function, SnSymbol name, int num_args);
 CAPI SnObject* snow_create_method_proxy(VALUE self, VALUE method);
-
-#define SN_DEFINE_METHOD(PROTO, NAME, PTR, NUM_ARGS) snow_set_member(PROTO, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
-
-// Used by the GC
-CAPI void snow_finalize_function(SnFunction*);
-CAPI void snow_finalize_call_frame(SnCallFrame*);
 
 #endif /* end of include guard: FUNCTION_H_X576C5TP */

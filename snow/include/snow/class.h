@@ -2,69 +2,51 @@
 #ifndef CLASS_H_JLNQIJLJ
 #define CLASS_H_JLNQIJLJ
 
-#include "snow/basic.h"
 #include "snow/object.h"
-#include "snow/function.h"
 
-typedef enum SnFieldFlags {
-	SnFieldNoFlags = 0x0,    // public
-	SnFieldRawPointer = 0x1, // read-only by Snow code
-} SnFieldFlags;
+CAPI struct SnObjectType SnClassType;
 
-typedef struct SnField {
-	SnSymbol name;
-	uint8_t flags;
-} SnField;
-
-typedef struct SnProperty {
-	VALUE getter;
-	VALUE setter;
-} SnProperty;
-
-typedef enum SnMethodType {
-	SnNoMethodType,
+enum SnMethodType {
+	SnMethodTypeNone,
 	SnMethodTypeFunction,
 	SnMethodTypeProperty,
-} SnMethodType;
+};
 
-typedef struct SnMethod {
+struct SnProperty {
+	VALUE getter;
+	VALUE setter;
+};
+
+struct SnMethod {
+	enum SnMethodType type;
 	SnSymbol name;
-	SnMethodType type;
 	union {
 		VALUE function;
-		SnProperty property;
+		struct SnProperty* property;
 	};
-} SnMethod;
+};
 
-typedef struct SnClass {
-	SnObject base;
-	SnType internal_type;
-	SnSymbol name;
-	struct SnClass* super;
-	SnField* fields;
-	SnMethod* methods;
-	uint32_t num_fields;
-	uint32_t num_methods;
-	bool is_meta;
-} SnClass;
+CAPI SnObject* snow_get_class_class();
+CAPI bool snow_is_class(VALUE val);
 
-CAPI SnClass* snow_create_class(SnSymbol name, SnClass* super);
-CAPI SnClass* snow_create_meta_class(SnClass* base);
-CAPI bool _snow_class_define_method(SnClass* cls, SnSymbol name, VALUE func);
-CAPI bool _snow_class_define_property(SnClass* cls, SnSymbol name, VALUE getter, VALUE setter);
-CAPI size_t _snow_class_define_field(SnClass* cls, SnSymbol name, SnFieldFlags flags);
+CAPI SnObject* snow_create_class(SnSymbol name, SnObject* super);
+CAPI SnObject* snow_create_class_for_type(SnSymbol name, const SnObjectType* type);
+CAPI SnObject* snow_create_meta_class(SnObject* super);
+CAPI bool snow_class_is_meta(const SnObject* cls);
+CAPI const char* snow_class_get_name(const SnObject* cls);
 
-CAPI SnClass* snow_get_class_class();
+// Instance variables
+CAPI int32_t snow_class_get_index_of_instance_variable(const SnObject* cls, SnSymbol name);
+CAPI int32_t snow_class_define_instance_variable(SnObject* cls, SnSymbol name);
+CAPI size_t snow_class_get_num_instance_variables(const SnObject* cls);
 
-INLINE size_t snow_class_get_num_fields(const SnClass* cls) { return cls->num_fields; }
-CAPI bool snow_class_lookup_method_or_property(const SnClass* cls, SnSymbol name, SnMethod* out_method_or_property);
-CAPI void snow_class_get_method_or_property(const SnClass* cls, SnSymbol name, SnMethod* out_method_or_property);
-CAPI int32_t snow_class_get_index_of_field(const SnClass* cls, SnSymbol name);
-CAPI int32_t snow_class_get_or_define_index_of_field(SnClass* cls, SnSymbol name);
-
-CAPI struct SnFunction* snow_create_method(SnFunctionPtr ptr, SnSymbol name, int32_t num_args);
-
-#define snow_class_define_method(CLS, NAME, PTR, NUM_ARGS) _snow_class_define_method(CLS, snow_sym(NAME), snow_create_method(PTR, snow_sym(#PTR), NUM_ARGS))
-#define snow_class_define_property(CLS, NAME, GETTER, SETTER) _snow_class_define_property(CLS, snow_sym(NAME), snow_create_method(GETTER, snow_sym(#GETTER), 0), snow_create_method(SETTER, snow_sym(#SETTER), 1))
+// Methods and properties
+CAPI bool snow_class_lookup_method(const SnObject* cls, SnSymbol name, struct SnMethod* out_method);
+CAPI void snow_class_get_method(const SnObject* cls, SnSymbol name, struct SnMethod* out_method); // throws if not found!
+CAPI SnObject* _snow_class_define_method(SnObject* cls, SnSymbol name, VALUE function);
+#define snow_class_define_method(CLS, NAME, FUNC) _snow_class_define_method(CLS, snow_sym(NAME), snow_create_function(FUNC, snow_sym(#FUNC)))
+CAPI SnObject* _snow_class_define_property(SnObject* cls, SnSymbol name, VALUE getter, VALUE setter);
+#define snow_class_define_property(CLS, NAME, GETTER, SETTER) _snow_class_define_property(CLS, snow_sym(NAME), snow_create_function(GETTER, snow_sym(#GETTER)), snow_create_function(SETTER, snow_sym(#SETTER)))
+CAPI VALUE snow_class_get_initialize(const SnObject* cls);
 
 #endif /* end of include guard: CLASS_H_JLNQIJLJ */

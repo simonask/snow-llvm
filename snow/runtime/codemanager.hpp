@@ -5,6 +5,8 @@
 #include "snow/vm.h"
 #include "snow/ast.h"
 
+#include "function-internal.hpp"
+
 namespace snow {
 	struct CodeModule {
 		const char* name;
@@ -13,7 +15,7 @@ namespace snow {
 		SnSymbol* global_names;
 		VALUE* globals;
 		size_t num_globals;
-		const SnFunctionDescriptor* entry;
+		const FunctionDescriptor* entry;
 		
 		CodeModule(const char* name) : name(name), code(NULL), code_size(0), globals(NULL), entry(NULL) {}
 		~CodeModule();

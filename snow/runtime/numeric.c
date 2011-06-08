@@ -11,7 +11,7 @@
 #include "snow/value.h"
 
 
-static VALUE numeric_add(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_add(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
 	const bool is_self_int = snow_is_integer(self);
 	const bool is_it_int = snow_is_integer(it);
@@ -24,7 +24,7 @@ static VALUE numeric_add(SnFunction* function, SnCallFrame* here, VALUE self, VA
 	}
 }
 
-static VALUE numeric_subtract(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_subtract(const SnCallFrame* here, VALUE self, VALUE it) {
 	const bool is_self_int = snow_is_integer(self);
 	if (!it) {
 		// unary
@@ -43,10 +43,10 @@ static VALUE numeric_subtract(SnFunction* function, SnCallFrame* here, VALUE sel
 	}
 }
 
-static VALUE numeric_multiply(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_multiply(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
-	const SnType self_type = snow_type_of(self);
-	const SnType it_type = snow_type_of(it);
+	const SnValueType self_type = snow_type_of(self);
+	const SnValueType it_type = snow_type_of(it);
 	const bool is_self_int = self_type == SnIntegerType;
 	const bool is_it_int = it_type == SnIntegerType;
 	if (is_self_int && is_it_int) {
@@ -61,10 +61,10 @@ static VALUE numeric_multiply(SnFunction* function, SnCallFrame* here, VALUE sel
 	}
 }
 
-static VALUE numeric_divide(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_divide(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnType self_type = snow_type_of(self);
-	const SnType it_type = snow_type_of(it);
+	const SnValueType self_type = snow_type_of(self);
+	const SnValueType it_type = snow_type_of(it);
 	const bool is_self_int = self_type == SnIntegerType;
 	const bool is_it_int = it_type == SnIntegerType;
 	if (is_self_int && is_it_int) {
@@ -79,10 +79,10 @@ static VALUE numeric_divide(SnFunction* function, SnCallFrame* here, VALUE self,
 	}
 }
 
-static VALUE numeric_less_than(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_less_than(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnType self_type = snow_type_of(self);
-	const SnType it_type = snow_type_of(it);
+	const SnValueType self_type = snow_type_of(self);
+	const SnValueType it_type = snow_type_of(it);
 	const bool is_self_int = self_type == SnIntegerType;
 	const bool is_it_int = it_type == SnIntegerType;
 	if (is_self_int && is_it_int) {
@@ -97,10 +97,10 @@ static VALUE numeric_less_than(SnFunction* function, SnCallFrame* here, VALUE se
 	}
 }
 
-static VALUE numeric_less_than_or_equal(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_less_than_or_equal(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnType self_type = snow_type_of(self);
-	const SnType it_type = snow_type_of(it);
+	const SnValueType self_type = snow_type_of(self);
+	const SnValueType it_type = snow_type_of(it);
 	const bool is_self_int = self_type == SnIntegerType;
 	const bool is_it_int = it_type == SnIntegerType;
 	if (is_self_int && is_it_int) {
@@ -115,10 +115,10 @@ static VALUE numeric_less_than_or_equal(SnFunction* function, SnCallFrame* here,
 	}
 }
 
-static VALUE numeric_greater_than(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_greater_than(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnType self_type = snow_type_of(self);
-	const SnType it_type = snow_type_of(it);
+	const SnValueType self_type = snow_type_of(self);
+	const SnValueType it_type = snow_type_of(it);
 	const bool is_self_int = self_type == SnIntegerType;
 	const bool is_it_int = it_type == SnIntegerType;
 	if (is_self_int && is_it_int) {
@@ -133,10 +133,10 @@ static VALUE numeric_greater_than(SnFunction* function, SnCallFrame* here, VALUE
 	}
 }
 
-static VALUE numeric_greater_than_or_equal(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_greater_than_or_equal(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnType self_type = snow_type_of(self);
-	const SnType it_type = snow_type_of(it);
+	const SnValueType self_type = snow_type_of(self);
+	const SnValueType it_type = snow_type_of(it);
 	const bool is_self_int = self_type == SnIntegerType;
 	const bool is_it_int = it_type == SnIntegerType;
 	if (is_self_int && is_it_int) {
@@ -151,21 +151,21 @@ static VALUE numeric_greater_than_or_equal(SnFunction* function, SnCallFrame* he
 	}
 }
 
-static VALUE integer_complement(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE integer_complement(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(self)) return NULL;
 	return snow_integer_to_value(~snow_value_to_integer(self));
 }
 
-static VALUE integer_modulo(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE integer_modulo(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(self)) return NULL;
 	if (!snow_is_integer(it)) {
-		snow_throw_exception_with_description("Error in modulo operation: %s is not an integer.", snow_value_to_cstr(it));
+		snow_throw_exception_with_description("Error in modulo operation: %p is not an integer.", it);
 		return NULL;
 	}
 	return snow_integer_to_value(snow_value_to_integer(self) % snow_value_to_integer(it));
 }
 
-static VALUE numeric_inspect(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_is_integer(self)) {
 		char buffer[100];
 		snprintf(buffer, 100, "%d", snow_value_to_integer(self));
@@ -178,41 +178,41 @@ static VALUE numeric_inspect(SnFunction* function, SnCallFrame* here, VALUE self
 	return SN_NIL;
 }
 
-SnClass* snow_get_numeric_class() {
-	static VALUE* root = NULL;
+SnObject* snow_get_numeric_class() {
+	static SnObject** root = NULL;
 	if (!root) {
-		SnClass* cls = snow_create_class(snow_sym("Numeric"), NULL);
-		snow_class_define_method(cls, "+", numeric_add, 1);
-		snow_class_define_method(cls, "-", numeric_subtract, 1);
-		snow_class_define_method(cls, "*", numeric_multiply, 1);
-		snow_class_define_method(cls, "/", numeric_divide, 1);
-		snow_class_define_method(cls, "<", numeric_less_than, 1);
-		snow_class_define_method(cls, "<=", numeric_less_than_or_equal, 1);
-		snow_class_define_method(cls, ">", numeric_greater_than, 1);
-		snow_class_define_method(cls, ">=", numeric_greater_than_or_equal, 1);
-		snow_class_define_method(cls, "inspect", numeric_inspect, 0);
-		snow_class_define_method(cls, "to_string", numeric_inspect, 0);
+		SnObject* cls = snow_create_class(snow_sym("Numeric"), NULL);
+		snow_class_define_method(cls, "+", numeric_add);
+		snow_class_define_method(cls, "-", numeric_subtract);
+		snow_class_define_method(cls, "*", numeric_multiply);
+		snow_class_define_method(cls, "/", numeric_divide);
+		snow_class_define_method(cls, "<", numeric_less_than);
+		snow_class_define_method(cls, "<=", numeric_less_than_or_equal);
+		snow_class_define_method(cls, ">", numeric_greater_than);
+		snow_class_define_method(cls, ">=", numeric_greater_than_or_equal);
+		snow_class_define_method(cls, "inspect", numeric_inspect);
+		snow_class_define_method(cls, "to_string", numeric_inspect);
 		root = snow_gc_create_root(cls);
 	}
-	return (SnClass*)*root;
+	return *root;
 }
 
-SnClass* snow_get_float_class() {
-	static VALUE* root = NULL;
+SnObject* snow_get_float_class() {
+	static SnObject** root = NULL;
 	if (!root) {
-		SnClass* cls = snow_create_class(snow_sym("Float"), snow_get_numeric_class());
+		SnObject* cls = snow_create_class(snow_sym("Float"), snow_get_numeric_class());
 		root = snow_gc_create_root(cls);
 	}
-	return (SnClass*)*root;
+	return *root;
 }
 
-SnClass* snow_get_integer_class() {
-	static VALUE* root = NULL;
+SnObject* snow_get_integer_class() {
+	static SnObject** root = NULL;
 	if (!root) {
-		SnClass* cls = snow_create_class(snow_sym("Integer"), snow_get_numeric_class());
-		snow_class_define_method(cls, "%", integer_modulo, 1);
-		snow_class_define_method(cls, "~", integer_complement, 0);
+		SnObject* cls = snow_create_class(snow_sym("Integer"), snow_get_numeric_class());
+		snow_class_define_method(cls, "%", integer_modulo);
+		snow_class_define_method(cls, "~", integer_complement);
 		root = snow_gc_create_root(cls);
 	}
-	return (SnClass*)*root;
+	return *root;
 }

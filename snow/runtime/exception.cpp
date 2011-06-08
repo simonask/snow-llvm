@@ -33,7 +33,14 @@ CAPI {
 
 	CAPI void snow_throw_exception(VALUE ex) {
 		// TODO: Backtrace and all that jazz
-		fprintf(stderr, "SNOW: Throwing exception %s\n", snow_value_to_cstr(ex));
+		
+		SnObject* str = snow_value_to_string(ex);
+		size_t sz = snow_string_size(str);
+		char buffer[sz+1];
+		snow_string_copy_to(str, buffer, sz);
+		buffer[sz] = '\0';
+		
+		fprintf(stderr, "SNOW: Throwing exception: %s\n", buffer);
 		#if DEBUG
 		TRAP();
 		#endif

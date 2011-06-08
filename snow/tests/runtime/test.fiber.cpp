@@ -4,10 +4,10 @@
 #include "snow/numeric.h"
 #include "snow/type.h"
 
-static VALUE fiber_function(SnFunction* function, SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_function(const SnCallFrame* here, VALUE self, VALUE it) {
 	printf("fiber started\n");
 	ASSERT(snow_type_of(it) == SnFiberType);
-	SnFiber* cc = (SnFiber*)it;
+	SnObject* cc = (SnObject*)it;
 	printf("yielding fiber\n");
 	snow_fiber_resume(cc, snow_integer_to_value(1));
 	printf("returning fiber\n");
@@ -21,7 +21,7 @@ STORY("fiber 1", {
 	SnFunction* functor = snow_create_method(fiber_function, snow_sym("fiber"), 1);
 	
 	printf("launching fiber\n");
-	SnFiber* fiber = snow_create_fiber(functor);
+	SnObject* fiber = snow_create_fiber(functor);
 	VALUE yielded_value = snow_fiber_resume(fiber, NULL);
 	printf("fiber yielded\n");
 	TEST_EQ(yielded_value, snow_integer_to_value(1));
