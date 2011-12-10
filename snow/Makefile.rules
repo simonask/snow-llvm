@@ -5,27 +5,11 @@ GOALS = clean depends all install test
 .DEFAULT_GOAL := all
 .DELETE_ON_ERROR :=
 
-BC_CC_COMMAND = $(BC_CC) -c -emit-llvm $(BC_CFLAGS)
-BC_CXX_COMMAND = $(BC_CXX) -c -emit-llvm $(BC_CXXFLAGS)
 CC_COMMAND = $(CC) -c $(CFLAGS)
 CXX_COMMAND = $(CXX) -c $(CXXFLAGS)
 
-BC_CC_MM_COMMAND = $(BC_CC) $(BC_CFLAGS) -MM
-BC_CXX_MM_COMMAND = $(BC_CXX) $(BC_CXXFLAGS) -MM
 CC_MM_COMMAND = $(CC) $(CFLAGS) -MM
 CXX_MM_COMMAND = $(CXX) $(CXXFLAGS) -MM
-
-%.c.bc: %.c .%.c.bc.deps $(LEVEL)/Makefile.config
-	$(BC_CC_COMMAND) -o $@ $<
-
-%.cpp.bc: %.cpp .%.cpp.bc.deps $(LEVEL)/Makefile.config
-	$(BC_CXX_COMMAND) -o $@ $<
-
-%.bc: %.c .%.c.bc.deps $(LEVEL)/Makefile.config
-	$(BC_CC_COMMAND) -o $@ $<
-
-%.bc: %.cpp .%.cpp.bc.deps $(LEVEL)/Makefile.config
-	$(BC_CXX_COMMAND) -o $@ $<
 
 %.c.o: %.c .%.c.o.deps $(LEVEL)/Makefile.config
 	$(CC_COMMAND) -o $@ $<
@@ -33,10 +17,6 @@ CXX_MM_COMMAND = $(CXX) $(CXXFLAGS) -MM
 %.cpp.o: %.cpp .%.cpp.o.deps $(LEVEL)/Makefile.config
 	$(CXX_COMMAND) -o $@ $<
 
-.%.c.bc.deps: %.c $(LEVEL)/Makefile.config
-	$(BC_CC_MM_COMMAND) -MM $< | sed -e s/\\.o/.c.bc/g > $@
-.%.cpp.bc.deps: %.cpp $(LEVEL)/Makefile.config
-	$(BC_CXX_MM_COMMAND) -MM $< | sed -e s/\\.o/.cpp.bc/g > $@
 .%.c.o.deps: %.c $(LEVEL)/Makefile.config
 	$(CC_MM_COMMAND) -MM $< > $@
 .%.cpp.o.deps: %.cpp $(LEVEL)/Makefile.config
