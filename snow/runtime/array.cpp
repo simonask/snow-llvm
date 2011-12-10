@@ -152,7 +152,7 @@ namespace {
 		if (snow_type_of(it) != SnIntegerType) {
 			snow_throw_exception_with_description("Array#set called with a non-integer index %p.", it);
 		}
-		VALUE val = here->args.size > 1 ? here->args.data[1] : SN_NIL;
+		VALUE val = here->args->size > 1 ? here->args->data[1] : SN_NIL;
 		return snow_array_set((SnObject*)self, snow_value_to_integer(it), val);
 	}
 

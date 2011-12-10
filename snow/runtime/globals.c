@@ -37,8 +37,8 @@ SnObject* snow_get_vm_interface() {
 }
 
 static VALUE global_puts(const SnCallFrame* here, VALUE self, VALUE it) {
-	for (size_t i = 0; i < here->args.size; ++i) {
-		SnObject* str = snow_value_to_string(here->args.data[i]);
+	for (size_t i = 0; i < here->args->size; ++i) {
+		SnObject* str = snow_value_to_string(here->args->data[i]);
 		size_t sz = snow_string_size(str);
 		char* buffer = (char*)alloca(sz+1);
 		snow_string_copy_to(str, buffer, sz);
