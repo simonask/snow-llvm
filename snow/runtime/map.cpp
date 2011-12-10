@@ -145,7 +145,7 @@ static VALUE map_each_pair(const SnCallFrame* here, VALUE self, VALUE it) {
 }
 
 static VALUE map_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
-	const SnArguments* args = &here->args;
+	const SnArguments* args = here->args;
 	if ((args->size - args->num_names) % 2) {
 		snow_throw_exception_with_description("Cannot create map with odd number (%u) of arguments.", (uint32_t)(args->size - args->num_names));
 	}

@@ -74,11 +74,11 @@ namespace {
 	
 	VALUE class_define_method(const SnCallFrame* here, VALUE self, VALUE it) {
 		if (snow_is_class(self)) {
-			if (here->args.size < 2) {
-				snow_throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args.size);
+			if (here->args->size < 2) {
+				snow_throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args->size);
 			}
 			VALUE vname = it;
-			VALUE vmethod = here->args.data[1];
+			VALUE vmethod = here->args->data[1];
 			if (!snow_is_symbol(vname)) snow_throw_exception_with_description("Expected method name as argument 1 of Class#define_method.");
 			_snow_class_define_method((SnObject*)self, snow_value_to_symbol(vname), vmethod);
 			return self;
@@ -90,12 +90,12 @@ namespace {
 	VALUE class_define_property(const SnCallFrame* here, VALUE self, VALUE it) {
 		// TODO: Use named arguments
 		if (snow_is_class(self)) {
-			if (here->args.size < 2) {
-				snow_throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args.size);
+			if (here->args->size < 2) {
+				snow_throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args->size);
 			}
 			VALUE vname = it;
-			VALUE vgetter = here->args.data[1];
-			VALUE vsetter = here->args.size >= 3 ? here->args.data[2] : NULL;
+			VALUE vgetter = here->args->data[1];
+			VALUE vsetter = here->args->size >= 3 ? here->args->data[2] : NULL;
 			if (!snow_is_symbol(vname)) snow_throw_exception_with_description("Class#define_property expects a property name as a symbol for the first argument.");
 			_snow_class_define_property((SnObject*)self, snow_value_to_symbol(vname), vgetter, vsetter);
 			return self;
@@ -115,8 +115,7 @@ namespace {
 	
 	static VALUE class_call(const SnCallFrame* here, VALUE self, VALUE it) {
 		SN_CHECK_CLASS(self, Class, __call__);
-		// TODO: Consider named arguments
-		return snow_create_object((SnObject*)self, here->args.size, here->args.data);
+		return snow_create_object_with_arguments((SnObject*)self, here->args);
 	}
 }
 
@@ -142,14 +141,20 @@ CAPI {
 	}
 	
 	SnObject* snow_create_object(SnObject* cls, size_t num_constructor_args, VALUE* args) {
+		SnArguments arguments = {
+			.size = num_constructor_args,
+			.data = args,
+		};
+		return snow_create_object_with_arguments(cls, &arguments);
+	}
+	
+	SnObject* snow_create_object_with_arguments(SnObject* cls, const SnArguments* args) {
 		SnObject* obj = snow_create_object_without_initialize(cls);
-		
 		// TODO: Consider how to call superclass initializers
 		VALUE initialize = snow_class_get_initialize(cls);
 		if (initialize) {
-			snow_call(initialize, obj, num_constructor_args, args);
+			snow_call_with_arguments(initialize, obj, args);
 		}
-		
 		return obj;
 	}
 	
@@ -228,7 +233,7 @@ CAPI {
 	
 	void snow_class_get_method(const SnObject* cls, SnSymbol name, SnMethod* out_method) {
 		if (!snow_class_lookup_method(cls, name, out_method)) {
-			snow_throw_exception_with_description("Class %s@%p does not respond to method or property name '%s'.", snow_class_get_name(cls), cls, snow_sym_to_cstr(name));
+			snow_throw_exception_with_description("Class %s@%p does not contain a method or property named '%s'.", snow_class_get_name(cls), cls, snow_sym_to_cstr(name));
 		}
 	}
 	

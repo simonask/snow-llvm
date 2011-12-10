@@ -165,16 +165,12 @@ namespace {
 				m->entry = snow::create_function_for_descriptor(code->entry, NULL);
 				
 				// Call module entry
+				static SnArguments args = {}; // zero arguments
 				SnCallFrame frame = {
 					.function = m->entry,
 					.self = NULL,
 					.locals = NULL,
-					.args = {
-						.num_names = 0,
-						.names = NULL,
-						.size = 0,
-						.data = NULL
-					},
+					.args = &args,
 					.as_object = NULL
 				};
 				VALUE result = snow_function_call(m->entry, &frame);

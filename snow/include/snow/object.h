@@ -33,6 +33,7 @@ typedef struct SnObjectType {
 
 CAPI SnObject* snow_get_object_class();
 CAPI SnObject* snow_create_object(SnObject* cls, size_t num_constructor_args, VALUE* args);
+CAPI SnObject* snow_create_object_with_arguments(SnObject* cls, const struct SnArguments* constructor_args);
 CAPI SnObject* snow_create_object_without_initialize(SnObject* cls);
 
 // Instance variable related

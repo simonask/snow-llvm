@@ -85,33 +85,19 @@ SnObject* snow_get_class(VALUE value) {
 }
 
 VALUE snow_call(VALUE functor, VALUE self, size_t num_args, VALUE* args) {
-	SnObject* function = snow_value_to_function(functor, &self);
-	SnCallFrame frame = {
-		.function = function,
-		.caller = NULL, // set when call frame is pushed onto call chain stack
-		.self = self,
-		.locals = NULL, // set by snow_function_call,
-		.args = {
-			.num_names = 0,
-			.names = NULL,
-			.size = num_args,
-			.data = (VALUE*)args,
-		},
-		.as_object = NULL,
+	SnArguments arguments = {
+		.size = num_args,
+		.data = args,
 	};
-	return snow_function_call(function, &frame);
+	return snow_call_with_arguments(functor, self, &arguments);
 }
 
 VALUE snow_call_with_arguments(VALUE functor, VALUE self, const SnArguments* args) {
 	SnObject* function = snow_value_to_function(functor, &self);
 	SnCallFrame frame = {
-		.function = function,
-		.caller = NULL,
 		.self = self,
-		.locals = NULL,
-		.as_object = NULL,
+		.args = args,
 	};
-	memcpy(&frame.args, args, sizeof(SnArguments));
 	return snow_function_call(function, &frame);
 }
 
@@ -125,29 +111,18 @@ VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, VALUE*
 	} else if (method.type == SnMethodTypeProperty) {
 		func = snow_call(method.property->getter, self, 0, NULL);
 	}
-	if (func) {
-		return snow_call(func, self, num_args, args);
-	}
-	return NULL;
+	return snow_call(func, self, num_args, args);
 }
 
 VALUE snow_call_with_named_arguments(VALUE functor, VALUE self, size_t num_names, SnSymbol* names, size_t num_args, VALUE* args) {
 	ASSERT(num_names <= num_args);
-	SnObject* function = snow_value_to_function(functor, &self);
-	SnCallFrame frame = {
-		.function = function,
-		.caller = NULL,
-		.self = self,
-		.locals = NULL,
-		.args = {
-			.num_names = num_names,
-			.names = names,
-			.size = num_args,
-			.data = args,
-		},
-		.as_object = NULL,
+	SnArguments arguments = {
+		.num_names = num_names,
+		.names = names,
+		.size = num_args,
+		.data = args,
 	};
-	return snow_function_call(function, &frame);
+	return snow_call_with_arguments(functor, self, &arguments);
 }
 
 VALUE snow_value_freeze(VALUE it) {

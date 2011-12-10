@@ -20,7 +20,7 @@ typedef struct SnCallFrame {
 	struct SnCallFrame* caller;
 	VALUE self;
 	VALUE* locals; // size: function->descriptor.num_locals
-	SnArguments args;
+	const SnArguments* args;
 	SnObject* as_object;
 } SnCallFrame;
 
@@ -28,7 +28,7 @@ CAPI struct SnObject* snow_get_function_class();
 CAPI struct SnObject* snow_get_call_frame_class();
 
 CAPI SnObject* snow_create_function(SnFunctionPtr ptr, SnSymbol name); // TODO: Type inference info
-CAPI SnObject* snow_call_frame_as_object(const SnCallFrame* frame);
+CAPI SnObject* snow_call_frame_as_object(SnCallFrame* frame);
 CAPI VALUE* snow_get_locals_from_higher_lexical_scope(const SnCallFrame* frame, size_t num_levels);
 CAPI SnObject* snow_call_frame_get_function(const SnObject* obj);
 CAPI VALUE* snow_call_frame_get_locals(const SnObject* obj);

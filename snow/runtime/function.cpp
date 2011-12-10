@@ -148,7 +148,7 @@ CAPI {
 		return *root;
 	}
 	
-	SnObject* snow_call_frame_as_object(const SnCallFrame* frame) {
+	SnObject* snow_call_frame_as_object(SnCallFrame* frame) {
 		if (frame->as_object) return frame->as_object;
 		
 		SnObject* obj = snow_create_object(snow_get_call_frame_class(), 0, NULL);
@@ -157,7 +157,7 @@ CAPI {
 		priv->self = frame->self;
 		priv->locals = frame->locals; // shared until call_frame_liberate
 		priv->num_locals = snow_function_get_num_locals(priv->function);
-		priv->args = frame->args; // shared until call_frame_liberate
+		priv->args = *frame->args; // shared until call_frame_liberate
 		frame->as_object = obj;
 		return obj;
 	}
@@ -237,8 +237,45 @@ CAPI {
 		FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
 		ASSERT(priv); // function is not a Function
 		
+		// Allocate locals
+		size_t num_locals = priv->descriptor->num_locals;
+		VALUE locals[num_locals];
+		// initialize call frame for use with this function
+		frame->function = function;
+		frame->locals = locals;
+		
+		// TODO: There *must* be a way to optimize this!
+		// First, assign named arguments to the proper locals
+		snow::assign_range<VALUE>(locals, NULL, num_locals);
+		size_t num_params = priv->descriptor->num_params;
+		ASSERT(num_params <= num_locals);
+		const SnArguments* args = frame->args;
+		bool taken_for_named_args[args->size];
+		snow::assign_range<bool>(taken_for_named_args, false, args->size);
+		for (size_t i = 0; i < num_params; ++i) {
+			SnSymbol name = priv->descriptor->param_names[i];
+			for (size_t j = 0; j < args->num_names; ++j) {
+				if (name == args->names[j]) {
+					locals[i] = args->data[j];
+					taken_for_named_args[j] = true;
+					break;
+				}
+			}
+		}
+		// Second, assign remaining arguments (named or not) to the remaining locals
+		if (args->size) {
+			size_t arg_i = 0;
+			for (size_t i = 0; i < num_params; ++i) {
+				if (locals[i] != NULL) continue; // already set by named arg
+				while (taken_for_named_args[arg_i]) ++arg_i;
+				if (arg_i >= args->size) break;
+				locals[i] = args->data[arg_i];
+			}
+		}
+
+		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
-		return priv->descriptor->ptr(frame, frame->self, frame->args.size ? frame->args.data[0] : NULL);
+		return priv->descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
 	SnSymbol snow_function_get_name(const SnObject* function) {
@@ -264,7 +301,7 @@ CAPI {
 		SnObject* s = (SnObject*)self;
 		VALUE obj = snow_object_get_instance_variable(s, snow_sym("object"));
 		VALUE method = snow_object_get_instance_variable(s, snow_sym("method"));
-		return snow_call_with_arguments(method, obj, &here->args);
+		return snow_call_with_arguments(method, obj, here->args);
 	}
 
 	SnObject* snow_create_method_proxy(VALUE self, VALUE method) {
