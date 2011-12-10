@@ -7,6 +7,7 @@
 #include "snow/symbol.h"
 
 struct SnObjectType;
+struct SnArguments;
 
 typedef struct SnObject {
 	struct {
