@@ -147,7 +147,6 @@ namespace snow {
 	#define REG_CALL_FRAME R12
 	#define REG_SELF       R13
 	#define REG_IT         R14
-	#define REG_FUNCTION   R15
 	
 	bool Codegen::Function::compile_function_body(const SnAstNode* body_seq) {
 		pushq(RBP);
@@ -157,18 +156,17 @@ namespace snow {
 		pushq(REG_CALL_FRAME);
 		pushq(REG_SELF);
 		pushq(REG_IT);
-		pushq(REG_FUNCTION);
-		movq(RDI, REG_FUNCTION);
-		movq(RSI, REG_CALL_FRAME);
-		movq(RDX, REG_SELF);
-		movq(RCX, REG_IT);
+		pushq(R15);
+		movq(RDI, REG_CALL_FRAME);
+		movq(RSI, REG_SELF);
+		movq(RDX, REG_IT);
 		xorq(RAX, RAX); // always clear RAX, so empty functions return nil.
 		return_label = label();
 		
 		if (!compile_ast_node(body_seq)) return false;
 		
 		bind_label(return_label);
-		popq(REG_FUNCTION);
+		popq(R15);
 		popq(REG_IT);
 		popq(REG_SELF);
 		popq(REG_CALL_FRAME);
@@ -203,12 +201,14 @@ namespace snow {
 			case SN_AST_CLOSURE: {
 				Function* f = compile_function(node);
 				if (!f) return false;
+				movq(REG_CALL_FRAME, RDI);
+				CALL(snow_call_frame_as_object);
+				movq(RAX, RSI);
 				FunctionDescriptorReference ref;
 				ref.offset = movq(0, RDI);
 				ref.function = f;
 				function_descriptor_references.push_back(ref);
-				movq(REG_CALL_FRAME, RSI);
-				CALL(snow_create_function);
+				CALL(snow::create_function_for_descriptor);
 				return true;
 			}
 			case SN_AST_RETURN: {
@@ -610,71 +610,65 @@ namespace snow {
 		}
 	}
 	
-	struct CompareNamedArguments {
-		int operator()(const SnAstNode* a, const SnAstNode* b) {
-			ASSERT(a->type == SN_AST_NAMED_ARGUMENT);
-			ASSERT(b->type == SN_AST_NAMED_ARGUMENT);
-			return (int)((ssize_t)a->named_argument.name - (ssize_t)b->named_argument.name);
-		}
-	};
-	
 	bool Codegen::Function::compile_call(const SnAstNode* node) {
-		size_t num_arguments = 0;
-		size_t unnamed_arguments_offset = 0;
-		std::map<const SnAstNode*, int> sorted_argument_order;
-		std::vector<const SnAstNode*> named_args;
+		std::vector<std::pair<const SnAstNode*, int> > args;
+		std::vector<SnSymbol> names;
 		
 		if (node->call.args) {
-			num_arguments = node->call.args->sequence.length;
-		}
-		
-		const SnAstNode* all_args[num_arguments];
-			
-		if (num_arguments) {
-			size_t i = 0;
+			args.reserve(node->call.args->sequence.length);
+
+			size_t num_names = 0;
 			for (const SnAstNode* x = node->call.args->sequence.head; x; x = x->next) {
 				if (x->type == SN_AST_NAMED_ARGUMENT) {
-					named_args.push_back(x);
-					++unnamed_arguments_offset;
+					++num_names;
 				}
-				all_args[i++] = x;
 			}
 			
-			std::sort(named_args.begin(), named_args.end(), CompareNamedArguments());
-			for (int i = 0; i < named_args.size(); ++i) {
-				sorted_argument_order[named_args[i]] = i;
+			size_t named_i = 0;
+			size_t unnamed_i = num_names;
+			names.reserve(num_names);
+			for (const SnAstNode* x = node->call.args->sequence.head; x; x = x->next) {
+				if (x->type == SN_AST_NAMED_ARGUMENT) {
+					args.push_back(std::pair<const SnAstNode*,int>(x->named_argument.expr, named_i++));
+					names.push_back(x->named_argument.name);
+				} else {
+					args.push_back(std::pair<const SnAstNode*,int>(x, unnamed_i++));
+				}
 			}
+			ASSERT(named_i == names.size());
+			ASSERT(unnamed_i == args.size());
 		}
 		
 		Temporary args_ptr(*this);
 		Temporary names_ptr(*this);
-		Alloca _1(*this, args_ptr, num_arguments, sizeof(VALUE));
-		Alloca _2(*this, names_ptr, named_args.size(), sizeof(SnSymbol));
+		Alloca _1(*this, args_ptr, args.size(), sizeof(VALUE));
+		// TODO: Use static storage for name lists
+		Alloca _2(*this, names_ptr, names.size(), sizeof(SnSymbol));
 		
-		for (size_t i = 0; i < num_arguments; ++i) {
-			const SnAstNode* x = all_args[i];
-			size_t position;
-			if (x->type == SN_AST_NAMED_ARGUMENT) {
-				if (!compile_ast_node(x->named_argument.expr)) return false;
-				position = sorted_argument_order[x];
-				movq(names_ptr, RDX);
-				movq(x->named_argument.name, RDI);
-				movq(RDI, address(RDX, sizeof(SnSymbol) * position));
-			} else {
-				if (!compile_ast_node(x)) return false;
-				position = unnamed_arguments_offset++;
-			}
+		// Compile arguments and put them in their places.
+		for (size_t i = 0; i < args.size(); ++i) {
+			const SnAstNode* x = args[i].first;
+			int idx = args[i].second;
+			if (!compile_ast_node(x)) return false;
 			movq(args_ptr, RDX);
-			movq(RAX, address(RDX, sizeof(VALUE) * position));
+			movq(RAX, address(RDX, sizeof(VALUE) * idx));
+		}
+		
+		// Create name list.
+		// TODO: Use static storage for name lists, with RIP-addressing.
+		movq(names_ptr, RDX);
+		for (size_t i = 0; i < names.size(); ++i) {
+			movq(names[i], RAX); // cannot move a 64-bit operand directly to memory
+			movq(RAX, address(RDX, sizeof(SnSymbol) * i));
 		}
 		
 		if (node->call.object->type == SN_AST_METHOD) {
 			if (!compile_ast_node(node->call.object->method.object)) return false;
-			compile_method_call(RAX, node->call.object->method.name, num_arguments, args_ptr, named_args.size(), names_ptr);
+			compile_method_call(RAX, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
 		} else {
 			if (!compile_ast_node(node->call.object)) return false;
 			xorq(RSI, RSI); // self = NULL
-			compile_call(RAX, RSI, num_arguments, args_ptr, named_args.size(), names_ptr);
+			compile_call(RAX, RSI, args.size(), args_ptr, names.size(), names_ptr);
 		}
 		return true;
 	}
