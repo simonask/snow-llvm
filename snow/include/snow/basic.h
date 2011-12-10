@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 #define NO_INLINE __attribute__((noinline))
 #define HIDDEN __attribute__((visibility("hidden")))
@@ -45,7 +46,7 @@ static const size_t SN_ALLOCATION_BLOCK_SIZE = 4 * SN_MEMORY_PAGE_SIZE; // 16K d
 #define QUOTEME(X) QUOTEME_(X)
 
 #if defined(DEBUG)
-INLINE void crash_and_burn() { __asm__ __volatile__(""); char c = *(char*)NULL; }
+INLINE void crash_and_burn() { assert(false); }
 #endif
 
 #if defined(DEBUG)
