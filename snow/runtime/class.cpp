@@ -59,11 +59,11 @@ namespace {
 	VALUE class_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
 		ClassPrivate* priv = snow::value_get_private<ClassPrivate>(self, SnClassType);
 		ASSERT(priv);
+		priv->initialize = NULL;
 		if (snow_is_class(it)) {
 			ClassPrivate* super_priv = snow::object_get_private<ClassPrivate>((SnObject*)it, SnClassType);
 			priv->super = (SnObject*)it;
 			priv->instance_type = super_priv->instance_type;
-			priv->initialize = NULL;
 			priv->instance_variables = super_priv->instance_variables;
 		} else if (snow_eval_truth(it)) {
 			snow_throw_exception_with_description("Cannot use %p as superclass.", it);
@@ -199,12 +199,12 @@ CAPI {
 	}
 	
 	bool snow_class_lookup_method(const SnObject* cls, SnSymbol name, SnMethod* out_method) {
-		const SnObject* c = cls;
 		const SnObject* object_class = snow_get_object_class();
 		static const SnSymbol init_sym = snow_sym("initialize");
 		SnMethod key = { .name = name, .type = SnMethodTypeNone };
+		const SnObject* c = cls;
 		while (c != NULL) {
-			const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
+			const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(c, SnClassType);
 			ASSERT(priv); // non-class in class hierarchy!
 			
 			// Check for 'initialize'
@@ -308,15 +308,19 @@ CAPI {
 		SnObject* cls = snow_create_object(snow_get_class_class(), countof(args), args);
 		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
 		priv->name = name;
+		priv->initialize = NULL;
+		priv->is_meta = false;
 		return cls;
 	}
 	
-	SnObject* snow_create_class_for_type(SnSymbol name, const SnObjectType* type) {
+	SnObject* snow_create_class_for_type(SnSymbol name, const SnInternalType* type) {
 		SnObject* cls = snow_create_object_without_initialize(snow_get_class_class());
 		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
 		priv->name = name;
-		ASSERT(priv->instance_type == NULL);
 		priv->instance_type = type;
+		priv->super = NULL;
+		priv->initialize = NULL;
+		priv->is_meta = false;
 		return cls;
 	}
 	
