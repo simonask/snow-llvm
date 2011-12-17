@@ -144,6 +144,8 @@ namespace {
 			}
 		}
 		
+		snow_string_append_cstr(result, ")");
+		
 		return result;
 	}
 
