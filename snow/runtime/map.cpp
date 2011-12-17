@@ -1,18 +1,18 @@
-#include "snow/map.h"
+#include "snow/map.hpp"
 #include "internal.h"
 
-#include "snow/boolean.h"
+#include "snow/boolean.hpp"
 #include "snow/class.hpp"
 #include "snow/exception.h"
 #include "snow/function.hpp"
 #include "snow/gc.hpp"
-#include "snow/numeric.h"
-#include "snow/snow.h"
+#include "snow/numeric.hpp"
+#include "snow/snow.hpp"
 #include "snow/str.hpp"
 
 #include "lock.hpp"
 #include "snow/objectptr.hpp"
-#include "adapting_map.hpp"
+#include "adapting_map.hpppp"
 
 namespace {
 	typedef snow::AdaptingMap Map;

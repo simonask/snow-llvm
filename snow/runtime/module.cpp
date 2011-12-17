@@ -1,4 +1,4 @@
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "snow/module.hpp"
 #include "snow/array.hpp"
 #include "snow/str.hpp"

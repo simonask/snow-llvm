@@ -2,7 +2,7 @@
 #ifndef MAP_H_MXEPAZB9
 #define MAP_H_MXEPAZB9
 
-#include "snow/value.h"
+#include "snow/value.hpp"
 #include "snow/object.hpp"
 
 CAPI SnObject* snow_create_map();

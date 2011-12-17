@@ -2,7 +2,7 @@
 #ifndef SYMBOL_HPP_E0OCZIQR
 #define SYMBOL_HPP_E0OCZIQR
 
-#include "snow/symbol.h"
+#include "snow/symbol.hpp"
 
 namespace snow {
 	struct Symbol {

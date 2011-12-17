@@ -3,7 +3,7 @@
 #define EXCEPTION_H_WC3FV11H
 
 #include "snow/basic.h"
-#include "snow/value.h"
+#include "snow/value.hpp"
 
 CAPI VALUE snow_try_catch_ensure(VALUE try_f, VALUE catch_f, VALUE ensure_f);
 CAPI void snow_throw_exception(VALUE ex);

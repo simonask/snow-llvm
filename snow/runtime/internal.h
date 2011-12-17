@@ -2,7 +2,7 @@
 #ifndef INTERNAL_H_MQQA0XIE
 #define INTERNAL_H_MQQA0XIE
 
-#include "snow/value.h"
+#include "snow/value.hpp"
 
 struct SnObject;
 

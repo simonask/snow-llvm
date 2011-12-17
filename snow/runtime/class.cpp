@@ -2,7 +2,7 @@
 #include "snow/function.hpp"
 #include "snow/exception.h"
 #include "snow/str.hpp"
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 
 #include "snow/util.hpp"
 #include "snow/objectptr.hpp"

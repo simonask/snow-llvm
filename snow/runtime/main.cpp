@@ -1,4 +1,4 @@
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "internal.h"
 
 #include "snow/array.hpp"

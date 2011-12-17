@@ -1,4 +1,4 @@
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include <stdlib.h>
 #include <stdio.h>
 #include "snow/exception.hpp"

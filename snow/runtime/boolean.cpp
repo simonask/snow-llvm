@@ -1,4 +1,4 @@
-#include "snow/boolean.h"
+#include "snow/boolean.hpp"
 #include "internal.h"
 #include "snow/class.hpp"
 #include "snow/function.hpp"

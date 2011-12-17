@@ -3,7 +3,7 @@
 #define SYMBOL_H_RKFL2KE8
 
 #include "snow/basic.h"
-#include "snow/value.h"
+#include "snow/value.hpp"
 
 typedef uint64_t SnSymbol;
 

@@ -2,7 +2,7 @@
 #ifndef OBJECTPTR_HPP_DWKBYC9Z
 #define OBJECTPTR_HPP_DWKBYC9Z
 
-#include "snow/value.h"
+#include "snow/value.hpp"
 #include "snow/util.hpp"
 #include "snow/type.hpp"
 

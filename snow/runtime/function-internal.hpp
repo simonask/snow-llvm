@@ -3,8 +3,8 @@
 #define FUNCTION_INTERNAL_HPP_U4QUBRPT
 
 #include "snow/function.hpp"
-#include "snow/symbol.h"
-#include "snow/value.h"
+#include "snow/symbol.hpp"
+#include "snow/value.hpp"
 
 namespace snow {
 	struct VariableReference {

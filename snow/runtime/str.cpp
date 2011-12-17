@@ -4,8 +4,8 @@
 #include "snow/function.hpp"
 #include "snow/gc.hpp"
 #include "snow/linkbuffer.h"
-#include "snow/numeric.h"
-#include "snow/snow.h"
+#include "snow/numeric.hpp"
+#include "snow/snow.hpp"
 #include "snow/exception.h"
 
 #include "snow/util.hpp"

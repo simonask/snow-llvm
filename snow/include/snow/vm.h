@@ -3,7 +3,7 @@
 #define VM_H_QGO3BPWD
 
 #include "snow/basic.h"
-#include "snow/symbol.h"
+#include "snow/symbol.hpp"
 
 struct SnProcess;
 struct SnAST;

@@ -3,8 +3,8 @@
 #define OBJECT_H_CCPHDYB5
 
 #include "snow/gc.hpp"
-#include "snow/value.h"
-#include "snow/symbol.h"
+#include "snow/value.hpp"
+#include "snow/symbol.hpp"
 #include "snow/type.hpp"
 
 struct SnArguments;

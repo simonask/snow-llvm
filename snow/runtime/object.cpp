@@ -3,10 +3,10 @@
 #include "internal.h"
 #include "snow/class.hpp"
 #include "snow/function.hpp"
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "snow/str.hpp"
-#include "snow/boolean.h"
-#include "snow/numeric.h"
+#include "snow/boolean.hpp"
+#include "snow/numeric.hpp"
 #include "snow/exception.h"
 
 #include "snow/util.hpp"

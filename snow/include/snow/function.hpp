@@ -3,8 +3,8 @@
 #define FUNCTION_H_X576C5TP
 
 #include "snow/basic.h"
-#include "snow/symbol.h"
-#include "snow/value.h"
+#include "snow/symbol.hpp"
+#include "snow/value.hpp"
 #include "snow/object.hpp"
 #include "snow/arguments.h"
 

@@ -1,6 +1,6 @@
 #include "snow/exception.hpp"
 #include "snow/str.hpp"
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -5,9 +5,9 @@
 #include "snow/objectptr.hpp"
 #include "snow/exception.h"
 #include "snow/function.hpp"
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "snow/str.hpp"
-#include "snow/numeric.h"
+#include "snow/numeric.hpp"
 #include "snow/type.hpp"
 
 #include <string.h>

@@ -4,7 +4,7 @@
 #include "snow/objectptr.hpp"
 #include "function-internal.hpp"
 #include "fiber-internal.h"
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "snow/class.hpp"
 #include "snow/exception.h"
 #include "snow/array.hpp"

@@ -1,4 +1,4 @@
-#include "snow/symbol.h"
+#include "snow/symbol.hpp"
 #include "internal.h"
 #include "snow/class.hpp"
 #include "snow/function.hpp"

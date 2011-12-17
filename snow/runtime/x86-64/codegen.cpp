@@ -3,7 +3,7 @@
 #include "../snow/util.hpp"
 #include "../function-internal.hpp"
 
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "snow/array.hpp"
 #include "snow/class.hpp"
 

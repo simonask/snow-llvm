@@ -3,8 +3,8 @@
 #define AST_HPP_DVPCZMTH
 
 #include "snow/basic.h"
-#include "snow/value.h"
-#include "snow/symbol.h"
+#include "snow/value.hpp"
+#include "snow/symbol.hpp"
 #include "snow/ast.h"
 
 struct SnAstNode;

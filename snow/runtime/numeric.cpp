@@ -1,13 +1,13 @@
-#include "snow/numeric.h"
+#include "snow/numeric.hpp"
 #include "internal.h"
-#include "snow/boolean.h"
+#include "snow/boolean.hpp"
 #include "snow/class.hpp"
 #include "snow/exception.h"
 #include "snow/function.hpp"
 #include "snow/object.hpp"
-#include "snow/snow.h"
+#include "snow/snow.hpp"
 #include "snow/str.hpp"
-#include "snow/value.h"
+#include "snow/value.hpp"
 
 
 static VALUE numeric_add(const SnCallFrame* here, VALUE self, VALUE it) {

@@ -2,7 +2,7 @@
 #ifndef NUMERIC_H_TFV19DYH
 #define NUMERIC_H_TFV19DYH
 
-#include "snow/value.h"
+#include "snow/value.hpp"
 
 CAPI struct SnObject* snow_get_numeric_class();
 CAPI struct SnObject* snow_get_integer_class();

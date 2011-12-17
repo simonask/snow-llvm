@@ -3,7 +3,7 @@
 #define TYPE_H_ZR7ZWP35
 
 #include "snow/basic.h"
-#include "snow/value.h"
+#include "snow/value.hpp"
 
 namespace snow {
 	struct Type {

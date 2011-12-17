@@ -3,7 +3,7 @@
 #define UTIL_HPP_A83WWPWN
 
 #include "snow/basic.h"
-#include "snow/value.h"
+#include "snow/value.hpp"
 #include "snow/object.hpp"
 #include <new>
 
