@@ -1,6 +1,7 @@
 #include "snow/function.h"
 #include "internal.h"
 #include "util.hpp"
+#include "objectptr.hpp"
 #include "function-internal.hpp"
 #include "fiber-internal.h"
 #include "snow/snow.h"
@@ -9,47 +10,57 @@
 #include "snow/array.h"
 
 namespace {
-	struct FunctionPrivate {
+	using namespace snow;
+	
+	struct CallFrame;
+	
+	struct Function {
+		static const SnInternalType* Type;
+		
 		const snow::FunctionDescriptor* descriptor;
-		SnObject* definition_scope;
+		ObjectPtr<CallFrame> definition_scope;
 		VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
 		
-		FunctionPrivate() : descriptor(NULL), definition_scope(NULL), variable_references(NULL) {}
+		Function() : descriptor(NULL), variable_references(NULL) {}
 	};
+	const SnInternalType* Function::Type = &SnFunctionType;
 	
 	void function_gc_each_root(void* data, void(*callback)(VALUE* root)) {
-		FunctionPrivate* priv = (FunctionPrivate*)data;
+		Function* priv = (Function*)data;
 		callback((VALUE*)&priv->definition_scope);
 		for (size_t i = 0; i < priv->descriptor->num_variable_references; ++i) {
 			callback(priv->variable_references[i]);
 		}
 	}
 	
-	struct CallFramePrivate {
-		SnObject* function;
+	struct CallFrame {
+		static const SnInternalType* Type;
+		
+		ObjectPtr<Function> function;
 		VALUE self;
 		VALUE* locals;
 		size_t num_locals;
 		SnArguments args;
 		
-		CallFramePrivate() :
-			function(NULL),
+		CallFrame() :
 			self(NULL),
 			locals(NULL),
 			num_locals(0)
 		{
 			memset(&args, 0, sizeof(SnArguments));
 		}
-		~CallFramePrivate() {
+		~CallFrame() {
 			snow::dealloc_range(locals);
 			snow::dealloc_range(args.names);
 			snow::dealloc_range(args.data);
 		}
 	};
+	const SnInternalType* CallFrame::Type = &SnCallFrameType;
+	
 	
 	void call_frame_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		#define CALLBACK(ROOT) callback(reinterpret_cast<VALUE*>(&(ROOT)))
-		CallFramePrivate* priv = (CallFramePrivate*)data;
+		CallFrame* priv = (CallFrame*)data;
 		CALLBACK(priv->function);
 		CALLBACK(priv->self);
 		for (size_t i = 0; i < priv->num_locals; ++i) {
@@ -62,32 +73,30 @@ namespace {
 }
 
 CAPI SnInternalType SnFunctionType = {
-	.data_size = sizeof(FunctionPrivate),
-	.initialize = snow::construct<FunctionPrivate>,
-	.finalize = snow::destruct<FunctionPrivate>,
-	.copy = snow::assign<FunctionPrivate>,
+	.data_size = sizeof(Function),
+	.initialize = snow::construct<Function>,
+	.finalize = snow::destruct<Function>,
+	.copy = snow::assign<Function>,
 	.gc_each_root = function_gc_each_root,
 };
 
 CAPI SnInternalType SnCallFrameType = {
-	.data_size = sizeof(CallFramePrivate),
-	.initialize = snow::construct<CallFramePrivate>,
-	.finalize = snow::destruct<CallFramePrivate>,
-	.copy = snow::assign<CallFramePrivate>,
+	.data_size = sizeof(CallFrame),
+	.initialize = snow::construct<CallFrame>,
+	.finalize = snow::destruct<CallFrame>,
+	.copy = snow::assign<CallFrame>,
 	.gc_each_root = call_frame_gc_each_root,
 };
 
 namespace snow {
 	SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, SnObject* definition_scope) {
-		SnObject* function = snow_create_object(snow_get_function_class(), 0, NULL);
-		FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
-		ASSERT(priv);
-		priv->descriptor = descriptor;
-		priv->definition_scope = definition_scope;
+		ObjectPtr<Function> function = snow_create_object(snow_get_function_class(), 0, NULL);
+		function->descriptor = descriptor;
+		function->definition_scope = definition_scope;
 		if (descriptor->num_variable_references) {
-			priv->variable_references = new VALUE*[descriptor->num_variable_references];
+			function->variable_references = new VALUE*[descriptor->num_variable_references];
 			// TODO: Set up references
-			memset(priv->variable_references, NULL, sizeof(VALUE) * descriptor->num_variable_references);
+			memset(function->variable_references, NULL, sizeof(VALUE) * descriptor->num_variable_references);
 		}
 		return function;
 	}
@@ -100,26 +109,19 @@ static VALUE function_call(const SnCallFrame* here, VALUE self, VALUE it) {
 }
 
 static VALUE call_frame_get_self(const SnCallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, CallFrame, self);
-	CallFramePrivate* priv = snow::value_get_private<CallFramePrivate>(self, SnCallFrameType);
-	ASSERT(priv);
-	return priv->self;
+	return ObjectPtr<CallFrame>(self)->self;
 }
 
 static VALUE call_frame_get_arguments(const SnCallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, CallFrame, self);
-	CallFramePrivate* priv = snow::value_get_private<CallFramePrivate>(self, SnCallFrameType);
-	ASSERT(priv);
-	// TODO: Real Arguments class
-	return snow_create_array_from_range(priv->args.data, priv->args.data + priv->args.size);
+	ObjectPtr<CallFrame> cf = self;
+	return snow_create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
 }
 
 static void call_frame_liberate(SnObject* call_frame) {
-	CallFramePrivate* priv = snow::object_get_private<CallFramePrivate>(call_frame, SnCallFrameType);
-	ASSERT(priv);
-	priv->locals = snow::duplicate_range(priv->locals, priv->num_locals);
-	priv->args.names = snow::duplicate_range(priv->args.names, priv->args.num_names);
-	priv->args.data = snow::duplicate_range(priv->args.data, priv->args.size);
+	ObjectPtr<CallFrame> cf = call_frame;
+	cf->locals = snow::duplicate_range(cf->locals, cf->num_locals);
+	cf->args.names = snow::duplicate_range(cf->args.names, cf->args.num_names);
+	cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
 }
 
 CAPI {
@@ -151,27 +153,22 @@ CAPI {
 	SnObject* snow_call_frame_as_object(SnCallFrame* frame) {
 		if (frame->as_object) return frame->as_object;
 		
-		SnObject* obj = snow_create_object(snow_get_call_frame_class(), 0, NULL);
-		CallFramePrivate* priv = snow::object_get_private<CallFramePrivate>(obj, SnCallFrameType);
-		priv->function = frame->function;
-		priv->self = frame->self;
-		priv->locals = frame->locals; // shared until call_frame_liberate
-		priv->num_locals = snow_function_get_num_locals(priv->function);
-		priv->args = *frame->args; // shared until call_frame_liberate
+		ObjectPtr<CallFrame> obj = snow_create_object(snow_get_call_frame_class(), 0, NULL);
+		obj->function = frame->function;
+		obj->self = frame->self;
+		obj->locals = frame->locals; // shared until call_frame_liberate
+		obj->num_locals = snow_function_get_num_locals(obj->function);
+		obj->args = *frame->args; // shared until call_frame_liberate
 		frame->as_object = obj;
 		return obj;
 	}
 	
 	VALUE* snow_call_frame_get_locals(const SnObject* obj) {
-		const CallFramePrivate* priv = snow::object_get_private<CallFramePrivate>(obj, SnCallFrameType);
-		ASSERT(priv);
-		return priv->locals;
+		return ObjectPtr<const CallFrame>(obj)->locals;
 	}
 	
 	SnObject* snow_call_frame_get_function(const SnObject* obj) {
-		const CallFramePrivate* priv = snow::object_get_private<CallFramePrivate>(obj, SnCallFrameType);
-		ASSERT(priv);
-		return priv->function;
+		return ObjectPtr<const CallFrame>(obj)->function;
 	}
 	
 	VALUE* snow_get_locals_from_higher_lexical_scope(const SnCallFrame* frame, size_t num_levels) {
@@ -217,12 +214,10 @@ CAPI {
 		}
 		
 		if (snow_eval_truth(functor)) {
-			SnObject* function = (SnObject*)functor;
-			FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
-			if (*out_new_self == NULL && priv->definition_scope != NULL) {
+			ObjectPtr<Function> function = functor;
+			if (*out_new_self == NULL && function->definition_scope != NULL) {
 				// If self isn't given, pick the self from when the function was defined.
-				CallFramePrivate* cfpriv = snow::object_get_private<CallFramePrivate>(priv->definition_scope, SnCallFrameType);
-				*out_new_self = cfpriv->self;
+				*out_new_self = function->definition_scope->self;
 			}
 			return function;
 		}
@@ -245,12 +240,12 @@ CAPI {
 		};
 	}
 	
-	VALUE snow_function_call(SnObject* function, SnCallFrame* frame) {
-		FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
-		ASSERT(priv); // function is not a Function
+	VALUE snow_function_call(SnObject* func, SnCallFrame* frame) {
+		ObjectPtr<Function> function = func;
+		ASSERT(function != NULL); // function is not a Function
 		
 		// Allocate locals
-		size_t num_locals = priv->descriptor->num_locals;
+		size_t num_locals = function->descriptor->num_locals;
 		VALUE locals[num_locals];
 		// initialize call frame for use with this function
 		frame->function = function;
@@ -259,13 +254,13 @@ CAPI {
 		// TODO: There *must* be a way to optimize this!
 		// First, assign named arguments to the proper locals
 		snow::assign_range<VALUE>(locals, NULL, num_locals);
-		size_t num_params = priv->descriptor->num_params;
+		size_t num_params = function->descriptor->num_params;
 		ASSERT(num_params <= num_locals);
 		const SnArguments* args = frame->args;
 		bool taken_for_named_args[args->size];
 		snow::assign_range<bool>(taken_for_named_args, false, args->size);
 		for (size_t i = 0; i < num_params; ++i) {
-			SnSymbol name = priv->descriptor->param_names[i];
+			SnSymbol name = function->descriptor->param_names[i];
 			for (size_t j = 0; j < args->num_names; ++j) {
 				if (name == args->names[j]) {
 					locals[i] = args->data[j];
@@ -287,25 +282,19 @@ CAPI {
 
 		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
-		return priv->descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
+		return function->descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
 	SnSymbol snow_function_get_name(const SnObject* function) {
-		const FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
-		ASSERT(priv); // function is not a Function
-		return priv->descriptor->name;
+		return ObjectPtr<const Function>(function)->descriptor->name;
 	}
 	
 	size_t snow_function_get_num_locals(const SnObject* function) {
-		const FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
-		ASSERT(priv); // function is not a Function
-		return priv->descriptor->num_locals;
+		return ObjectPtr<const Function>(function)->descriptor->num_locals;
 	}
 	
 	SnObject* snow_function_get_definition_scope(const SnObject* function) {
-		const FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
-		ASSERT(priv); // function is not a Function
-		return priv->definition_scope;
+		return ObjectPtr<const Function>(function)->definition_scope;
 	}
 	
 	static VALUE method_proxy_call(const SnCallFrame* here, VALUE self, VALUE it) {
