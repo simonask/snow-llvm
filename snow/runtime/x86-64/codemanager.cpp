@@ -24,7 +24,7 @@ namespace snow {
 		CodeModule* compile_ast(const SnAST* ast, const char* source, const char* module_name)
 		{
 			CodegenSettings settings = {
-				.use_inline_cache = true,
+				.use_inline_cache = false,
 			};
 			
 			Codegen codegen(settings);
