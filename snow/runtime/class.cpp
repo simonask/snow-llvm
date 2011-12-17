@@ -5,13 +5,18 @@
 #include "snow/snow.h"
 
 #include "util.hpp"
+#include "objectptr.hpp"
 #include "internal.h"
 
 #include <algorithm>
 #include <vector>
 
 namespace {
-	struct ClassPrivate {
+	using namespace snow;
+	
+	struct Class {
+		static const SnInternalType* Type;
+		
 		SnSymbol name;
 		const SnInternalType* instance_type;
 		SnObject* super;
@@ -20,8 +25,8 @@ namespace {
 		VALUE initialize;
 		bool is_meta;
 		
-		ClassPrivate() : name(0), instance_type(NULL), super(NULL), is_meta(false) {}
-		~ClassPrivate() {
+		Class() : name(0), instance_type(NULL), super(NULL), is_meta(false) {}
+		~Class() {
 			for (size_t i = 0; i < methods.size(); ++i) {
 				if (methods[i].type == SnMethodTypeProperty) {
 					delete methods[i].property;
@@ -29,6 +34,7 @@ namespace {
 			}
 		}
 	};
+	const SnInternalType* Class::Type = &SnClassType;
 	
 	struct MethodLessThan {
 		bool operator()(const SnMethod& a, const SnMethod& b) {
@@ -38,7 +44,7 @@ namespace {
 
 	void class_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		#define CALLBACK(ROOT) callback(reinterpret_cast<VALUE*>(&(ROOT)))
-		ClassPrivate* priv = (ClassPrivate*)data;
+		Class* priv = (Class*)data;
 		CALLBACK(priv->super);
 		for (size_t i = 0; i < priv->methods.size(); ++i) {
 			switch (priv->methods[i].type) {
@@ -57,23 +63,23 @@ namespace {
 	}
 	
 	VALUE class_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
-		ClassPrivate* priv = snow::value_get_private<ClassPrivate>(self, SnClassType);
-		ASSERT(priv);
-		priv->initialize = NULL;
-		if (snow_is_class(it)) {
-			ClassPrivate* super_priv = snow::object_get_private<ClassPrivate>((SnObject*)it, SnClassType);
-			priv->super = (SnObject*)it;
-			priv->instance_type = super_priv->instance_type;
-			priv->instance_variables = super_priv->instance_variables;
+		ObjectPtr<Class> cls = self;
+		ASSERT(cls != NULL);
+		cls->initialize = NULL;
+		ObjectPtr<Class> super = it;
+		if (super != NULL) {
+			cls->super = super;
+			cls->instance_type = super->instance_type;
+			cls->instance_variables = super->instance_variables;
 		} else if (snow_eval_truth(it)) {
 			snow_throw_exception_with_description("Cannot use %p as superclass.", it);
 		}
-		
 		return self;
 	}
 	
 	VALUE class_define_method(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (snow_is_class(self)) {
+		ObjectPtr<Class> cls = self;
+		if (cls != NULL) {
 			if (here->args->size < 2) {
 				snow_throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args->size);
 			}
@@ -89,7 +95,8 @@ namespace {
 	
 	VALUE class_define_property(const SnCallFrame* here, VALUE self, VALUE it) {
 		// TODO: Use named arguments
-		if (snow_is_class(self)) {
+		ObjectPtr<Class> cls = self;
+		if (cls != NULL) {
 			if (here->args->size < 2) {
 				snow_throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args->size);
 			}
@@ -122,19 +129,19 @@ namespace {
 
 CAPI {
 	SnInternalType SnClassType = {
-		.data_size = sizeof(ClassPrivate),
-		.initialize = snow::construct<ClassPrivate>,
-		.finalize = snow::destruct<ClassPrivate>,
-		.copy = snow::assign<ClassPrivate>,
+		.data_size = sizeof(Class),
+		.initialize = snow::construct<Class>,
+		.finalize = snow::destruct<Class>,
+		.copy = snow::assign<Class>,
 		.gc_each_root = class_gc_each_root,
 	};
 	
-	SnObject* snow_create_object_without_initialize(SnObject* cls) {
-		ClassPrivate* cls_priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(cls_priv); // cls is not a class!
-		SnObject* obj = snow_gc_allocate_object(cls_priv->instance_type);
+	SnObject* snow_create_object_without_initialize(SnObject* klass) {
+		ObjectPtr<Class> cls = klass;
+		ASSERT(cls != NULL); // klass is not a class!
+		SnObject* obj = snow_gc_allocate_object(cls->instance_type);
 		obj->cls = cls;
-		obj->type = cls_priv->instance_type;
+		obj->type = cls->instance_type;
 		obj->num_alloc_members = 0;
 		obj->members = NULL;
 		return obj;
@@ -163,39 +170,34 @@ CAPI {
 	}
 	
 	const char* snow_class_get_name(const SnObject* cls) {
-		const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv);
-		return snow_sym_to_cstr(priv->name);
+		ObjectPtr<const Class> c = cls;
+		return snow_sym_to_cstr(c->name);
 	}
 	
 	bool snow_class_is_meta(const SnObject* cls) {
-		const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv);
-		return priv->is_meta;
+		ObjectPtr<const Class> c = cls;
+		return c->is_meta;
 	}
 	
 	int32_t snow_class_get_index_of_instance_variable(const SnObject* cls, SnSymbol name) {
-		const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv);
-		for (size_t i = 0; i < priv->instance_variables.size(); ++i) {
-			if (priv->instance_variables[i] == name) return (int32_t)i;
+		ObjectPtr<const Class> c = cls;
+		ASSERT(c != NULL);
+		for (size_t i = 0; i < c->instance_variables.size(); ++i) {
+			if (c->instance_variables[i] == name) return (int32_t)i;
 		}
 		return -1;
 	}
 	
 	int32_t snow_class_define_instance_variable(SnObject* cls, SnSymbol name) {
-		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv);
+		ObjectPtr<Class> c = cls;
 		ASSERT(snow_class_get_index_of_instance_variable(cls, name) < 0);
-		int32_t i = (int32_t)priv->instance_variables.size();
-		priv->instance_variables.push_back(name);
+		int32_t i = (int32_t)c->instance_variables.size();
+		c->instance_variables.push_back(name);
 		return i;
 	}
 	
 	size_t snow_class_get_num_instance_variables(const SnObject* cls) {
-		const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv);
-		return priv->instance_variables.size();
+		return ObjectPtr<const Class>(cls)->instance_variables.size();
 	}
 	
 	bool snow_class_lookup_method(const SnObject* cls, SnSymbol name, SnMethod* out_method) {
@@ -204,7 +206,7 @@ CAPI {
 		SnMethod key = { .name = name, .type = SnMethodTypeNone };
 		const SnObject* c = cls;
 		while (c != NULL) {
-			const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(c, SnClassType);
+			const Class* priv = snow::object_get_private<Class>(c, SnClassType);
 			ASSERT(priv); // non-class in class hierarchy!
 			
 			// Check for 'initialize'
@@ -238,25 +240,23 @@ CAPI {
 	}
 	
 	VALUE snow_class_get_initialize(const SnObject* cls) {
-		const ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv); // non-class in class hierarchy!
-		return priv->initialize;
+		return ObjectPtr<const Class>(cls)->initialize;
 	}
 	
 	static bool class_define_method_or_property(SnObject* cls, const SnMethod& key) {
-		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ASSERT(priv); // cls is not a class!
+		ObjectPtr<Class> c = cls;
+		ASSERT(c != NULL); // cls is not a class!
 		
 		static const SnSymbol init_sym = snow_sym("initialize");
 		if (key.name == init_sym) {
 			if (key.type == SnMethodTypeProperty)
 				snow_throw_exception_with_description("Cannot define a property by the name 'initialize'.");
-			priv->initialize = key.function;
+			c->initialize = key.function;
 		}
 
-		std::vector<SnMethod>::iterator x = std::lower_bound(priv->methods.begin(), priv->methods.end(), key, MethodLessThan());
-		if (x == priv->methods.end() || x->name != key.name) {
-			priv->methods.insert(x, key);
+		std::vector<SnMethod>::iterator x = std::lower_bound(c->methods.begin(), c->methods.end(), key, MethodLessThan());
+		if (x == c->methods.end() || x->name != key.name) {
+			c->methods.insert(x, key);
 			return true;
 		}
 		return false;
@@ -288,7 +288,7 @@ CAPI {
 			// bootstrapping
 			SnObject* class_class = snow_gc_allocate_object(&SnClassType);
 			class_class->cls = class_class;
-			ClassPrivate* priv = snow::object_get_private<ClassPrivate>(class_class, SnClassType);
+			Class* priv = snow::object_get_private<Class>(class_class, SnClassType);
 			priv->instance_type = &SnClassType;
 			root = snow_gc_create_root(class_class);
 			
@@ -305,33 +305,30 @@ CAPI {
 	
 	SnObject* snow_create_class(SnSymbol name, SnObject* super) {
 		VALUE args[] = { super };
-		SnObject* cls = snow_create_object(snow_get_class_class(), countof(args), args);
-		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		priv->name = name;
-		priv->initialize = NULL;
-		priv->is_meta = false;
+		ObjectPtr<Class> cls = snow_create_object(snow_get_class_class(), countof(args), args);
+		cls->name = name;
+		cls->initialize = NULL;
+		cls->is_meta = false;
 		return cls;
 	}
 	
 	SnObject* snow_create_class_for_type(SnSymbol name, const SnInternalType* type) {
-		SnObject* cls = snow_create_object_without_initialize(snow_get_class_class());
-		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		priv->name = name;
-		priv->instance_type = type;
-		priv->super = NULL;
-		priv->initialize = NULL;
-		priv->is_meta = false;
+		ObjectPtr<Class> cls = snow_create_object_without_initialize(snow_get_class_class());
+		cls->name = name;
+		cls->instance_type = type;
+		cls->super = NULL;
+		cls->initialize = NULL;
+		cls->is_meta = false;
 		return cls;
 	}
 	
 	SnObject* snow_create_meta_class(SnObject* super) {
 		ASSERT(snow_is_class(super));
 		VALUE args[] = { super };
-		SnObject* cls = snow_create_object(snow_get_class_class(), countof(args), args);
-		ClassPrivate* priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		ClassPrivate* super_priv = snow::object_get_private<ClassPrivate>(cls, SnClassType);
-		priv->name = super_priv->name;
-		priv->is_meta = true;
+		ObjectPtr<Class> cls = snow_create_object(snow_get_class_class(), countof(args), args);
+		ObjectPtr<Class> sup = super;
+		cls->name = sup->name;
+		cls->is_meta = true;
 		return cls;
 	}
 }
