@@ -10,6 +10,7 @@
 #include "snow/exception.h"
 
 #include "util.hpp"
+#include "objectptr.hpp"
 
 #include <string.h>
 #include <stdio.h>
@@ -17,18 +18,20 @@
 #include <xlocale.h>
 
 namespace {
-	struct StringPrivate {
+	struct String {
+		static const SnInternalType* Type;
+		
 		char* data; // not NULL-terminated!
 		uint32_t size;
 		uint32_t length;
 		bool constant;
 
-		StringPrivate() : data(NULL), size(0), length(0), constant(true) {}
-		~StringPrivate() {
+		String() : data(NULL), size(0), length(0), constant(true) {}
+		~String() {
 			if (!constant)
 				delete[] data;
 		}
-		StringPrivate& operator=(const StringPrivate& other) {
+		String& operator=(const String& other) {
 			constant = other.constant;
 			size = other.size;
 			length = other.length;
@@ -39,6 +42,7 @@ namespace {
 			return *this;
 		}
 	};
+	const SnInternalType* String::Type = &SnStringType;
 
 	void string_gc_each_root(void* data, void(*callback)(VALUE*)) {
 		// dummy -- strings have no references to other objects
@@ -60,11 +64,13 @@ namespace {
 }
 
 CAPI {
+	using namespace snow;
+	
 	SnInternalType SnStringType = {
-		.data_size = sizeof(StringPrivate),
-		.initialize = snow::construct<StringPrivate>,
-		.finalize = snow::destruct<StringPrivate>,
-		.copy = snow::assign<StringPrivate>,
+		.data_size = sizeof(String),
+		.initialize = snow::construct<String>,
+		.finalize = snow::destruct<String>,
+		.copy = snow::assign<String>,
 		.gc_each_root = string_gc_each_root,
 	};
 
@@ -73,41 +79,35 @@ CAPI {
 	}
 
 	SnObject* snow_create_string_constant(const char* utf8) {
-		SnObject* str = snow_create_object(snow_get_string_class(), 0, NULL);
-		StringPrivate* priv = snow::object_get_private<StringPrivate>(str, SnStringType);
-		ASSERT(priv);
-		priv->size = strlen(utf8);
-		priv->data = (char*)utf8;
-		priv->constant = true;
-		priv->length = get_utf8_length(utf8, priv->size);
+		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+		str->size = strlen(utf8);
+		str->data = (char*)utf8;
+		str->constant = true;
+		str->length = get_utf8_length(utf8, str->size);
 		return str;
 	}
 
 	SnObject* snow_create_string_with_size(const char* utf8, size_t size) {
-		SnObject* str = snow_create_object(snow_get_string_class(), 0, NULL);
-		StringPrivate* priv = snow::object_get_private<StringPrivate>(str, SnStringType);
-		ASSERT(priv);
-		priv->size = size;
+		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+		str->size = size;
 		if (size) {
-			priv->data = new char[size];
-			snow::copy_range(priv->data, utf8, size);
-			priv->length = get_utf8_length(utf8, size);
-			priv->constant = false;
+			str->data = new char[size];
+			snow::copy_range(str->data, utf8, size);
+			str->length = get_utf8_length(utf8, size);
+			str->constant = false;
 		}
 		return str;
 	}
 
 	SnObject* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 		size_t s = snow_linkbuffer_size(buf);
-		SnObject* str = snow_create_object(snow_get_string_class(), 0, NULL);
-		StringPrivate* priv = snow::object_get_private<StringPrivate>(str, SnStringType);
-		ASSERT(priv);
-		priv->size = s;
+		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+		str->size = s;
 		if (s) {
-			priv->data = new char[s];
-			snow_linkbuffer_copy_data(buf, priv->data, s);
-			priv->length = get_utf8_length(priv->data, s);
-			priv->constant = false;
+			str->data = new char[s];
+			snow_linkbuffer_copy_data(buf, str->data, s);
+			str->length = get_utf8_length(str->data, s);
+			str->constant = false;
 		}
 		return str;
 	}
@@ -125,13 +125,11 @@ CAPI {
 		size_b = snow_string_copy_to(b, buffer + size_a, size_b);
 		s = size_a + size_b;
 		
-		SnObject* str = snow_create_object(snow_get_string_class(), 0, NULL);
-		StringPrivate* priv = snow::object_get_private<StringPrivate>(str, SnStringType);
-		ASSERT(priv);
-		priv->size = s;
-		priv->data = buffer;
-		priv->length = get_utf8_length(buffer, s);
-		priv->constant = false;
+		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+		str->size = s;
+		str->data = buffer;
+		str->length = get_utf8_length(buffer, s);
+		str->constant = false;
 		return str;
 	}
 
@@ -141,20 +139,20 @@ CAPI {
 		other_size = snow_string_copy_to(other, tmp, other_size);
 
 		SN_GC_WRLOCK(self);
-		StringPrivate* priv = snow::object_get_private<StringPrivate>(self, SnStringType);
-		const size_t combined_size = priv->size + other_size;
-		if (priv->constant) {
+		ObjectPtr<String> str = self;
+		const size_t combined_size = str->size + other_size;
+		if (str->constant) {
 			char* data = new char[combined_size];
-			snow::copy_range(data, priv->data, priv->size);
-			priv->data = data;
-			priv->constant = false;
+			snow::copy_range(data, str->data, str->size);
+			str->data = data;
+			str->constant = false;
 		} else {
-			priv->data = snow::realloc_range(priv->data, priv->size, combined_size);
+			str->data = snow::realloc_range(str->data, str->size, combined_size);
 		}
 
-		snow::copy_range(priv->data + priv->size, tmp, other_size);
-		priv->size = combined_size;
-		priv->length = get_utf8_length(priv->data, combined_size);
+		snow::copy_range(str->data + str->size, tmp, other_size);
+		str->size = combined_size;
+		str->length = get_utf8_length(str->data, combined_size);
 		SN_GC_UNLOCK(self);
 	}
 
@@ -162,28 +160,28 @@ CAPI {
 		size_t s = strlen(utf8);
 
 		SN_GC_WRLOCK(self);
-		StringPrivate* priv = snow::object_get_private<StringPrivate>(self, SnStringType);
-		size_t combined_size = priv->size + s;
-		if (priv->constant) {
+		ObjectPtr<String> str = self;
+		size_t combined_size = str->size + s;
+		if (str->constant) {
 			char* data = new char[combined_size];
-			snow::copy_range(data, priv->data, priv->size);
-			priv->data = data;
-			priv->constant = false;
+			snow::copy_range(data, str->data, str->size);
+			str->data = data;
+			str->constant = false;
 		} else {
-			priv->data = snow::realloc_range(priv->data, priv->size, combined_size);
+			str->data = snow::realloc_range(str->data, str->size, combined_size);
 		}
 
-		snow::copy_range(priv->data + priv->size, utf8, s);
-		priv->size = combined_size;
-		priv->length = get_utf8_length(priv->data, combined_size);
+		snow::copy_range(str->data + str->size, utf8, s);
+		str->size = combined_size;
+		str->length = get_utf8_length(str->data, combined_size);
 		SN_GC_UNLOCK(self);
 	}
 
 	size_t snow_string_copy_to(const SnObject* self, char* buffer, size_t max) {
 		SN_GC_RDLOCK(self);
-		const StringPrivate* priv = snow::object_get_private<StringPrivate>(self, SnStringType);
-		size_t to_copy = priv->size < max ? priv->size : max;
-		snow::copy_range(buffer, priv->data, to_copy);
+		ObjectPtr<const String> str = self;
+		size_t to_copy = str->size < max ? str->size : max;
+		snow::copy_range(buffer, str->data, to_copy);
 		SN_GC_UNLOCK(self);
 		return to_copy;
 	}
@@ -205,21 +203,11 @@ CAPI {
 	}
 
 	size_t snow_string_size(const SnObject* str) {
-		SN_GC_RDLOCK(str);
-		const StringPrivate* priv = snow::object_get_private<StringPrivate>(str, SnStringType);
-		ASSERT(priv);
-		size_t sz = priv->size;
-		SN_GC_UNLOCK(str);
-		return sz;
+		return ObjectPtr<const String>(str)->size;
 	}
 
 	size_t snow_string_length(const SnObject* str) {
-		SN_GC_RDLOCK(str);
-		const StringPrivate* priv = snow::object_get_private<StringPrivate>(str, SnStringType);
-		ASSERT(priv);
-		size_t length = priv->length;
-		SN_GC_UNLOCK(str);
-		return length;
+		return ObjectPtr<const String>(str)->length;
 	}
 
 	static VALUE string_inspect(const SnCallFrame* here, VALUE self, VALUE it) {

@@ -7,13 +7,7 @@
 
 struct SnLinkBuffer;
 
-typedef struct SnString {
-	SnObject base;
-	char* data; // null terminated
-	uint32_t size;
-	uint32_t length;
-	bool constant; // never to be deleted
-} SnString;
+CAPI SnInternalType SnStringType;
 
 CAPI bool snow_is_string(VALUE val);
 CAPI SnObject* snow_create_string(const char* utf8);
