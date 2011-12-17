@@ -137,6 +137,10 @@ namespace snow {
 	template <> struct StaticAssertion<true> {};
 	#define SN_STATIC_ASSERT(COND) enum { dummy = snow::StaticAssertion<(bool)(COND)> }
 	
+	template <typename A, typename B> struct ReplicateConstPtr;
+	template <typename A, typename B> struct ReplicateConstPtr<const A, B> { typedef const B* Result; };
+	template <typename A, typename B> struct ReplicateConstPtr { typedef B* Result; };
+	
 	template <typename T>
 	T* object_get_private(SnObject* obj, const SnInternalType& check_type) {
 		return reinterpret_cast<T*>(snow_object_get_private(obj, &check_type));
