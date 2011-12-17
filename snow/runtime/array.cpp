@@ -117,6 +117,17 @@ CAPI {
 }
 
 namespace {
+	VALUE array_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
+		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
+		if (priv == NULL) {
+			snow_throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
+		}
+		
+		priv->reserve(here->args->size);
+		priv->insert(priv->begin(), here->args->data, here->args->data + here->args->size);
+		return self;
+	}
+	
 	VALUE array_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
 		if (priv == NULL) {
@@ -187,6 +198,7 @@ CAPI SnObject* snow_get_array_class() {
 	static SnObject** root = NULL;
 	if (!root) {
 		SnObject* cls = snow_create_class_for_type(snow_sym("Array"), &SnArrayType);
+		snow_class_define_method(cls, "initialize", array_initialize);
 		snow_class_define_method(cls, "inspect", array_inspect);
 		snow_class_define_method(cls, "to_string", array_inspect);
 		snow_class_define_method(cls, "get", array_index_get);
