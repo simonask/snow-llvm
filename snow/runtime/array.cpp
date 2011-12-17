@@ -2,6 +2,7 @@
 #include "internal.h"
 #include "snow/class.h"
 #include "util.hpp"
+#include "objectptr.hpp"
 #include "snow/exception.h"
 #include "snow/function.h"
 #include "snow/snow.h"
@@ -12,10 +13,15 @@
 #include <vector>
 
 namespace {
-	typedef std::vector<VALUE> ArrayPrivate;
+	struct Array : std::vector<VALUE> {
+		static const SnInternalType* Type;
+		Array() {}
+		Array(const Array& other) : std::vector<VALUE>(other) {}
+	};
+	const SnInternalType* Array::Type = &SnArrayType;
 	
 	void array_gc_each_root(void* data, void(*callback)(VALUE* root)) {
-		ArrayPrivate& priv = *(ArrayPrivate*)data;
+		Array& priv = *(Array*)data;
 		for (size_t i = 0; i < priv.size(); ++i) {
 			callback(&priv[i]);
 		}
@@ -23,11 +29,13 @@ namespace {
 }
 
 CAPI {
+	using namespace snow;
+	
 	SnInternalType SnArrayType = {
-		.data_size = sizeof(ArrayPrivate),
-		.initialize = snow::construct<ArrayPrivate>,
-		.finalize = snow::destruct<ArrayPrivate>,
-		.copy = snow::assign<ArrayPrivate>,
+		.data_size = sizeof(Array),
+		.initialize = snow::construct<Array>,
+		.finalize = snow::destruct<Array>,
+		.copy = snow::assign<Array>,
 		.gc_each_root = array_gc_each_root,
 	};
 	
@@ -48,60 +56,54 @@ CAPI {
 	}
 	
 	size_t snow_array_size(const SnObject* array) {
-		const ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(array, SnArrayType);
-		ASSERT(priv);
-		return priv->size();
+		return ObjectPtr<const Array>(array)->size();
 	}
 
 	VALUE snow_array_get(const SnObject* array, int idx) {
-		const ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(array, SnArrayType);
-		ASSERT(priv);
+		ObjectPtr<const Array> a = array;
+		ASSERT(a != NULL);
 		
-		if (idx >= priv->size())
+		if (idx >= a->size())
 			return NULL;
 		if (idx < 0)
-			idx += priv->size();
+			idx += a->size();
 		if (idx < 0)
 			return NULL;
-		return (*priv)[idx];
+		return (*a)[idx];
 	}
 
 	size_t snow_array_get_all(const SnObject* array, VALUE* out_values, size_t max) {
-		const ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(array, SnArrayType);
-		ASSERT(priv);
+		ObjectPtr<const Array> a = array;
+		ASSERT(a != NULL);
 		
 		size_t i;
-		for (i = 0; i < priv->size() && i < max; ++i) {
-			out_values[i] = (*priv)[i];
+		for (i = 0; i < a->size() && i < max; ++i) {
+			out_values[i] = (*a)[i];
 		}
 		return i;
 	}
 
 	VALUE snow_array_set(SnObject* array, int idx, VALUE val) {
-		ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(array, SnArrayType);
-		ASSERT(priv);
-		if (idx >= priv->size())
-			priv->resize(idx+1, NULL);
+		ObjectPtr<Array> a = array;
+		ASSERT(a != NULL);
+		if (idx >= a->size())
+			a->resize(idx+1, NULL);
 		if (idx < 0)
-			idx += priv->size();
+			idx += a->size();
 		if (idx < 0) {
-			snow_throw_exception_with_description("Index %d is out of bounds.", idx-priv->size());
+			snow_throw_exception_with_description("Index %d is out of bounds.", idx - a->size());
 			return NULL;
 		}
-		(*priv)[idx] = val;
+		(*a)[idx] = val;
 		return val;
 	}
 
 	void snow_array_reserve(SnObject* array, uint32_t new_size) {
-		ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(array, SnArrayType);
-		ASSERT(priv);
-		priv->reserve(new_size);
+		ObjectPtr<Array>(array)->reserve(new_size);
 	}
 
 	SnObject* snow_array_push(SnObject* array, VALUE val) {
-		ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(array, SnArrayType);
-		ASSERT(priv);
-		priv->push_back(val);
+		ObjectPtr<Array>(array)->push_back(val);
 		return array;
 	}
 
@@ -110,36 +112,35 @@ CAPI {
 	}
 	
 	int32_t snow_array_index_of(const SnObject* a, VALUE val) {
-		const ArrayPrivate* priv = snow::object_get_private<ArrayPrivate>(a, SnArrayType);
-		ASSERT(priv);
-		return snow::index_of(*priv, val);
+		ObjectPtr<const Array> array = a;
+		return snow::index_of(*array, val);
 	}
 }
 
 namespace {
 	VALUE array_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
-		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
-		if (priv == NULL) {
+		ObjectPtr<Array> array = self;
+		if (array == NULL) {
 			snow_throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
 		}
 		
-		priv->reserve(here->args->size);
-		priv->insert(priv->begin(), here->args->data, here->args->data + here->args->size);
+		array->reserve(here->args->size);
+		array->insert(array->begin(), here->args->data, here->args->data + here->args->size);
 		return self;
 	}
 	
 	VALUE array_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
-		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
-		if (priv == NULL) {
+		ObjectPtr<Array> array = self;
+		if (array == NULL) {
 			snow_throw_exception_with_description("Array#inspect called for object that doesn't derive from Array.");
 		}
 		
 		SnObject* result = snow_create_string_constant("@(");
 		
-		for (size_t i = 0; i < priv->size(); ++i) {
-			VALUE val = (*priv)[i];
+		for (size_t i = 0; i < array->size(); ++i) {
+			VALUE val = (*array)[i];
 			snow_string_append(result, snow_value_inspect(val));
-			if (i != priv->size() - 1) {
+			if (i != array->size() - 1) {
 				snow_string_append_cstr(result, ", ");
 			}
 		}
@@ -150,8 +151,8 @@ namespace {
 	}
 
 	VALUE array_index_get(const SnCallFrame* here, VALUE self, VALUE it) {
-		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
-		if (priv == NULL) return NULL;
+		ObjectPtr<Array> array = self;
+		if (array == NULL) return NULL;
 		if (snow_type_of(it) != SnIntegerType) {
 			snow_throw_exception_with_description("Array#get called with a non-integer index %p.", it);
 		}
@@ -159,8 +160,8 @@ namespace {
 	}
 
 	VALUE array_index_set(const SnCallFrame* here, VALUE self, VALUE it) {
-		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
-		if (priv == NULL) return NULL;
+		ObjectPtr<Array> array = self;
+		if (array == NULL) return NULL;
 		if (snow_type_of(it) != SnIntegerType) {
 			snow_throw_exception_with_description("Array#set called with a non-integer index %p.", it);
 		}
@@ -174,10 +175,10 @@ namespace {
 	}
 
 	VALUE array_each(const SnCallFrame* here, VALUE self, VALUE it) {
-		ArrayPrivate* priv = snow::value_get_private<ArrayPrivate>(self, SnArrayType);
-		if (priv == NULL) return NULL;
-		for (size_t i = 0; i < priv->size(); ++i) {
-			VALUE args[] = { (*priv)[i] };
+		ObjectPtr<Array> array = self;
+		if (array == NULL) return NULL;
+		for (size_t i = 0; i < array->size(); ++i) {
+			VALUE args[] = { (*array)[i] };
 			snow_call(it, NULL, 1, args);
 		}
 		return SN_NIL;
