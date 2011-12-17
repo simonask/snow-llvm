@@ -15,7 +15,6 @@ namespace {
 	typedef std::vector<VALUE> ArrayPrivate;
 	
 	void array_gc_each_root(void* data, void(*callback)(VALUE* root)) {
-		#define CALLBACK(ROOT) callback(reinterpret_cast<VALUE*>(&(ROOT)))
 		ArrayPrivate& priv = *(ArrayPrivate*)data;
 		for (size_t i = 0; i < priv.size(); ++i) {
 			callback(&priv[i]);
