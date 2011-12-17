@@ -1,6 +1,6 @@
 #include "codegen.hpp"
 #include "asm.hpp"
-#include "../snow/util.hpp"
+#include "snow/util.hpp"
 #include "../function-internal.hpp"
 
 #include "snow/snow.hpp"
@@ -482,12 +482,12 @@ namespace snow {
 			if (i == num_targets-1 && num_values > num_targets) {
 				size_t num_remaining = num_values - num_targets + 1;
 				movq(num_remaining, RDI);
-				CALL(snow_create_array_with_size);
+				CALL(create_array_with_size);
 				movq(RAX, RBX);
 				for (size_t j = i; j < num_values; ++j) {
 					movq(RBX, RDI);
 					movq(values[j], RSI);
-					CALL(snow_array_push);
+					CALL(array_push);
 				}
 				movq(RBX, values[i]);
 			}

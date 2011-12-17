@@ -12,7 +12,7 @@
 
 #include "lock.hpp"
 #include "snow/objectptr.hpp"
-#include "adapting_map.hpppp"
+#include "adapting_map.hpp"
 
 namespace {
 	typedef snow::AdaptingMap Map;

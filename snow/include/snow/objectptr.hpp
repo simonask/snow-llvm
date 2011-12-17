@@ -21,14 +21,16 @@ namespace snow {
 		ObjectPtr<T>& operator=(Ptr obj) { assign(obj); return *this; }
 		
 		operator Ptr() const { return object_; }
+		operator ObjectPtr<const T>() const { return ObjectPtr<const T>(object_, priv_); }
 		T* operator->() const { return priv_; }
-		T& operator*() { return *priv_; }
-		const T& operator*() const { return *priv_; }
+		T& operator*() const { return *priv_; }
 		bool operator==(VALUE other) const { return object_ == other; }
 		bool operator!=(VALUE other) const { return object_ != other; }
 		bool operator==(const ObjectPtr<T>& other) const { return object_ == other.object_; }
 		bool operator!=(const ObjectPtr<T>& other) const { return object_ != other.object_; }
 	private:
+		template <typename U> friend class ObjectPtr;
+		ObjectPtr(Ptr o, T* p) : object_(o), priv_(p) {}
 		void assign(VALUE val) {
 			if (snow_is_object(val)) {
 				priv_ = object_get_private<T>((Ptr)val, snow::get_type<T>());

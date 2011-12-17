@@ -15,6 +15,7 @@
 #include "codemanager.hpp"
 #include "function-internal.hpp"
 
+using namespace snow;
 
 namespace {
 	struct Module {
@@ -81,8 +82,8 @@ namespace {
 			static const size_t num_file_suffixes = sizeof(file_suffixes) / sizeof(const char*);
 			
 			SnObject* load_paths = snow_get_load_paths();
-			for (size_t i = 0; i < snow_array_size(load_paths); ++i) {
-				VALUE vpath = snow_array_get(load_paths, i);
+			for (size_t i = 0; i < array_size(load_paths); ++i) {
+				VALUE vpath = array_get(load_paths, i);
 				if (!snow_is_string(vpath)) {
 					snow_throw_exception_with_description("Load path is not a string: %p.", vpath);
 				}
@@ -211,8 +212,8 @@ CAPI {
 	SnObject* snow_get_load_paths() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* load_paths = snow_create_array_with_size(10);
-			snow_array_push(load_paths, snow_create_string_constant("./"));
+			SnObject* load_paths = create_array_with_size(10);
+			array_push(load_paths, snow_create_string_constant("./"));
 			root = snow_gc_create_root(load_paths);
 		}
 		return *root;

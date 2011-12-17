@@ -15,6 +15,8 @@
 #include "snow/value.hpp"
 #include "snow/vm.h"
 
+using namespace snow;
+
 
 static VALUE get_load_paths(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
@@ -115,8 +117,8 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("Object"), snow_get_object_class());
 	snow_set_global(snow_sym("Class"), snow_get_class_class());
 	snow_set_global(snow_sym("String"), snow_get_string_class());
-	snow_set_global(snow_sym("Array"), snow_get_array_class());
-	snow_set_global(snow_sym("@"), snow_get_array_class());
+	snow_set_global(snow_sym("Array"), get_array_class());
+	snow_set_global(snow_sym("@"), get_array_class());
 	snow_set_global(snow_sym("Map"), snow_get_map_class());
 	snow_set_global(snow_sym("#"), snow_get_map_class());
 	snow_set_global(snow_sym("Function"), snow_get_function_class());

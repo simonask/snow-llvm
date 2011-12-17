@@ -3,22 +3,29 @@
 #define ARRAY_H_XVGE8JQI
 
 #include "snow/object.hpp"
+#include "snow/objectptr.hpp"
 
-CAPI SnObject* snow_create_array();
-CAPI SnObject* snow_create_array_from_range(VALUE* begin, VALUE* end);
-CAPI SnObject* snow_create_array_with_size(uint32_t alloc_size);
-
-CAPI size_t snow_array_size(const SnObject* array);
-CAPI VALUE snow_array_get(const SnObject* array, int32_t i);
-CAPI VALUE snow_array_set(SnObject* array, int32_t i, VALUE val);
-CAPI size_t snow_array_get_all(const SnObject* array, VALUE* out_values, size_t max);
-CAPI void snow_array_reserve(SnObject* array, uint32_t new_alloc_size);
-CAPI SnObject* snow_array_push(SnObject* array, VALUE val);
-CAPI SnObject* snow_array_push_range(SnObject* array, VALUE* begin, VALUE* end);
-CAPI SnObject* snow_array_concatenate(const SnObject* a, const SnObject* b);
-CAPI bool snow_array_contains(const SnObject* a, VALUE val);
-CAPI int32_t snow_array_index_of(const SnObject* a, VALUE val);
-
-CAPI struct SnObject* snow_get_array_class();
+namespace snow {
+	struct Array;
+	typedef const ObjectPtr<Array>& ArrayPtr;
+	typedef const ObjectPtr<const Array>& ArrayConstPtr;
+	
+	ObjectPtr<Array> create_array();
+	ObjectPtr<Array> create_array_from_range(VALUE* begin, VALUE* end);
+	ObjectPtr<Array> create_array_with_size(uint32_t alloc_size);
+	
+	size_t array_size(ArrayConstPtr array);
+	VALUE array_get(ArrayConstPtr array, int32_t idx);
+	VALUE array_set(ArrayPtr array, int32_t idx, VALUE val);
+	size_t array_get_all(ArrayConstPtr array, VALUE* out_values, size_t max);
+	void array_reserve(ArrayPtr array, uint32_t new_alloc_size);
+	void array_push(ArrayPtr array, VALUE val);
+	void array_push_range(ArrayPtr array, VALUE* begin, VALUE* end);
+	ObjectPtr<Array> array_concatenate(ArrayConstPtr a, ArrayConstPtr b);
+	bool array_contains(ArrayConstPtr a, VALUE val);
+	int32_t array_index_of(ArrayConstPtr a, VALUE val);
+	
+	SnObject* get_array_class();
+}
 
 #endif /* end of include guard: ARRAY_H_XVGE8JQI */

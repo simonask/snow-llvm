@@ -19,6 +19,8 @@
 #include <unistd.h>
 #include <getopt.h>
 
+using namespace snow;
+
 #define ARCH_NAME "LLVM"
 
 static void print_version_info()
@@ -76,7 +78,7 @@ CAPI int snow_main(int argc, char* const* argv) {
 	static int verbose_mode = false;
 	static int interactive_mode = false;
 	
-	SnObject* require_files = snow_create_array();
+	SnObject* require_files = create_array();
 	
 	while (true)
 	{
@@ -107,7 +109,7 @@ CAPI int snow_main(int argc, char* const* argv) {
 			case 'r':
 			{
 				SnObject* filename = snow_create_string_constant(optarg);
-				snow_array_push(require_files, filename);
+				array_push(require_files, filename);
 				break;
 			}
 			case 'i':
@@ -125,19 +127,19 @@ CAPI int snow_main(int argc, char* const* argv) {
 	// require first loose argument, unless -- was used
 	if (optind < argc && strcmp("--", argv[optind-1]) != 0) {
 		SnObject* filename = snow_create_string_constant(argv[optind++]);
-		snow_array_push(require_files, filename);
+		array_push(require_files, filename);
 	}
 	
 	// stuff the rest in ARGV
-	SnObject* ARGV = snow_create_array_with_size(argc);
+	SnObject* ARGV = create_array_with_size(argc);
 	while (optind < argc) {
 		SnObject* argument = snow_create_string_constant(argv[optind++]);
-		snow_array_push(ARGV, argument);
+		array_push(ARGV, argument);
 	}
 	snow_set_global(snow_sym("ARGV"), ARGV);
 	
-	for (size_t i = 0; i < snow_array_size(require_files); ++i) {
-		VALUE vstr = snow_array_get(require_files, i);
+	for (size_t i = 0; i < array_size(require_files); ++i) {
+		VALUE vstr = array_get(require_files, i);
 		ASSERT(snow_is_string(vstr));
 		snow_load((SnObject*)vstr);
 	}

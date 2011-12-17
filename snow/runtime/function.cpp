@@ -90,7 +90,7 @@ namespace snow {
 
 	static VALUE call_frame_get_arguments(const SnCallFrame* here, VALUE self, VALUE it) {
 		ObjectPtr<CallFrame> cf = self;
-		return snow_create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
+		return create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
 	}
 
 	static void call_frame_liberate(SnObject* call_frame) {
