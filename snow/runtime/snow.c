@@ -92,9 +92,10 @@ VALUE snow_call(VALUE functor, VALUE self, size_t num_args, VALUE* args) {
 }
 
 VALUE snow_call_with_arguments(VALUE functor, VALUE self, const SnArguments* args) {
-	SnObject* function = snow_value_to_function(functor, &self);
+	VALUE new_self = self;
+	SnObject* function = snow_value_to_function(functor, &new_self);
 	SnCallFrame frame = {
-		.self = self,
+		.self = new_self,
 		.args = args,
 	};
 	return snow_function_call(function, &frame);

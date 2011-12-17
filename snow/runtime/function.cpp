@@ -215,7 +215,19 @@ CAPI {
 				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, snow_class_get_name(cls), cls);
 			}
 		}
-		return snow_eval_truth(functor) ? (SnObject*)functor : NULL;
+		
+		if (snow_eval_truth(functor)) {
+			SnObject* function = (SnObject*)functor;
+			FunctionPrivate* priv = snow::object_get_private<FunctionPrivate>(function, SnFunctionType);
+			if (*out_new_self == NULL && priv->definition_scope != NULL) {
+				// If self isn't given, pick the self from when the function was defined.
+				CallFramePrivate* cfpriv = snow::object_get_private<CallFramePrivate>(priv->definition_scope, SnCallFrameType);
+				*out_new_self = cfpriv->self;
+			}
+			return function;
+		}
+		
+		return NULL; // Value cannot be converted to function.
 	}
 	
 	namespace {
