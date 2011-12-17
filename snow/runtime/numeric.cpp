@@ -1,13 +1,12 @@
 #include "snow/numeric.h"
 #include "internal.h"
 #include "snow/boolean.h"
-#include "snow/class.h"
+#include "snow/class.hpp"
 #include "snow/exception.h"
-#include "snow/function.h"
-#include "snow/object.h"
+#include "snow/function.hpp"
+#include "snow/object.hpp"
 #include "snow/snow.h"
-#include "snow/str.h"
-#include "snow/type.h"
+#include "snow/str.hpp"
 #include "snow/value.h"
 
 
@@ -178,6 +177,7 @@ static VALUE numeric_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
+CAPI {
 SnObject* snow_get_numeric_class() {
 	static SnObject** root = NULL;
 	if (!root) {
@@ -215,4 +215,5 @@ SnObject* snow_get_integer_class() {
 		root = snow_gc_create_root(cls);
 	}
 	return *root;
+}
 }

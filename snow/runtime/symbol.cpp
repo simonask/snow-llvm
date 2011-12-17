@@ -1,10 +1,9 @@
 #include "snow/symbol.h"
-#include "snow/type.h"
 #include "internal.h"
-#include "snow/class.h"
-#include "snow/function.h"
+#include "snow/class.hpp"
+#include "snow/function.hpp"
 #include "snow/exception.h"
-#include "snow/str.h"
+#include "snow/str.hpp"
 
 #include <map>
 #include <string>

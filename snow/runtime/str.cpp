@@ -1,12 +1,11 @@
-#include "snow/str.h"
+#include "snow/str.hpp"
 #include "internal.h"
-#include "snow/class.h"
-#include "snow/function.h"
-#include "snow/gc.h"
+#include "snow/class.hpp"
+#include "snow/function.hpp"
+#include "snow/gc.hpp"
 #include "snow/linkbuffer.h"
 #include "snow/numeric.h"
 #include "snow/snow.h"
-#include "snow/type.h"
 #include "snow/exception.h"
 
 #include "util.hpp"
@@ -17,10 +16,8 @@
 #include <stdlib.h>
 #include <xlocale.h>
 
-namespace {
+namespace snow {
 	struct String {
-		static const SnInternalType* Type;
-		
 		char* data; // not NULL-terminated!
 		uint32_t size;
 		uint32_t length;
@@ -42,11 +39,6 @@ namespace {
 			return *this;
 		}
 	};
-	const SnInternalType* String::Type = &SnStringType;
-
-	void string_gc_each_root(void* data, void(*callback)(VALUE*)) {
-		// dummy -- strings have no references to other objects
-	}
 	
 	uint32_t get_utf8_length(const char* utf8, uint32_t size) {
 		// TODO: Can be optimized quite a bit, but consider using a library.
@@ -63,16 +55,10 @@ namespace {
 	}
 }
 
+SN_REGISTER_SIMPLE_CPP_TYPE(String)
+
 CAPI {
 	using namespace snow;
-	
-	SnInternalType SnStringType = {
-		.data_size = sizeof(String),
-		.initialize = snow::construct<String>,
-		.finalize = snow::destruct<String>,
-		.copy = snow::assign<String>,
-		.gc_each_root = string_gc_each_root,
-	};
 
 	SnObject* snow_create_string(const char* utf8) {
 		return snow_create_string_with_size(utf8, strlen(utf8));
@@ -113,7 +99,7 @@ CAPI {
 	}
 	
 	bool snow_is_string(VALUE val) {
-		return snow::value_is_of_type(val, SnStringType);
+		return snow::value_is_of_type(val, get_type<String>());
 	}
 
 	SnObject* snow_string_concat(const SnObject* a, const SnObject* b) {
@@ -253,7 +239,7 @@ CAPI {
 	SnObject* snow_get_string_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("String"), &SnStringType);
+			SnObject* cls = snow_create_class_for_type(snow_sym("String"), get_type<String>());
 			snow_class_define_method(cls, "inspect", string_inspect);
 			snow_class_define_method(cls, "to_string", string_to_string);
 			snow_class_define_method(cls, "+", string_add);

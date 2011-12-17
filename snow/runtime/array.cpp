@@ -1,24 +1,20 @@
-#include "snow/array.h"
+#include "snow/array.hpp"
 #include "internal.h"
-#include "snow/class.h"
+#include "snow/class.hpp"
 #include "util.hpp"
 #include "objectptr.hpp"
 #include "snow/exception.h"
-#include "snow/function.h"
+#include "snow/function.hpp"
 #include "snow/snow.h"
-#include "snow/str.h"
+#include "snow/str.hpp"
 #include "snow/numeric.h"
+#include "snow/type.hpp"
 
 #include <string.h>
 #include <vector>
 
 namespace {
-	struct Array : std::vector<VALUE> {
-		static const SnInternalType* Type;
-		Array() {}
-		Array(const Array& other) : std::vector<VALUE>(other) {}
-	};
-	const SnInternalType* Array::Type = &SnArrayType;
+	typedef std::vector<VALUE> Array;
 	
 	void array_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		Array& priv = *(Array*)data;
@@ -28,17 +24,11 @@ namespace {
 	}
 }
 
+SN_REGISTER_CPP_TYPE(Array, array_gc_each_root);
+
 CAPI {
 	using namespace snow;
-	
-	SnInternalType SnArrayType = {
-		.data_size = sizeof(Array),
-		.initialize = snow::construct<Array>,
-		.finalize = snow::destruct<Array>,
-		.copy = snow::assign<Array>,
-		.gc_each_root = array_gc_each_root,
-	};
-	
+		
 	SnObject* snow_create_array() {
 		return snow_create_object(snow_get_array_class(), 0, NULL);
 	}
@@ -185,14 +175,14 @@ namespace {
 	}
 
 	VALUE array_push(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (!snow::value_is_of_type(self, SnArrayType)) return NULL;
+		if (!snow::value_is_of_type(self, get_type<Array>())) return NULL;
 		// TODO: Check for recursion?
 		snow_array_push((SnObject*)self, it);
 		return self;
 	}
 
 	VALUE array_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (!snow::value_is_of_type(self, SnArrayType)) return NULL;
+		if (!snow::value_is_of_type(self, get_type<Array>())) return NULL;
 		return snow_integer_to_value(snow_array_size((SnObject*)self));
 	}
 }
@@ -200,7 +190,7 @@ namespace {
 CAPI SnObject* snow_get_array_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class_for_type(snow_sym("Array"), &SnArrayType);
+		SnObject* cls = snow_create_class_for_type(snow_sym("Array"), get_type<Array>());
 		snow_class_define_method(cls, "initialize", array_initialize);
 		snow_class_define_method(cls, "inspect", array_inspect);
 		snow_class_define_method(cls, "to_string", array_inspect);

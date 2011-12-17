@@ -1,14 +1,15 @@
-#include "snow/fiber.h"
+#include "snow/fiber.hpp"
 #include "fiber-internal.h"
 #include "internal.h"
 #include "util.hpp"
+#include "snow/type.hpp"
 #include "objectptr.hpp"
 #include "snow/boolean.h"
-#include "snow/class.h"
-#include "snow/function.h"
-#include "snow/gc.h"
+#include "snow/class.hpp"
+#include "snow/function.hpp"
+#include "snow/gc.hpp"
 #include "snow/snow.h"
-#include "snow/str.h"
+#include "snow/str.hpp"
 #include "snow/vm.h"
 #include "snow/exception.h"
 
@@ -18,10 +19,8 @@
 
 using namespace snow;
 
-namespace {
+namespace snow {
 	struct Fiber {
-		static const SnInternalType* Type;
-		
 		VALUE functor;
 		VALUE incoming_value;
 		byte* stack;
@@ -45,20 +44,13 @@ namespace {
 				munmap(stack, SN_FIBER_STACK_SIZE);
 		}
 	};
-	const SnInternalType* Fiber::Type = &SnFiberType;
+}
 	
-	void fiber_gc_each_root(void* data, void(*callback)(VALUE* root)) {
+static	void fiber_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		// TODO: Scan stack
 	}
-}
 
-CAPI SnInternalType SnFiberType = {
-	.data_size = sizeof(Fiber),
-	.initialize = snow::construct<Fiber>,
-	.finalize = snow::destruct<Fiber>,
-	.copy = NULL,
-	.gc_each_root = fiber_gc_each_root,
-};
+SN_REGISTER_TYPE(Fiber, ((Type){ .data_size = sizeof(Fiber), .initialize = snow::construct<Fiber>, .finalize = snow::destruct<Fiber>, .copy = NULL, .gc_each_root = fiber_gc_each_root}))
 
 static pthread_key_t _current_fiber;
 
@@ -265,7 +257,7 @@ static VALUE fiber_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
 CAPI SnObject* snow_get_fiber_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class_for_type(snow_sym("Fiber"), &SnFiberType);
+		SnObject* cls = snow_create_class_for_type(snow_sym("Fiber"), snow::get_type<Fiber>());
 		snow_class_define_method(cls, "initialize", fiber_initialize);
 		snow_class_define_method(cls, "inspect", fiber_inspect);
 		snow_class_define_method(cls, "to_string", fiber_inspect);

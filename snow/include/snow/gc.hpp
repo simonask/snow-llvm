@@ -3,11 +3,10 @@
 #define GC_H_X9TH74GE
 
 #include "snow/basic.h"
-#include "snow/type.h"
 #include <stdlib.h>
 
 struct SnObject;
-struct SnInternalType;
+namespace snow { struct Type; }
 
 typedef enum SnGCFlags {
 	SnGCNoFlags   = 0x0,
@@ -17,7 +16,7 @@ typedef enum SnGCFlags {
 
 CAPI void snow_init_gc(const void** stack_top);
 CAPI void snow_gc();
-CAPI struct SnObject* snow_gc_allocate_object(const struct SnInternalType*);
+CAPI struct SnObject* snow_gc_allocate_object(const snow::Type*);
 CAPI struct SnObject** snow_gc_create_root(struct SnObject* initial_value);
 CAPI struct SnObject*  snow_gc_free_root(struct SnObject** root); 
 

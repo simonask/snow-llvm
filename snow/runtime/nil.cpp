@@ -1,9 +1,8 @@
 #include "snow/nil.h"
 #include "internal.h"
-#include "snow/class.h"
-#include "snow/type.h"
-#include "snow/str.h"
-#include "snow/function.h"
+#include "snow/class.hpp"
+#include "snow/str.hpp"
+#include "snow/function.hpp"
 
 static VALUE nil_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string_constant("nil");
@@ -13,7 +12,7 @@ static VALUE nil_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string_constant("");
 }
 
-SnObject* snow_get_nil_class() {
+CAPI SnObject* snow_get_nil_class() {
 	static SnObject** root = NULL;
 	if (!root) {
 		SnObject* cls = snow_create_class(snow_sym("Nil"), NULL);

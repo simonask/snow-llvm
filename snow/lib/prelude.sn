@@ -11,6 +11,10 @@ Class.define_method(#<<) [module] {
 	self
 }
 
+@: Array
+#: Map
+
+
 Enumerable: #(
 	all?: [condition] {
 		condition: condition or { it }

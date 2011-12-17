@@ -1,15 +1,15 @@
 #include "snow/snow.h"
 #include "internal.h"
 
-#include "snow/array.h"
+#include "snow/array.hpp"
 #include "snow/exception.hpp"
-#include "snow/function.h"
-#include "snow/gc.h"
+#include "snow/function.hpp"
+#include "snow/gc.hpp"
 #include "snow/linkbuffer.h"
-#include "snow/module.h"
-#include "snow/object.h"
+#include "snow/module.hpp"
+#include "snow/object.hpp"
 #include "snow/parser.h"
-#include "snow/str.h"
+#include "snow/str.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>

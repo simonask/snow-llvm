@@ -2,7 +2,7 @@
 #ifndef LOCK_HPP_TC4L5SG6
 #define LOCK_HPP_TC4L5SG6
 
-#include "snow/gc.h"
+#include "snow/gc.hpp"
 
 namespace snow {
 	struct ScopedGCReadLock {

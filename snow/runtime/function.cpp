@@ -1,29 +1,22 @@
-#include "snow/function.h"
+#include "snow/function.hpp"
 #include "internal.h"
 #include "util.hpp"
 #include "objectptr.hpp"
 #include "function-internal.hpp"
 #include "fiber-internal.h"
 #include "snow/snow.h"
-#include "snow/class.h"
+#include "snow/class.hpp"
 #include "snow/exception.h"
-#include "snow/array.h"
+#include "snow/array.hpp"
 
-namespace {
-	using namespace snow;
-	
-	struct CallFrame;
-	
+namespace snow {
 	struct Function {
-		static const SnInternalType* Type;
-		
 		const snow::FunctionDescriptor* descriptor;
 		ObjectPtr<CallFrame> definition_scope;
 		VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
 		
 		Function() : descriptor(NULL), variable_references(NULL) {}
 	};
-	const SnInternalType* Function::Type = &SnFunctionType;
 	
 	void function_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		Function* priv = (Function*)data;
@@ -34,8 +27,6 @@ namespace {
 	}
 	
 	struct CallFrame {
-		static const SnInternalType* Type;
-		
 		ObjectPtr<Function> function;
 		VALUE self;
 		VALUE* locals;
@@ -55,7 +46,6 @@ namespace {
 			snow::dealloc_range(args.data);
 		}
 	};
-	const SnInternalType* CallFrame::Type = &SnCallFrameType;
 	
 	
 	void call_frame_gc_each_root(void* data, void(*callback)(VALUE* root)) {
@@ -72,21 +62,8 @@ namespace {
 	}
 }
 
-CAPI SnInternalType SnFunctionType = {
-	.data_size = sizeof(Function),
-	.initialize = snow::construct<Function>,
-	.finalize = snow::destruct<Function>,
-	.copy = snow::assign<Function>,
-	.gc_each_root = function_gc_each_root,
-};
-
-CAPI SnInternalType SnCallFrameType = {
-	.data_size = sizeof(CallFrame),
-	.initialize = snow::construct<CallFrame>,
-	.finalize = snow::destruct<CallFrame>,
-	.copy = snow::assign<CallFrame>,
-	.gc_each_root = call_frame_gc_each_root,
-};
+SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
+SN_REGISTER_CPP_TYPE(CallFrame, call_frame_gc_each_root)
 
 namespace snow {
 	SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, SnObject* definition_scope) {
@@ -100,31 +77,33 @@ namespace snow {
 		}
 		return function;
 	}
-}
+	
+	static VALUE function_call(const SnCallFrame* here, VALUE self, VALUE it) {
+		SN_CHECK_CLASS(self, Function, __call__);
+		SnCallFrame frame = *here;
+		return snow_function_call((SnObject*)self, &frame);
+	}
 
-static VALUE function_call(const SnCallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Function, __call__);
-	SnCallFrame frame = *here;
-	return snow_function_call((SnObject*)self, &frame);
-}
+	static VALUE call_frame_get_self(const SnCallFrame* here, VALUE self, VALUE it) {
+		return ObjectPtr<CallFrame>(self)->self;
+	}
 
-static VALUE call_frame_get_self(const SnCallFrame* here, VALUE self, VALUE it) {
-	return ObjectPtr<CallFrame>(self)->self;
-}
+	static VALUE call_frame_get_arguments(const SnCallFrame* here, VALUE self, VALUE it) {
+		ObjectPtr<CallFrame> cf = self;
+		return snow_create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
+	}
 
-static VALUE call_frame_get_arguments(const SnCallFrame* here, VALUE self, VALUE it) {
-	ObjectPtr<CallFrame> cf = self;
-	return snow_create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
-}
-
-static void call_frame_liberate(SnObject* call_frame) {
-	ObjectPtr<CallFrame> cf = call_frame;
-	cf->locals = snow::duplicate_range(cf->locals, cf->num_locals);
-	cf->args.names = snow::duplicate_range(cf->args.names, cf->args.num_names);
-	cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
+	static void call_frame_liberate(SnObject* call_frame) {
+		ObjectPtr<CallFrame> cf = call_frame;
+		cf->locals = snow::duplicate_range(cf->locals, cf->num_locals);
+		cf->args.names = snow::duplicate_range(cf->args.names, cf->args.num_names);
+		cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
+	}
 }
 
 CAPI {
+	using namespace snow;
+	
 	SnObject* snow_create_function(SnFunctionPtr ptr, SnSymbol name) {
 		snow::FunctionDescriptor* descriptor = new snow::FunctionDescriptor;
 		descriptor->ptr = ptr;
@@ -143,7 +122,7 @@ CAPI {
 	SnObject* snow_get_function_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("Function"), &SnFunctionType);
+			SnObject* cls = snow_create_class_for_type(snow_sym("Function"), snow::get_type<Function>());
 			root = snow_gc_create_root(cls);
 			snow_class_define_method(cls, "__call__", function_call);
 		}
@@ -185,7 +164,7 @@ CAPI {
 	SnObject* snow_get_call_frame_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("CallFrame"), &SnCallFrameType);
+			SnObject* cls = snow_create_class_for_type(snow_sym("CallFrame"), get_type<CallFrame>());
 			snow_class_define_property(cls, "self", call_frame_get_self, NULL);
 			snow_class_define_property(cls, "arguments", call_frame_get_arguments, NULL);
 			root = snow_gc_create_root(cls);
@@ -195,7 +174,7 @@ CAPI {
 	
 	SnObject* snow_value_to_function(VALUE val, VALUE* out_new_self) {
 		VALUE functor = val;
-		while (!snow::value_is_of_type(functor, SnFunctionType)) {
+		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			SnObject* cls = snow_get_class(functor);
 			SnMethod method;
 			if (snow_class_lookup_method(cls, snow_sym("__call__"), &method)) {

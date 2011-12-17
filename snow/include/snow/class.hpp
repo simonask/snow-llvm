@@ -2,9 +2,11 @@
 #ifndef CLASS_H_JLNQIJLJ
 #define CLASS_H_JLNQIJLJ
 
-#include "snow/object.h"
+#include "snow/object.hpp"
 
-CAPI struct SnInternalType SnClassType;
+namespace snow {
+	struct Class;
+}
 
 enum SnMethodType {
 	SnMethodTypeNone,
@@ -30,7 +32,7 @@ CAPI SnObject* snow_get_class_class();
 CAPI bool snow_is_class(VALUE val);
 
 CAPI SnObject* snow_create_class(SnSymbol name, SnObject* super);
-CAPI SnObject* snow_create_class_for_type(SnSymbol name, const SnInternalType* type);
+CAPI SnObject* snow_create_class_for_type(SnSymbol name, const snow::Type* type);
 CAPI SnObject* snow_create_meta_class(SnObject* super);
 CAPI bool snow_class_is_meta(const SnObject* cls);
 CAPI const char* snow_class_get_name(const SnObject* cls);

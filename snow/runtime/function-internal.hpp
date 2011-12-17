@@ -2,7 +2,7 @@
 #ifndef FUNCTION_INTERNAL_HPP_U4QUBRPT
 #define FUNCTION_INTERNAL_HPP_U4QUBRPT
 
-#include "snow/function.h"
+#include "snow/function.hpp"
 #include "snow/symbol.h"
 #include "snow/value.h"
 

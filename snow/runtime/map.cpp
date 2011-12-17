@@ -2,27 +2,20 @@
 #include "internal.h"
 
 #include "snow/boolean.h"
-#include "snow/class.h"
+#include "snow/class.hpp"
 #include "snow/exception.h"
-#include "snow/function.h"
-#include "snow/gc.h"
+#include "snow/function.hpp"
+#include "snow/gc.hpp"
 #include "snow/numeric.h"
 #include "snow/snow.h"
-#include "snow/str.h"
-#include "snow/type.h"
+#include "snow/str.hpp"
 
 #include "lock.hpp"
 #include "objectptr.hpp"
 #include "adapting_map.hpp"
 
 namespace {
-	struct Map : snow::AdaptingMap {
-		static const SnInternalType* Type;
-		
-		Map() {}
-		Map(const Map& other) : snow::AdaptingMap(other) {}
-	};
-	const SnInternalType* Map::Type = &SnMapType;
+	typedef snow::AdaptingMap Map;
 	
 	void map_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		snow::AdaptingMap* map = (snow::AdaptingMap*)data;
@@ -36,16 +29,10 @@ namespace {
 	}
 }
 
+SN_REGISTER_CPP_TYPE(Map, map_gc_each_root)
+
 CAPI {
 	using namespace snow;
-	
-	SnInternalType SnMapType = {
-		.data_size = sizeof(Map),
-		.initialize = snow::construct<Map>,
-		.finalize = snow::destruct<Map>,
-		.copy = snow::assign<Map>,
-		.gc_each_root = map_gc_each_root,
-	};
 	
 	SnObject* snow_create_map() {
 		return create_map_with_flags(snow::MAP_FLAT);
@@ -186,7 +173,7 @@ static VALUE map_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
 CAPI SnObject* snow_get_map_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class_for_type(snow_sym("Map"), &SnMapType);
+		SnObject* cls = snow_create_class_for_type(snow_sym("Map"), get_type<Map>());
 		snow_class_define_method(cls, "initialize", map_initialize);
 		snow_class_define_method(cls, "inspect", map_inspect);
 		snow_class_define_method(cls, "to_string", map_inspect);

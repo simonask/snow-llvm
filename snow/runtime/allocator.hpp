@@ -3,7 +3,7 @@
 #define ALLOCATOR_HPP_UZ4GOM1J
 
 #include "snow/basic.h"
-#include "snow/object.h"
+#include "snow/object.hpp"
 #include "lock.h"
 
 #include <vector>

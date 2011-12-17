@@ -1,7 +1,7 @@
-#include "snow/gc.h"
+#include "snow/gc.hpp"
 
-#include "snow/object.h"
-#include "snow/fiber.h"
+#include "snow/object.hpp"
+#include "snow/fiber.hpp"
 #include "fiber-internal.h"
 
 #include "allocator.hpp"
@@ -87,7 +87,7 @@ namespace {
 	void gc_delete_unmarked_objects() {
 	}
 	
-	SnObject* gc_allocate_object(const SnInternalType* type) {
+	SnObject* gc_allocate_object(const Type* type) {
 		ASSERT(sizeof(SnObject) <= SN_CACHE_LINE_SIZE - sizeof(void*));
 		SnObject* obj = gc_allocator.allocate();
 		obj->type = type;
@@ -105,7 +105,7 @@ namespace {
 	}
 	
 	void gc_free_object(SnObject* obj) {
-		const SnInternalType* type = obj->type;
+		const Type* type = obj->type;
 		if (type) {
 			type->finalize(snow_object_get_private(obj, type));
 			if (type->data_size + sizeof(SnObject) > SN_CACHE_LINE_SIZE) {
@@ -172,7 +172,7 @@ CAPI {
 		return v;
 	}
 	
-	SnObject* snow_gc_allocate_object(const struct SnInternalType* type) {
+	SnObject* snow_gc_allocate_object(const struct Type* type) {
 		if (gc_num_objects >= gc_collection_threshold) {
 			//snow_gc();
 		}

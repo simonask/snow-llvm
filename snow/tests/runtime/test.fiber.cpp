@@ -1,8 +1,7 @@
 #include "test.hpp"
-#include "snow/fiber.h"
-#include "snow/function.h"
+#include "snow/fiber.hpp"
+#include "snow/function.hpp"
 #include "snow/numeric.h"
-#include "snow/type.h"
 
 static VALUE fiber_function(const SnCallFrame* here, VALUE self, VALUE it) {
 	printf("fiber started\n");

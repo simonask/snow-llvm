@@ -2,12 +2,14 @@
 #define STRING_H_OYTL2E1P
 
 #include "snow/basic.h"
-#include "snow/object.h"
+#include "snow/object.hpp"
 #include <stdarg.h>
 
 struct SnLinkBuffer;
 
-CAPI SnInternalType SnStringType;
+namespace snow {
+	struct String;
+}
 
 CAPI bool snow_is_string(VALUE val);
 CAPI SnObject* snow_create_string(const char* utf8);

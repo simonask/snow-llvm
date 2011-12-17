@@ -2,11 +2,11 @@
 #ifndef OBJECT_H_CCPHDYB5
 #define OBJECT_H_CCPHDYB5
 
-#include "snow/gc.h"
+#include "snow/gc.hpp"
 #include "snow/value.h"
 #include "snow/symbol.h"
+#include "snow/type.hpp"
 
-struct SnInternalType;
 struct SnArguments;
 
 typedef struct SnObject {
@@ -20,17 +20,9 @@ typedef struct SnObject {
 	} gc_info;
 	uint32_t num_alloc_members;
 	VALUE* members;
-	const struct SnInternalType* type;
+	const snow::Type* type;
 	struct SnObject* cls;
 } SnObject;
-
-typedef struct SnInternalType {
-	size_t data_size;
-	void(*initialize)(void* data);
-	void(*finalize)(void* data);
-	void(*copy)(void* data, void* other_data);
-	void(*gc_each_root)(void* data, void(*callback)(VALUE*));
-} SnInternalType;
 
 CAPI SnObject* snow_get_object_class();
 CAPI SnObject* snow_create_object(SnObject* cls, size_t num_constructor_args, VALUE* args);
@@ -64,15 +56,15 @@ INLINE SnObject* snow_object_get_class(const SnObject* obj) {
 	return obj->cls;
 }
 
-INLINE const SnInternalType* snow_get_object_type(const SnObject* obj) {
+INLINE const snow::Type* snow_get_object_type(const SnObject* obj) {
 	return obj->type;
 }
 
-INLINE bool snow_object_is_of_type(const SnObject* obj, const SnInternalType* check_type) {
+INLINE bool snow_object_is_of_type(const SnObject* obj, const snow::Type* check_type) {
 	return snow_get_object_type(obj) == check_type;
 }
 
-INLINE void* snow_object_get_private(const SnObject* obj, const SnInternalType* check_type) {
+INLINE void* snow_object_get_private(const SnObject* obj, const snow::Type* check_type) {
 	ASSERT(check_type);
 	if (snow_object_is_of_type(obj, check_type)) {
 		if (UNLIKELY(check_type->data_size + sizeof(SnObject) > SN_CACHE_LINE_SIZE)) {

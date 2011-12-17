@@ -2,9 +2,7 @@
 #ifndef ARRAY_H_XVGE8JQI
 #define ARRAY_H_XVGE8JQI
 
-#include "snow/object.h"
-
-CAPI SnInternalType SnArrayType;
+#include "snow/object.hpp"
 
 CAPI SnObject* snow_create_array();
 CAPI SnObject* snow_create_array_from_range(VALUE* begin, VALUE* end);

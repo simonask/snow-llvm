@@ -1,5 +1,5 @@
 #include "snow/exception.hpp"
-#include "snow/str.h"
+#include "snow/str.hpp"
 #include "snow/snow.h"
 #include <stdio.h>
 #include <stdlib.h>

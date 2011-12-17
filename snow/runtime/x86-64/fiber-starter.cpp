@@ -1,4 +1,4 @@
-#include "snow/fiber.h"
+#include "snow/fiber.hpp"
 #include "snow/vm.h"
 #include "../fiber-internal.h"
 

@@ -4,6 +4,7 @@
 
 #include "snow/value.h"
 #include "util.hpp"
+#include "snow/type.hpp"
 
 namespace snow {
 	template <typename T>
@@ -30,7 +31,7 @@ namespace snow {
 	private:
 		void assign(VALUE val) {
 			if (snow_is_object(val)) {
-				priv_ = object_get_private<T>((Ptr)val, *T::Type);
+				priv_ = object_get_private<T>((Ptr)val, snow::get_type<T>());
 				object_ = priv_ ? (Ptr)val : NULL;
 			} else {
 				priv_ = NULL;
@@ -40,7 +41,7 @@ namespace snow {
 		
 		void assign(Ptr obj) {
 			if (obj != NULL) {
-				priv_ = object_get_private<T>(obj, *T::Type);
+				priv_ = object_get_private<T>(obj, snow::get_type<T>());
 				object_ = priv_ ? obj : NULL;
 			} else {
 				object_ = NULL;

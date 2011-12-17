@@ -5,15 +5,17 @@
 #include "snow/basic.h"
 #include "snow/symbol.h"
 #include "snow/value.h"
-#include "snow/object.h"
+#include "snow/object.hpp"
 #include "snow/arguments.h"
+
+namespace snow {
+	struct Function;
+	struct CallFrame;
+}
 
 struct SnCallFrame;
 
 typedef VALUE(*SnFunctionPtr)(const struct SnCallFrame* here, VALUE self, VALUE it);
-
-CAPI SnInternalType SnFunctionType;
-CAPI SnInternalType SnCallFrameType;
 
 typedef struct SnCallFrame {
 	SnObject* function;

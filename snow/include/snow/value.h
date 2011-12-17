@@ -24,6 +24,10 @@ static const VALUE SN_NIL = (VALUE)SnNilType;
 static const VALUE SN_FALSE = (VALUE)SnBooleanType;
 static const VALUE SN_TRUE = (VALUE)(0x10 | SnBooleanType);
 
+INLINE bool snow_is_immediate_type(SnValueType type) {
+	return type < SnValueTypeMask && type != SnObjectType;
+}
+
 INLINE bool snow_is_object(VALUE val) {
 	return val && (((uintptr_t)val & SnValueTypeMask) == SnObjectType);
 }

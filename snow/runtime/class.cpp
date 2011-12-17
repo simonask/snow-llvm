@@ -1,7 +1,7 @@
-#include "snow/class.h"
-#include "snow/function.h"
+#include "snow/class.hpp"
+#include "snow/function.hpp"
 #include "snow/exception.h"
-#include "snow/str.h"
+#include "snow/str.hpp"
 #include "snow/snow.h"
 
 #include "util.hpp"
@@ -11,14 +11,10 @@
 #include <algorithm>
 #include <vector>
 
-namespace {
-	using namespace snow;
-	
+namespace snow {
 	struct Class {
-		static const SnInternalType* Type;
-		
 		SnSymbol name;
-		const SnInternalType* instance_type;
+		const Type* instance_type;
 		SnObject* super;
 		std::vector<SnMethod> methods;
 		std::vector<SnSymbol> instance_variables;
@@ -34,7 +30,10 @@ namespace {
 			}
 		}
 	};
-	const SnInternalType* Class::Type = &SnClassType;
+}
+
+namespace {
+	using namespace snow;
 	
 	struct MethodLessThan {
 		bool operator()(const SnMethod& a, const SnMethod& b) {
@@ -126,16 +125,10 @@ namespace {
 	}
 }
 
+SN_REGISTER_CPP_TYPE(Class, class_gc_each_root)
+
 
 CAPI {
-	SnInternalType SnClassType = {
-		.data_size = sizeof(Class),
-		.initialize = snow::construct<Class>,
-		.finalize = snow::destruct<Class>,
-		.copy = snow::assign<Class>,
-		.gc_each_root = class_gc_each_root,
-	};
-	
 	SnObject* snow_create_object_without_initialize(SnObject* klass) {
 		ObjectPtr<Class> cls = klass;
 		ASSERT(cls != NULL); // klass is not a class!
@@ -166,7 +159,7 @@ CAPI {
 	}
 	
 	bool snow_is_class(VALUE val) {
-		return snow::value_is_of_type(val, SnClassType);
+		return snow::value_is_of_type(val, get_type<Class>());
 	}
 	
 	const char* snow_class_get_name(const SnObject* cls) {
@@ -206,7 +199,7 @@ CAPI {
 		SnMethod key = { .name = name, .type = SnMethodTypeNone };
 		const SnObject* c = cls;
 		while (c != NULL) {
-			const Class* priv = snow::object_get_private<Class>(c, SnClassType);
+			const Class* priv = snow::object_get_private<Class>(c, get_type<Class>());
 			ASSERT(priv); // non-class in class hierarchy!
 			
 			// Check for 'initialize'
@@ -286,10 +279,10 @@ CAPI {
 		static SnObject** root = NULL;
 		if (!root) {
 			// bootstrapping
-			SnObject* class_class = snow_gc_allocate_object(&SnClassType);
+			SnObject* class_class = snow_gc_allocate_object(get_type<Class>());
 			class_class->cls = class_class;
-			Class* priv = snow::object_get_private<Class>(class_class, SnClassType);
-			priv->instance_type = &SnClassType;
+			Class* priv = snow::object_get_private<Class>(class_class, get_type<Class>());
+			priv->instance_type = get_type<Class>();
 			root = snow_gc_create_root(class_class);
 			
 			snow_class_define_method(class_class, "initialize", class_initialize);
@@ -312,7 +305,7 @@ CAPI {
 		return cls;
 	}
 	
-	SnObject* snow_create_class_for_type(SnSymbol name, const SnInternalType* type) {
+	SnObject* snow_create_class_for_type(SnSymbol name, const snow::Type* type) {
 		ObjectPtr<Class> cls = snow_create_object_without_initialize(snow_get_class_class());
 		cls->name = name;
 		cls->instance_type = type;

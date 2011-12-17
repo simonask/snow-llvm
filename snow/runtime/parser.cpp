@@ -1,7 +1,7 @@
 #include "snow/parser.h"
 #include "snow/symbol.h"
 #include "snow/numeric.h"
-#include "snow/str.h"
+#include "snow/str.hpp"
 
 #include "linkheap.hpp"
 #include "ast-intern.hpp"

@@ -2,11 +2,13 @@
 #ifndef CONTINUATION_H_6NGEZ11
 #define CONTINUATION_H_6NGEZ11
 
-#include "snow/object.h"
+#include "snow/object.hpp"
+
+namespace snow {
+	struct Fiber;
+}
 
 struct SnCallFrame;
-
-CAPI SnInternalType SnFiberType;
 
 CAPI SnObject* snow_create_fiber(VALUE functor); // functor is called with arguments calling_fiber, incoming_value
 CAPI VALUE snow_fiber_resume(SnObject* fiber, VALUE incoming_value);

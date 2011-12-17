@@ -15,7 +15,7 @@ struct SnObject;
 #endif
 
 #if defined(__cplusplus)
-#define SN_CHECK_CLASS(OBJECT, CLASS_NAME, METHOD_NAME) do{ if (!snow::value_is_of_type(OBJECT, Sn ## CLASS_NAME ## Type)) snow_throw_exception_with_description(#CLASS_NAME "#" #METHOD_NAME " called on an object of the wrong type: %p.", OBJECT); } while(0)
+#define SN_CHECK_CLASS(OBJECT, CLASS_NAME, METHOD_NAME) do{ if (ObjectPtr<CLASS_NAME>(OBJECT) == NULL) snow_throw_exception_with_description(#CLASS_NAME "#" #METHOD_NAME " called on an object of the wrong type: %p.", OBJECT); } while(0)
 #else
 // TODO: Plain C version of SN_CHECK_CLASS
 #endif

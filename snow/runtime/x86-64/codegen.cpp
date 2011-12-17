@@ -4,8 +4,8 @@
 #include "../function-internal.hpp"
 
 #include "snow/snow.h"
-#include "snow/array.h"
-#include "snow/class.h"
+#include "snow/array.hpp"
+#include "snow/class.hpp"
 
 #include <map>
 #include <algorithm>
@@ -151,12 +151,16 @@ namespace snow {
 	bool Codegen::Function::compile_function_body(const SnAstNode* body_seq) {
 		pushq(RBP);
 		movq(RSP, RBP);
-		size_t stack_size_offset = subq(0, RSP);
+		size_t stack_size_offset1 = subq(0, RSP);
+		
+		// Back up preserved registers
 		pushq(RBX);
 		pushq(REG_CALL_FRAME);
 		pushq(REG_SELF);
 		pushq(REG_IT);
 		pushq(R15);
+		
+		// Set up function environment
 		movq(RDI, REG_CALL_FRAME);
 		movq(RSI, REG_SELF);
 		movq(RDX, REG_IT);
@@ -165,12 +169,14 @@ namespace snow {
 		
 		if (!compile_ast_node(body_seq)) return false;
 		
+		// Restore preserved registers and return
 		bind_label(return_label);
 		popq(R15);
 		popq(REG_IT);
 		popq(REG_SELF);
 		popq(REG_CALL_FRAME);
 		popq(RBX);
+		size_t stack_size_offset2 = addq(0, RSP);
 		leave();
 		ret();
 		
@@ -179,7 +185,8 @@ namespace snow {
 		size_t pad = stack_size % 16;
 		if (pad != 8) stack_size += 8;
 		for (size_t i = 0; i < 4; ++i) {
-			code()[stack_size_offset+i] = reinterpret_cast<byte*>(&stack_size)[i];
+			code()[stack_size_offset1+i] = reinterpret_cast<byte*>(&stack_size)[i];
+			code()[stack_size_offset2+i] = reinterpret_cast<byte*>(&stack_size)[i];
 		}
 		
 		return true;

@@ -3,9 +3,7 @@
 #define MAP_H_MXEPAZB9
 
 #include "snow/value.h"
-#include "snow/object.h"
-
-CAPI SnInternalType SnMapType;
+#include "snow/object.hpp"
 
 CAPI SnObject* snow_create_map();
 CAPI SnObject* snow_create_map_with_immediate_keys();  // i.e., will never call .hash on keys
@@ -22,7 +20,5 @@ typedef VALUE SnKeyValuePair[2];
 CAPI size_t snow_map_get_pairs(const SnObject*, SnKeyValuePair* tuples, size_t max);
 
 CAPI struct SnObject* snow_get_map_class();
-
-INLINE bool snow_is_map(const SnObject* obj) { return snow_object_is_of_type(obj, &SnMapType); }
 
 #endif /* end of include guard: MAP_H_MXEPAZB9 */

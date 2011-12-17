@@ -1,18 +1,17 @@
 #include "globals.h"
 #include "internal.h"
-#include "snow/array.h"
+#include "snow/array.hpp"
 #include "snow/boolean.h"
-#include "snow/class.h"
+#include "snow/class.hpp"
 #include "snow/exception.h"
-#include "snow/fiber.h"
-#include "snow/function.h"
+#include "snow/fiber.hpp"
+#include "snow/function.hpp"
 #include "snow/map.h"
-#include "snow/module.h"
+#include "snow/module.hpp"
 #include "snow/nil.h"
 #include "snow/numeric.h"
 #include "snow/snow.h"
-#include "snow/str.h"
-#include "snow/type.h"
+#include "snow/str.hpp"
 #include "snow/value.h"
 #include "snow/vm.h"
 
@@ -25,7 +24,7 @@ static VALUE get_version(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_create_string_constant(snow_version());
 }
 
-SnObject* snow_get_vm_interface() {
+CAPI SnObject* snow_get_vm_interface() {
 	static SnObject** root = NULL;
 	if (!root) {
 		SnObject* cls = snow_create_class(snow_sym("SnowVMInterface"), NULL);

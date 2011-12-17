@@ -1,5 +1,5 @@
 #include "allocator.hpp"
-#include "snow/gc.h"
+#include "snow/gc.hpp"
 #include <sys/mman.h>
 #include <errno.h>
 #include <new>

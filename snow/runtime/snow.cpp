@@ -1,21 +1,20 @@
 #include "snow/snow.h"
 #include "internal.h"
 #include "globals.h"
-#include "snow/array.h"
+#include "snow/array.hpp"
 #include "snow/boolean.h"
-#include "snow/class.h"
+#include "snow/class.hpp"
 #include "snow/exception.h"
-#include "snow/fiber.h"
-#include "snow/function.h"
-#include "snow/gc.h"
+#include "snow/fiber.hpp"
+#include "snow/function.hpp"
+#include "snow/gc.hpp"
 #include "snow/map.h"
-#include "snow/module.h"
+#include "snow/module.hpp"
 #include "snow/nil.h"
 #include "snow/numeric.h"
-#include "snow/object.h"
+#include "snow/object.hpp"
 #include "snow/parser.h"
-#include "snow/str.h"
-#include "snow/type.h"
+#include "snow/str.hpp"
 #include "snow/vm.h"
 #include "snow/vm.h"
 
@@ -23,6 +22,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+CAPI {
+	
 void snow_lex(const char*);
 void snow_init_fibers();
 
@@ -148,4 +149,6 @@ SnObject* snow_value_inspect(VALUE it) {
 	VALUE vstr = SNOW_CALL_METHOD(it, "inspect", 0, NULL);
 	ASSERT(snow_is_string(vstr));
 	return (SnObject*)vstr;
+}
+
 }
