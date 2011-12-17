@@ -12,29 +12,38 @@
 #include "snow/type.h"
 
 #include "lock.hpp"
-
+#include "objectptr.hpp"
 #include "adapting_map.hpp"
 
 namespace {
+	struct Map : snow::AdaptingMap {
+		static const SnInternalType* Type;
+		
+		Map() {}
+		Map(const Map& other) : snow::AdaptingMap(other) {}
+	};
+	const SnInternalType* Map::Type = &SnMapType;
+	
 	void map_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		snow::AdaptingMap* map = (snow::AdaptingMap*)data;
 		map->gc_each_root(callback);
 	}
 	
-	SnObject* create_map_with_flags(uint32_t flags) {
-		SnObject* map = snow_create_object(snow_get_map_class(), 0, NULL);
-		snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		priv->flags = flags;
+	snow::ObjectPtr<Map> create_map_with_flags(uint32_t flags) {
+		snow::ObjectPtr<Map> map = snow_create_object(snow_get_map_class(), 0, NULL);
+		map->flags = flags;
 		return map;
 	}
 }
 
 CAPI {
+	using namespace snow;
+	
 	SnInternalType SnMapType = {
-		.data_size = sizeof(snow::AdaptingMap),
-		.initialize = snow::construct<snow::AdaptingMap>,
-		.finalize = snow::destruct<snow::AdaptingMap>,
-		.copy = snow::assign<snow::AdaptingMap>,
+		.data_size = sizeof(Map),
+		.initialize = snow::construct<Map>,
+		.finalize = snow::destruct<Map>,
+		.copy = snow::assign<Map>,
 		.gc_each_root = map_gc_each_root,
 	};
 	
@@ -56,51 +65,37 @@ CAPI {
 	
 	size_t snow_map_size(const SnObject* map) {
 		SN_GC_SCOPED_RDLOCK(map);
-		const snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		return priv->size();
+		return ObjectPtr<const Map>(map)->size();
 	}
 	
 	VALUE snow_map_get(const SnObject* map, VALUE key) {
 		SN_GC_SCOPED_RDLOCK(map);
-		const snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		return priv->get(key);
+		return ObjectPtr<const Map>(map)->get(key);
 	}
 		
 	VALUE snow_map_set(SnObject* map, VALUE key, VALUE value) {
 		SN_GC_SCOPED_WRLOCK(map);
-		snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		return priv->set(key, value);
+		return ObjectPtr<Map>(map)->set(key, value);
 	}
 	
 	VALUE snow_map_erase(SnObject* map, VALUE key) {
 		SN_GC_SCOPED_WRLOCK(map);
-		snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		return priv->erase(key);
+		return ObjectPtr<Map>(map)->erase(key);
 	}
 	
 	void snow_map_reserve(SnObject* map, size_t size) {
 		SN_GC_SCOPED_WRLOCK(map);
-		snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		priv->reserve(size);
+		ObjectPtr<Map>(map)->reserve(size);
 	}
 
 	size_t snow_map_get_pairs(const SnObject* map, SnKeyValuePair* pairs, size_t max) {
 		SN_GC_SCOPED_RDLOCK(map);
-		const snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		return priv->get_pairs(pairs, max);
+		return ObjectPtr<const Map>(map)->get_pairs(pairs, max);
 	}
 	
 	void snow_map_clear(SnObject* map, bool free_allocated_memory) {
 		SN_GC_SCOPED_WRLOCK(map);
-		snow::AdaptingMap* priv = snow::object_get_private<snow::AdaptingMap>(map, SnMapType);
-		ASSERT(priv);
-		priv->clear(free_allocated_memory);
+		ObjectPtr<Map>(map)->clear(free_allocated_memory);
 	}
 }
 
@@ -159,15 +154,14 @@ static VALUE map_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
 		}
 	}
 	
-	SnObject* map = (SnObject*)self;
-	snow::AdaptingMap* priv = snow::value_get_private<snow::AdaptingMap>(self, SnMapType);
-	if (!priv) snow_throw_exception_with_description("Map#initialized with non-map as self: %p.", self);
+	ObjectPtr<Map> map = self;
+	if (map == NULL) snow_throw_exception_with_description("Map#initialized with non-map as self: %p.", self);
 	
 	// Slightly hack-ish, needed because we can't yet convert from immediate to non-immediate map.
-	ASSERT(priv->size() == 0);
-	ASSERT(priv->flags == snow::MAP_FLAT);
+	ASSERT(map->size() == 0);
+	ASSERT(map->flags == snow::MAP_FLAT);
 	if (immediate_keys) {
-		priv->flags |= snow::MAP_IMMEDIATE_KEYS;
+		map->flags |= snow::MAP_IMMEDIATE_KEYS;
 	}
 	
 	size_t num_pairs = (args->size - args->num_names) / 2 + args->num_names;
