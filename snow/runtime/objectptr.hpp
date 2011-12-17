@@ -25,6 +25,8 @@ namespace snow {
 		const T& operator*() const { return *priv_; }
 		bool operator==(VALUE other) const { return object_ == other; }
 		bool operator!=(VALUE other) const { return object_ != other; }
+		bool operator==(const ObjectPtr<T>& other) const { return object_ == other.object_; }
+		bool operator!=(const ObjectPtr<T>& other) const { return object_ != other.object_; }
 	private:
 		void assign(VALUE val) {
 			if (snow_is_object(val)) {
@@ -37,8 +39,13 @@ namespace snow {
 		}
 		
 		void assign(Ptr obj) {
-			priv_ = object_get_private<T>(obj, *T::Type);
-			object_ = priv_ ? obj : NULL;
+			if (obj != NULL) {
+				priv_ = object_get_private<T>(obj, *T::Type);
+				object_ = priv_ ? obj : NULL;
+			} else {
+				object_ = NULL;
+				priv_ = NULL;
+			}
 		}
 		
 		Ptr object_;
