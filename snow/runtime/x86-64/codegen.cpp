@@ -1,6 +1,6 @@
 #include "codegen.hpp"
 #include "asm.hpp"
-#include "../util.hpp"
+#include "../snow/util.hpp"
 #include "../function-internal.hpp"
 
 #include "snow/snow.h"

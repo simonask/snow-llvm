@@ -9,7 +9,7 @@
 #include "snow/numeric.h"
 #include "snow/exception.h"
 
-#include "util.hpp"
+#include "snow/util.hpp"
 
 namespace {
 	VALUE object_inspect(const SnCallFrame* here, VALUE self, VALUE it) {

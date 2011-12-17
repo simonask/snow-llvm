@@ -8,8 +8,8 @@
 #include "snow/snow.h"
 #include "snow/exception.h"
 
-#include "util.hpp"
-#include "objectptr.hpp"
+#include "snow/util.hpp"
+#include "snow/objectptr.hpp"
 
 #include <string.h>
 #include <stdio.h>

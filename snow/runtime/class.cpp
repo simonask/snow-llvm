@@ -4,8 +4,8 @@
 #include "snow/str.hpp"
 #include "snow/snow.h"
 
-#include "util.hpp"
-#include "objectptr.hpp"
+#include "snow/util.hpp"
+#include "snow/objectptr.hpp"
 #include "internal.h"
 
 #include <algorithm>

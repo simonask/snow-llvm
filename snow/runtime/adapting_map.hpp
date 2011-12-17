@@ -4,7 +4,7 @@
 
 #include "snow/basic.h"
 #include "snow/exception.h"
-#include "util.hpp"
+#include "snow/util.hpp"
 
 #include <google/dense_hash_map>
 #include <algorithm>

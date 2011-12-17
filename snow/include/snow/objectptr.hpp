@@ -3,7 +3,7 @@
 #define OBJECTPTR_HPP_DWKBYC9Z
 
 #include "snow/value.h"
-#include "util.hpp"
+#include "snow/util.hpp"
 #include "snow/type.hpp"
 
 namespace snow {

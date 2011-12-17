@@ -3,7 +3,7 @@
 #define CODEGEN_HPP_IB2E5EKO
 
 #include "snow/ast.hpp"
-#include "snow/function.h"
+#include "snow/function.hpp"
 #include <vector>
 
 namespace snow {

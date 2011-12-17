@@ -2,7 +2,7 @@
 #ifndef INLINEARRAY_HPP_V1R4E6UD
 #define INLINEARRAY_HPP_V1R4E6UD
 
-#include "util.hpp"
+#include "snow/util.hpp"
 
 namespace snow {
 	template <size_t NUM_INLINED, typename T>

@@ -7,7 +7,7 @@
 #include "allocator.hpp"
 #include "lock.h"
 #include "linkheap.hpp"
-#include "util.hpp"
+#include "snow/util.hpp"
 
 #include <stdlib.h>
 #include <vector>

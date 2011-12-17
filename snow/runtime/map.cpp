@@ -11,7 +11,7 @@
 #include "snow/str.hpp"
 
 #include "lock.hpp"
-#include "objectptr.hpp"
+#include "snow/objectptr.hpp"
 #include "adapting_map.hpp"
 
 namespace {
