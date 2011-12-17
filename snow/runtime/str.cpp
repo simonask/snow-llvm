@@ -60,7 +60,7 @@ namespace {
 }
 
 CAPI {
-	SnObjectType SnStringType = {
+	SnInternalType SnStringType = {
 		.data_size = sizeof(StringPrivate),
 		.initialize = snow::construct<StringPrivate>,
 		.finalize = snow::destruct<StringPrivate>,

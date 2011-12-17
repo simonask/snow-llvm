@@ -87,7 +87,7 @@ namespace {
 	void gc_delete_unmarked_objects() {
 	}
 	
-	SnObject* gc_allocate_object(const SnObjectType* type) {
+	SnObject* gc_allocate_object(const SnInternalType* type) {
 		ASSERT(sizeof(SnObject) <= SN_CACHE_LINE_SIZE - sizeof(void*));
 		SnObject* obj = gc_allocator.allocate();
 		obj->type = type;
@@ -105,7 +105,7 @@ namespace {
 	}
 	
 	void gc_free_object(SnObject* obj) {
-		const SnObjectType* type = obj->type;
+		const SnInternalType* type = obj->type;
 		if (type) {
 			type->finalize(snow_object_get_private(obj, type));
 			if (type->data_size + sizeof(SnObject) > SN_CACHE_LINE_SIZE) {
@@ -172,7 +172,7 @@ CAPI {
 		return v;
 	}
 	
-	SnObject* snow_gc_allocate_object(const struct SnObjectType* type) {
+	SnObject* snow_gc_allocate_object(const struct SnInternalType* type) {
 		if (gc_num_objects >= gc_collection_threshold) {
 			//snow_gc();
 		}

@@ -6,7 +6,7 @@
 #include "snow/value.h"
 
 INLINE bool snow_is_immediate_type(SnValueType type) {
-	return type < SnValueTypeMask && type != SnPointerType;
+	return type < SnValueTypeMask && type != SnObjectType;
 }
 
 #endif /* end of include guard: TYPE_H_ZR7ZWP35 */

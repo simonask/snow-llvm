@@ -63,12 +63,11 @@ VALUE snow_local_missing(SnCallFrame* frame, SnSymbol name) {
 }
 
 SnObject* snow_get_immediate_class(SnValueType type) {
-	ASSERT(type != SnPointerType);
+	ASSERT(type != SnObjectType);
 	switch (type) {
 		case SnIntegerType: return snow_get_integer_class();
 		case SnNilType: return snow_get_nil_class();
-		case SnFalseType:
-		case SnTrueType: return snow_get_boolean_class();
+		case SnBooleanType: return snow_get_boolean_class();
 		case SnSymbolType: return snow_get_symbol_class();
 		case SnFloatType: return snow_get_float_class();
 		default: TRAP(); return NULL;

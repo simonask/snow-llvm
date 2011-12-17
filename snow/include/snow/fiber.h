@@ -6,7 +6,7 @@
 
 struct SnCallFrame;
 
-CAPI SnObjectType SnFiberType;
+CAPI SnInternalType SnFiberType;
 
 CAPI SnObject* snow_create_fiber(VALUE functor); // functor is called with arguments calling_fiber, incoming_value
 CAPI VALUE snow_fiber_resume(SnObject* fiber, VALUE incoming_value);

@@ -138,28 +138,28 @@ namespace snow {
 	#define SN_STATIC_ASSERT(COND) enum { dummy = snow::StaticAssertion<(bool)(COND)> }
 	
 	template <typename T>
-	T* object_get_private(SnObject* obj, const SnObjectType& check_type) {
+	T* object_get_private(SnObject* obj, const SnInternalType& check_type) {
 		return reinterpret_cast<T*>(snow_object_get_private(obj, &check_type));
 	}
 	
 	template <typename T>
-	const T* object_get_private(const SnObject* obj, const SnObjectType& check_type) {
+	const T* object_get_private(const SnObject* obj, const SnInternalType& check_type) {
 		return reinterpret_cast<const T*>(snow_object_get_private(obj, &check_type));
 	}
 	
 	template <typename T>
-	T* value_get_private(VALUE val, const SnObjectType& check_type) {
+	T* value_get_private(VALUE val, const SnInternalType& check_type) {
 		if (snow_is_object(val)) {
 			return object_get_private<T>((SnObject*)val, check_type);
 		}
 		return NULL;
 	}
 	
-	inline bool object_is_of_type(const SnObject* obj, const SnObjectType& check_type) {
+	inline bool object_is_of_type(const SnObject* obj, const SnInternalType& check_type) {
 		return snow_object_is_of_type(obj, &check_type);
 	}
 	
-	inline bool value_is_of_type(VALUE val, const SnObjectType& check_type) {
+	inline bool value_is_of_type(VALUE val, const SnInternalType& check_type) {
 		if (snow_is_object(val)) {
 			return object_is_of_type((SnObject*)val, check_type);
 		}

@@ -5,7 +5,7 @@
 #include "snow/object.h"
 #include "snow/symbol.h"
 
-CAPI SnObjectType SnArgumentsType;
+CAPI SnInternalType SnArgumentsType;
 
 typedef struct SnArguments {
 	size_t num_names;

@@ -5,7 +5,7 @@
 #include "snow/value.h"
 #include "snow/object.h"
 
-CAPI SnObjectType SnMapType;
+CAPI SnInternalType SnMapType;
 
 CAPI SnObject* snow_create_map();
 CAPI SnObject* snow_create_map_with_immediate_keys();  // i.e., will never call .hash on keys

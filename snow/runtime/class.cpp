@@ -13,7 +13,7 @@
 namespace {
 	struct ClassPrivate {
 		SnSymbol name;
-		const SnObjectType* instance_type;
+		const SnInternalType* instance_type;
 		SnObject* super;
 		std::vector<SnMethod> methods;
 		std::vector<SnSymbol> instance_variables;
@@ -121,7 +121,7 @@ namespace {
 
 
 CAPI {
-	SnObjectType SnClassType = {
+	SnInternalType SnClassType = {
 		.data_size = sizeof(ClassPrivate),
 		.initialize = snow::construct<ClassPrivate>,
 		.finalize = snow::destruct<ClassPrivate>,

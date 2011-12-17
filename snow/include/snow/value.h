@@ -7,11 +7,11 @@
 typedef void* VALUE;
 
 typedef enum SnValueType {
-	SnPointerType = 0x0,
+	SnObjectType = 0x0,
 	SnIntegerType = 0x1,
 	SnNilType = 0x2,   // == SN_NIL
-	SnFalseType = 0x4, // == SN_FALSE
-	SnTrueType = 0x6,  // == SN_TRUE
+	SnBooleanType = 0x4, // == SN_FALSE
+	// 0x6 unused
 	SnSymbolType = 0x8,
 	SnFloatType = 0xa,
 	
@@ -21,11 +21,11 @@ typedef enum SnValueType {
 
 static const VALUE SN_UNDEFINED = NULL;
 static const VALUE SN_NIL = (VALUE)SnNilType;
-static const VALUE SN_FALSE = (VALUE)SnFalseType;
-static const VALUE SN_TRUE = (VALUE)SnTrueType;
+static const VALUE SN_FALSE = (VALUE)SnBooleanType;
+static const VALUE SN_TRUE = (VALUE)(0x10 | SnBooleanType);
 
 INLINE bool snow_is_object(VALUE val) {
-	return val && (((uintptr_t)val & SnValueTypeMask) == SnPointerType);
+	return val && (((uintptr_t)val & SnValueTypeMask) == SnObjectType);
 }
 
 INLINE bool snow_is_immediate(VALUE val) {

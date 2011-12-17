@@ -47,7 +47,7 @@ namespace {
 	}
 }
 
-CAPI SnObjectType SnFiberType = {
+CAPI SnInternalType SnFiberType = {
 	.data_size = sizeof(FiberPrivate),
 	.initialize = snow::construct<FiberPrivate>,
 	.finalize = snow::destruct<FiberPrivate>,

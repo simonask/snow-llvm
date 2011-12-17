@@ -24,7 +24,7 @@ namespace {
 }
 
 CAPI {
-	SnObjectType SnArrayType = {
+	SnInternalType SnArrayType = {
 		.data_size = sizeof(ArrayPrivate),
 		.initialize = snow::construct<ArrayPrivate>,
 		.finalize = snow::destruct<ArrayPrivate>,

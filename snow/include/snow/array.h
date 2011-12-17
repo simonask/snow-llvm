@@ -4,7 +4,7 @@
 
 #include "snow/object.h"
 
-CAPI SnObjectType SnArrayType;
+CAPI SnInternalType SnArrayType;
 
 CAPI SnObject* snow_create_array();
 CAPI SnObject* snow_create_array_from_range(VALUE* begin, VALUE* end);

@@ -30,7 +30,7 @@ namespace {
 }
 
 CAPI {
-	SnObjectType SnMapType = {
+	SnInternalType SnMapType = {
 		.data_size = sizeof(snow::AdaptingMap),
 		.initialize = snow::construct<snow::AdaptingMap>,
 		.finalize = snow::destruct<snow::AdaptingMap>,

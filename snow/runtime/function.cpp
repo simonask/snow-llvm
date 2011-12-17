@@ -61,7 +61,7 @@ namespace {
 	}
 }
 
-CAPI SnObjectType SnFunctionType = {
+CAPI SnInternalType SnFunctionType = {
 	.data_size = sizeof(FunctionPrivate),
 	.initialize = snow::construct<FunctionPrivate>,
 	.finalize = snow::destruct<FunctionPrivate>,
@@ -69,7 +69,7 @@ CAPI SnObjectType SnFunctionType = {
 	.gc_each_root = function_gc_each_root,
 };
 
-CAPI SnObjectType SnCallFrameType = {
+CAPI SnInternalType SnCallFrameType = {
 	.data_size = sizeof(CallFramePrivate),
 	.initialize = snow::construct<CallFramePrivate>,
 	.finalize = snow::destruct<CallFramePrivate>,

@@ -12,8 +12,8 @@ struct SnCallFrame;
 
 typedef VALUE(*SnFunctionPtr)(const struct SnCallFrame* here, VALUE self, VALUE it);
 
-CAPI SnObjectType SnFunctionType;
-CAPI SnObjectType SnCallFrameType;
+CAPI SnInternalType SnFunctionType;
+CAPI SnInternalType SnCallFrameType;
 
 typedef struct SnCallFrame {
 	SnObject* function;
