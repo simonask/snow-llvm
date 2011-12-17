@@ -48,7 +48,7 @@ static void interactive_prompt()
 				SnObject* str = snow_create_string_from_linkbuffer(input_buffer);
 				VALUE result = snow_eval_in_global_module(str);
 				VALUE inspected = SNOW_CALL_METHOD(result, "inspect", 0, NULL);
-				if (snow_is_string(inspected)) {
+				if (!snow_is_string(inspected)) {
 					inspected = snow_string_format("[Object@%p]", result);
 				}
 				
