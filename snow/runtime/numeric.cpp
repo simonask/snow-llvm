@@ -168,11 +168,11 @@ static VALUE numeric_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (snow_is_integer(self)) {
 		char buffer[100];
 		snprintf(buffer, 100, "%d", snow_value_to_integer(self));
-		return snow_create_string(buffer);
+		return snow::create_string(buffer);
 	} else if (snow_is_float(self)) {
 		char buffer[100];
 		snprintf(buffer, 100, "%f", snow_value_to_float(self));
-		return snow_create_string(buffer);
+		return snow::create_string(buffer);
 	}
 	return SN_NIL;
 }

@@ -5,11 +5,11 @@
 #include "snow/function.hpp"
 
 static VALUE nil_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_string_constant("nil");
+	return snow::create_string_constant("nil");
 }
 
 static VALUE nil_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_string_constant("");
+	return snow::create_string_constant("");
 }
 
 CAPI SnObject* snow_get_nil_class() {

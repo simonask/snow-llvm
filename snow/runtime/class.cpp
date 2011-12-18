@@ -112,7 +112,7 @@ namespace {
 	
 	VALUE class_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 		if (!snow_is_class(self)) snow_throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self);
-		return snow_string_format("[Class@%p name:%s]", self, snow_class_get_name((SnObject*)self));
+		return string_format("[Class@%p name:%s]", self, snow_class_get_name((SnObject*)self));
 	}
 	
 	VALUE class_get_instance_methods(const SnCallFrame* here, VALUE self, VALUE it) {

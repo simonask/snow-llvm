@@ -204,9 +204,9 @@ static VALUE fiber_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	void* stack = fiber->stack;
 	
 	SnObject* inspected_functor = snow_value_inspect(functor);
-	SnObject* result = snow_string_format("[Fiber@%p stack:%p functor:", (VALUE)fiber, stack);
-	snow_string_append(result, inspected_functor);
-	snow_string_append_cstr(result, "]");
+	SnObject* result = string_format("[Fiber@%p stack:%p functor:", (VALUE)fiber, stack);
+	string_append(result, inspected_functor);
+	string_append_cstr(result, "]");
 	return result;
 }
 

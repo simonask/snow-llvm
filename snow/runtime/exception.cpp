@@ -35,9 +35,9 @@ CAPI {
 		// TODO: Backtrace and all that jazz
 		
 		SnObject* str = snow_value_to_string(ex);
-		size_t sz = snow_string_size(str);
+		size_t sz = snow::string_size(str);
 		char buffer[sz+1];
-		snow_string_copy_to(str, buffer, sz);
+		snow::string_copy_to(str, buffer, sz);
 		buffer[sz] = '\0';
 		
 		fprintf(stderr, "SNOW: Throwing exception: %s\n", buffer);
@@ -50,7 +50,7 @@ CAPI {
 	void snow_throw_exception_with_description(const char* fmt, ...) {
 		va_list ap;
 		va_start(ap, fmt);
-		VALUE ex = snow_string_format_va(fmt, ap);
+		VALUE ex = snow::string_format_va(fmt, ap);
 		va_end(ap);
 		snow_throw_exception(ex);
 	}

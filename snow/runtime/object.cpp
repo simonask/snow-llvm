@@ -13,7 +13,7 @@
 
 namespace {
 	VALUE object_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
-		return snow_string_format("[%s@%p]", snow_class_get_name(snow_get_class(self)), self);
+		return snow::string_format("[%s@%p]", snow_class_get_name(snow_get_class(self)), self);
 	}
 
 	VALUE object_instance_eval(const SnCallFrame* here, VALUE self, VALUE it) {

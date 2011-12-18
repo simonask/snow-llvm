@@ -62,9 +62,9 @@ namespace {
 	}
 	
 	void string_to_std_string(const SnObject* str, std::string& out_str) {
-		size_t sz = snow_string_size(str);
+		size_t sz = string_size(str);
 		char buffer[sz];
-		snow_string_copy_to(str, buffer, sz);
+		string_copy_to(str, buffer, sz);
 		out_str.assign(buffer, sz);
 	}
 	
@@ -84,7 +84,7 @@ namespace {
 			SnObject* load_paths = snow_get_load_paths();
 			for (size_t i = 0; i < array_size(load_paths); ++i) {
 				VALUE vpath = array_get(load_paths, i);
-				if (!snow_is_string(vpath)) {
+				if (!is_string(vpath)) {
 					snow_throw_exception_with_description("Load path is not a string: %p.", vpath);
 				}
 				
@@ -213,7 +213,7 @@ CAPI {
 		static SnObject** root = NULL;
 		if (!root) {
 			SnObject* load_paths = create_array_with_size(10);
-			array_push(load_paths, snow_create_string_constant("./"));
+			array_push(load_paths, create_string_constant("./"));
 			root = snow_gc_create_root(load_paths);
 		}
 		return *root;

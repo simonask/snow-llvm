@@ -56,12 +56,12 @@ namespace snow {
 		return get_utf8_length(utf8, strlen(utf8));
 	}
 
-	SnObject* snow_create_string(const char* utf8) {
-		return snow_create_string_with_size(utf8, strlen(utf8));
+	ObjectPtr<String> create_string(const char* utf8) {
+		return create_string_with_size(utf8, strlen(utf8));
 	}
 
-	SnObject* snow_create_string_constant(const char* utf8) {
-		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+	ObjectPtr<String> create_string_constant(const char* utf8) {
+		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
 		str->size = strlen(utf8);
 		str->data = (char*)utf8;
 		str->constant = true;
@@ -69,8 +69,8 @@ namespace snow {
 		return str;
 	}
 
-	SnObject* snow_create_string_with_size(const char* utf8, size_t size) {
-		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+	ObjectPtr<String> create_string_with_size(const char* utf8, size_t size) {
+		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
 		str->size = size;
 		if (size) {
 			str->data = new char[size];
@@ -81,9 +81,9 @@ namespace snow {
 		return str;
 	}
 
-	SnObject* snow_create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
+	ObjectPtr<String> create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
 		size_t s = snow_linkbuffer_size(buf);
-		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
 		str->size = s;
 		if (s) {
 			str->data = new char[s];
@@ -94,20 +94,20 @@ namespace snow {
 		return str;
 	}
 	
-	bool snow_is_string(VALUE val) {
+	bool is_string(VALUE val) {
 		return snow::value_is_of_type(val, get_type<String>());
 	}
 
-	SnObject* snow_string_concat(const SnObject* a, const SnObject* b) {
-		size_t size_a = snow_string_size(a);
-		size_t size_b = snow_string_size(b);
+	ObjectPtr<String> string_concat(StringConstPtr a, StringConstPtr b) {
+		size_t size_a = string_size(a);
+		size_t size_b = string_size(b);
 		size_t s = size_a + size_b;
 		char* buffer = s ? new char(s) : NULL;
-		size_a = snow_string_copy_to(a, buffer, size_a);
-		size_b = snow_string_copy_to(b, buffer + size_a, size_b);
+		size_a = string_copy_to(a, buffer, size_a);
+		size_b = string_copy_to(b, buffer + size_a, size_b);
 		s = size_a + size_b;
 		
-		ObjectPtr<String> str = snow_create_object(snow_get_string_class(), 0, NULL);
+		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
 		str->size = s;
 		str->data = buffer;
 		str->length = get_utf8_length(buffer, s);
@@ -115,13 +115,11 @@ namespace snow {
 		return str;
 	}
 
-	void snow_string_append(SnObject* self, const SnObject* other) {
-		size_t other_size = snow_string_size(other);
+	void string_append(StringPtr str, StringConstPtr other) {
+		size_t other_size = string_size(other);
 		char tmp[other_size];
-		other_size = snow_string_copy_to(other, tmp, other_size);
+		other_size = string_copy_to(other, tmp, other_size);
 
-		SN_GC_WRLOCK(self);
-		ObjectPtr<String> str = self;
 		const size_t combined_size = str->size + other_size;
 		if (str->constant) {
 			char* data = new char[combined_size];
@@ -135,14 +133,11 @@ namespace snow {
 		snow::copy_range(str->data + str->size, tmp, other_size);
 		str->size = combined_size;
 		str->length = get_utf8_length(str->data, combined_size);
-		SN_GC_UNLOCK(self);
 	}
 
-	void snow_string_append_cstr(SnObject* self, const char* utf8) {
+	void string_append_cstr(StringPtr str, const char* utf8) {
 		size_t s = strlen(utf8);
 
-		SN_GC_WRLOCK(self);
-		ObjectPtr<String> str = self;
 		size_t combined_size = str->size + s;
 		if (str->constant) {
 			char* data = new char[combined_size];
@@ -156,91 +151,89 @@ namespace snow {
 		snow::copy_range(str->data + str->size, utf8, s);
 		str->size = combined_size;
 		str->length = get_utf8_length(str->data, combined_size);
-		SN_GC_UNLOCK(self);
 	}
 
-	size_t snow_string_copy_to(const SnObject* self, char* buffer, size_t max) {
-		SN_GC_RDLOCK(self);
-		ObjectPtr<const String> str = self;
+	size_t string_copy_to(StringConstPtr str, char* buffer, size_t max) {
 		size_t to_copy = str->size < max ? str->size : max;
 		snow::copy_range(buffer, str->data, to_copy);
-		SN_GC_UNLOCK(self);
 		return to_copy;
 	}
 
-	SnObject* snow_string_format(const char* utf8_format, ...) {
+	ObjectPtr<String> string_format(const char* utf8_format, ...) {
 		va_list ap;
 		va_start(ap, utf8_format);
-		SnObject* str = snow_string_format_va(utf8_format, ap);
+		ObjectPtr<String> str = string_format_va(utf8_format, ap);
 		va_end(ap);
 		return str;
 	}
 
-	SnObject* snow_string_format_va(const char* utf8_format, va_list ap) {
+	ObjectPtr<String> string_format_va(const char* utf8_format, va_list ap) {
 		char* str;
 		vasprintf(&str, utf8_format, ap);
-		SnObject* obj = snow_create_string(str);
+		ObjectPtr<String> obj = create_string(str);
 		free(str);
 		return obj;
 	}
 
-	size_t snow_string_size(const SnObject* str) {
-		return ObjectPtr<const String>(str)->size;
+	size_t string_size(StringConstPtr str) {
+		return str->size;
 	}
 
-	size_t snow_string_length(const SnObject* str) {
-		return ObjectPtr<const String>(str)->length;
+	size_t string_length(StringConstPtr str) {
+		return str->length;
 	}
 
-	static VALUE string_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (!snow_is_string(self)) snow_throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
-		SnObject* s = (SnObject*)self;
-		size_t size = snow_string_size(s);
-		char buffer[size + 2];
-		size = snow_string_copy_to(s, buffer+1, size);
-		buffer[0] = '"';
-		buffer[size + 1] = '"';
-		return snow_create_string_with_size(buffer, size + 2);
-	}
-
-	static VALUE string_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (!snow_is_string(self)) snow_throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
-		return self;
-	}
-
-	static VALUE string_add(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (!snow_is_string(self)) snow_throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
-
-		if (it) {
-			SnObject* other = snow_value_to_string(it);
-			return snow_string_concat((SnObject*)self, other);
+	namespace bindings {
+		static VALUE string_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+			if (!is_string(self)) snow_throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
+			ObjectPtr<String> s = self;
+			size_t size = string_size(s);
+			char buffer[size + 2];
+			size = string_copy_to(s, buffer+1, size);
+			buffer[0] = '"';
+			buffer[size + 1] = '"';
+			return create_string_with_size(buffer, size + 2);
 		}
-		return self;
-	}
 
-	static VALUE string_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (snow_is_string(self)) {
-			return snow_integer_to_value((int64_t)snow_string_size((SnObject*)self));
+		static VALUE string_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
+			if (!is_string(self)) snow_throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
+			return self;
 		}
-		return NULL;
-	}
 
-	static VALUE string_get_length(const SnCallFrame* here, VALUE self, VALUE it) {
-		if (snow_is_string(self)) {
-			return snow_integer_to_value((int64_t)snow_string_length((SnObject*)self));
+		static VALUE string_add(const SnCallFrame* here, VALUE self, VALUE it) {
+			if (!is_string(self)) snow_throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
+
+			if (it) {
+				ObjectPtr<String> other = snow_value_to_string(it);
+				return string_concat(self, other);
+			}
+			return self;
 		}
-		return NULL;
+
+		static VALUE string_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
+			if (is_string(self)) {
+				return snow_integer_to_value((int64_t)string_size(self));
+			}
+			return NULL;
+		}
+
+		static VALUE string_get_length(const SnCallFrame* here, VALUE self, VALUE it) {
+			if (is_string(self)) {
+				return snow_integer_to_value((int64_t)string_length(self));
+			}
+			return NULL;
+		}
 	}
 
-	SnObject* snow_get_string_class() {
+	SnObject* get_string_class() {
 		static SnObject** root = NULL;
 		if (!root) {
 			SnObject* cls = snow_create_class_for_type(snow_sym("String"), get_type<String>());
-			snow_class_define_method(cls, "inspect", string_inspect);
-			snow_class_define_method(cls, "to_string", string_to_string);
-			snow_class_define_method(cls, "+", string_add);
-			snow_class_define_property(cls, "size", string_get_size, NULL);
-			snow_class_define_property(cls, "length", string_get_length, NULL);
+			snow_class_define_method(cls, "inspect", bindings::string_inspect);
+			snow_class_define_method(cls, "to_string", bindings::string_to_string);
+			snow_class_define_method(cls, "+", bindings::string_add);
+			snow_class_define_property(cls, "size", bindings::string_get_size, NULL);
+			snow_class_define_property(cls, "length", bindings::string_get_length, NULL);
 			root = snow_gc_create_root(cls);
 		}
 		return *root;

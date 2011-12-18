@@ -47,16 +47,16 @@ static void interactive_prompt()
 		//unfinished_expr = is_expr_unfinished(buffer.str());
 		if (!unfinished_expr) {
 			try {
-				SnObject* str = snow_create_string_from_linkbuffer(input_buffer);
+				SnObject* str = create_string_from_linkbuffer(input_buffer);
 				VALUE result = snow_eval_in_global_module(str);
 				VALUE inspected = SNOW_CALL_METHOD(result, "inspect", 0, NULL);
-				if (!snow_is_string(inspected)) {
-					inspected = snow_string_format("[Object@%p]", result);
+				if (!is_string(inspected)) {
+					inspected = string_format("[Object@%p]", result);
 				}
 				
-				size_t sz = snow_string_size((SnObject*)inspected);
+				size_t sz = string_size((SnObject*)inspected);
 				char buffer[sz+1];
-				snow_string_copy_to((SnObject*)inspected, buffer, sz);
+				string_copy_to((SnObject*)inspected, buffer, sz);
 				buffer[sz] = '\0';
 				printf("=> %s\n", buffer);
 			}
@@ -108,7 +108,7 @@ CAPI int snow_main(int argc, char* const* argv) {
 			}
 			case 'r':
 			{
-				SnObject* filename = snow_create_string_constant(optarg);
+				SnObject* filename = create_string_constant(optarg);
 				array_push(require_files, filename);
 				break;
 			}
@@ -126,21 +126,21 @@ CAPI int snow_main(int argc, char* const* argv) {
 	
 	// require first loose argument, unless -- was used
 	if (optind < argc && strcmp("--", argv[optind-1]) != 0) {
-		SnObject* filename = snow_create_string_constant(argv[optind++]);
+		SnObject* filename = create_string_constant(argv[optind++]);
 		array_push(require_files, filename);
 	}
 	
 	// stuff the rest in ARGV
 	SnObject* ARGV = create_array_with_size(argc);
 	while (optind < argc) {
-		SnObject* argument = snow_create_string_constant(argv[optind++]);
+		SnObject* argument = create_string_constant(argv[optind++]);
 		array_push(ARGV, argument);
 	}
 	snow_set_global(snow_sym("ARGV"), ARGV);
 	
 	for (size_t i = 0; i < array_size(require_files); ++i) {
 		VALUE vstr = array_get(require_files, i);
-		ASSERT(snow_is_string(vstr));
+		ASSERT(is_string(vstr));
 		snow_load((SnObject*)vstr);
 	}
 	

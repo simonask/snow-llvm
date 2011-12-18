@@ -5,7 +5,7 @@
 #include "snow/str.hpp"
 
 static VALUE boolean_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_string_constant(snow_value_to_boolean(self) ? "true" : "false");
+	return snow::create_string_constant(snow_value_to_boolean(self) ? "true" : "false");
 }
 
 static VALUE boolean_complement(const SnCallFrame* here, VALUE self, VALUE it) {

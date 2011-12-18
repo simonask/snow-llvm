@@ -35,12 +35,12 @@ static VALUE symbol_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	str[0] = '#';
 	memcpy(str+1, symstr, len);
 	str[len+1] = '\0';
-	return snow_create_string(str);
+	return snow::create_string(str);
 }
 
 static VALUE symbol_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
-	return snow_create_string_constant(snow_sym_to_cstr(snow_value_to_symbol(self)));
+	return snow::create_string_constant(snow_sym_to_cstr(snow_value_to_symbol(self)));
 }
 
 CAPI {

@@ -113,17 +113,17 @@ namespace snow {
 				snow_throw_exception_with_description("Array#inspect called for object that doesn't derive from Array.");
 			}
 
-			SnObject* result = snow_create_string_constant("@(");
+			SnObject* result = create_string_constant("@(");
 
 			for (size_t i = 0; i < array->size(); ++i) {
 				VALUE val = (*array)[i];
-				snow_string_append(result, snow_value_inspect(val));
+				string_append(result, snow_value_inspect(val));
 				if (i != array->size() - 1) {
-					snow_string_append_cstr(result, ", ");
+					string_append_cstr(result, ", ");
 				}
 			}
 
-			snow_string_append_cstr(result, ")");
+			string_append_cstr(result, ")");
 
 			return result;
 		}

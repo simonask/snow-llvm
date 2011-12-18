@@ -35,7 +35,7 @@ void snow_init(const char* lib_path) {
 	snow_init_fibers();
 	snow_init_globals();
 	
-	snow_load_in_global_module(snow_create_string_constant("lib/prelude.sn"));
+	snow_load_in_global_module(snow::create_string_constant("lib/prelude.sn"));
 }
 
 void snow_finish() {
@@ -141,13 +141,13 @@ VALUE snow_get_module_value(SnObject* module, SnSymbol member) {
 
 SnObject* snow_value_to_string(VALUE it) {
 	VALUE vstr = SNOW_CALL_METHOD(it, "to_string", 0, NULL);
-	ASSERT(snow_is_string(vstr));
+	ASSERT(snow::is_string(vstr));
 	return (SnObject*)vstr;
 }
 
 SnObject* snow_value_inspect(VALUE it) {
 	VALUE vstr = SNOW_CALL_METHOD(it, "inspect", 0, NULL);
-	ASSERT(snow_is_string(vstr));
+	ASSERT(snow::is_string(vstr));
 	return (SnObject*)vstr;
 }
 

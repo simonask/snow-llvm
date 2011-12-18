@@ -23,7 +23,7 @@ static VALUE get_load_paths(const SnCallFrame* here, VALUE self, VALUE it) {
 }
 
 static VALUE get_version(const SnCallFrame* here, VALUE self, VALUE it) {
-	return snow_create_string_constant(snow_version());
+	return create_string_constant(snow_version());
 }
 
 CAPI SnObject* snow_get_vm_interface() {
@@ -40,9 +40,9 @@ CAPI SnObject* snow_get_vm_interface() {
 static VALUE global_puts(const SnCallFrame* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->args->size; ++i) {
 		SnObject* str = snow_value_to_string(here->args->data[i]);
-		size_t sz = snow_string_size(str);
+		size_t sz = string_size(str);
 		char* buffer = (char*)alloca(sz+1);
-		snow_string_copy_to(str, buffer, sz);
+		string_copy_to(str, buffer, sz);
 		buffer[sz] = '\0';
 		fputs(buffer, stdout);
 	}
@@ -70,7 +70,7 @@ static VALUE global_resolve_symbol(const SnCallFrame* here, VALUE self, VALUE it
 	if (!snow_is_integer(it)) return NULL;
 	int64_t n = snow_value_to_integer(it);
 	const char* str = snow_sym_to_cstr(n);
-	return str ? snow_create_string_constant(str) : NULL;
+	return str ? create_string_constant(str) : create_string_constant("<invalid symbol>");
 }
 
 static VALUE global_print_call_stack(const SnCallFrame* here, VALUE self, VALUE it) {
@@ -116,7 +116,7 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("Numeric"), snow_get_numeric_class());
 	snow_set_global(snow_sym("Object"), snow_get_object_class());
 	snow_set_global(snow_sym("Class"), snow_get_class_class());
-	snow_set_global(snow_sym("String"), snow_get_string_class());
+	snow_set_global(snow_sym("String"), get_string_class());
 	snow_set_global(snow_sym("Array"), get_array_class());
 	snow_set_global(snow_sym("@"), get_array_class());
 	snow_set_global(snow_sym("Map"), snow_get_map_class());

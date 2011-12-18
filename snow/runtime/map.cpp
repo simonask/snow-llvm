@@ -91,16 +91,16 @@ static VALUE map_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Map, inspect);
 	SnObject* map = (SnObject*)self;
 	const size_t size = snow_map_size(map);
-	SnObject* result = snow_create_string_constant("#(");
+	SnObject* result = create_string_constant("#(");
 	SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
 	snow_map_get_pairs(map, pairs, size);
 	for (size_t i = 0; i < size; ++i) {
-		snow_string_append(result, snow_value_inspect(pairs[i][0]));
-		snow_string_append_cstr(result, " => ");
-		snow_string_append(result, snow_value_inspect(pairs[i][1]));
-		if (i != size-1) snow_string_append_cstr(result, ", ");
+		string_append(result, snow_value_inspect(pairs[i][0]));
+		string_append_cstr(result, " => ");
+		string_append(result, snow_value_inspect(pairs[i][1]));
+		if (i != size-1) string_append_cstr(result, ", ");
 	}
-	snow_string_append_cstr(result, ")");
+	string_append_cstr(result, ")");
 	return result;
 }
 
