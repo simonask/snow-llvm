@@ -33,7 +33,7 @@ namespace snow {
 		ObjectPtr(Ptr o, T* p) : object_(o), priv_(p) {}
 		void assign(VALUE val) {
 			if (snow_is_object(val)) {
-				priv_ = object_get_private<T>((Ptr)val, snow::get_type<T>());
+				priv_ = object_get_private<T>((Ptr)val, get_type<T>());
 				object_ = priv_ ? (Ptr)val : NULL;
 			} else {
 				priv_ = NULL;
@@ -43,7 +43,7 @@ namespace snow {
 		
 		void assign(Ptr obj) {
 			if (obj != NULL) {
-				priv_ = object_get_private<T>(obj, snow::get_type<T>());
+				priv_ = object_get_private<T>(obj, get_type<T>());
 				object_ = priv_ ? obj : NULL;
 			} else {
 				object_ = NULL;

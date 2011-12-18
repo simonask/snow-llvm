@@ -21,8 +21,8 @@ namespace snow {
 	template <typename T> const Type* get_type() { return TypeRegistry<T>::get(); }
 }
 
-#define SN_REGISTER_TYPE(T, SPEC) namespace snow { template <> const Type* TypeRegistry<T>::get() { static Type t = SPEC; return &t; } }
-#define SN_REGISTER_CPP_TYPE(T, GC_EACH_ROOT_FUNC) SN_REGISTER_TYPE(T, ((Type){ .data_size = sizeof(T), .initialize = snow::construct<T>, .finalize = snow::destruct<T>, .copy = snow::assign<T>, .gc_each_root = GC_EACH_ROOT_FUNC }))
+#define SN_REGISTER_TYPE(T, SPEC) template <> const snow::Type* snow::TypeRegistry<T>::get() { static snow::Type t = SPEC; return &t; }
+#define SN_REGISTER_CPP_TYPE(T, GC_EACH_ROOT_FUNC) SN_REGISTER_TYPE(T, ((snow::Type){ .data_size = sizeof(T), .initialize = snow::construct<T>, .finalize = snow::destruct<T>, .copy = snow::assign<T>, .gc_each_root = GC_EACH_ROOT_FUNC }))
 #define SN_REGISTER_SIMPLE_CPP_TYPE(T) SN_REGISTER_CPP_TYPE(T, snow::dummy_gc_each_root_callback)
 
 #endif /* end of include guard: TYPE_H_ZR7ZWP35 */

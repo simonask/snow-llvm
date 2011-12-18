@@ -26,6 +26,8 @@ namespace snow {
 		}
 	}
 	
+	SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
+	
 	struct CallFrame {
 		ObjectPtr<Function> function;
 		VALUE self;
@@ -60,10 +62,9 @@ namespace snow {
 			CALLBACK(priv->args.data[i]);
 		}
 	}
+	
+	SN_REGISTER_CPP_TYPE(CallFrame, call_frame_gc_each_root)
 }
-
-SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
-SN_REGISTER_CPP_TYPE(CallFrame, call_frame_gc_each_root)
 
 namespace snow {
 	SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, SnObject* definition_scope) {

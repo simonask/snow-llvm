@@ -25,11 +25,9 @@ namespace snow {
 			callback(&priv[i]);
 		}
 	}
-}
+	
+	SN_REGISTER_CPP_TYPE(Array, array_gc_each_root);
 
-SN_REGISTER_CPP_TYPE(Array, array_gc_each_root);
-
-namespace snow {
 	ObjectPtr<Array> create_array() {
 		return snow_create_object(get_array_class(), 0, NULL);
 	}

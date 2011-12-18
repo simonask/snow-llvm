@@ -40,6 +40,8 @@ namespace snow {
 		}
 	};
 	
+	SN_REGISTER_SIMPLE_CPP_TYPE(String)
+	
 	uint32_t get_utf8_length(const char* utf8, uint32_t size) {
 		// TODO: Can be optimized quite a bit, but consider using a library.
 		uint32_t len = 0;
@@ -53,12 +55,6 @@ namespace snow {
 	uint32_t get_utf8_length(const char* utf8) {
 		return get_utf8_length(utf8, strlen(utf8));
 	}
-}
-
-SN_REGISTER_SIMPLE_CPP_TYPE(String)
-
-CAPI {
-	using namespace snow;
 
 	SnObject* snow_create_string(const char* utf8) {
 		return snow_create_string_with_size(utf8, strlen(utf8));
