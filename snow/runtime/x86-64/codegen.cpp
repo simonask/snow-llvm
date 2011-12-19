@@ -611,12 +611,18 @@ namespace snow {
 			++level;
 		}
 		if (index >= 0) {
-			// local found!
-			movq(REG_CALL_FRAME, RDI);
-			movq(level, RSI);
-			CALL(snow::get_locals_from_higher_lexical_scope);
-			movq(RAX, reg);
-			return address(reg, index * sizeof(VALUE));
+			if (level == 0) {
+				// local to this scope
+				movq(address(REG_CALL_FRAME, offsetof(CallFrame, locals)), reg);
+				return address(reg, index * sizeof(VALUE));
+			} else {
+				// local in parent scope
+				movq(REG_CALL_FRAME, RDI);
+				movq(level, RSI);
+				CALL(snow::get_locals_from_higher_lexical_scope);
+				movq(RAX, reg);
+				return address(reg, index * sizeof(VALUE));
+			}
 		}
 		
 		// Look for module globals.
