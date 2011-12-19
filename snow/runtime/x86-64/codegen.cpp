@@ -66,6 +66,24 @@ namespace {
 }
 
 namespace snow {
+	namespace ccall {
+		void class_get_method(const VALUE cls, SnSymbol name, Method* out_method) {
+			snow::class_get_method(cls, name, out_method);
+		}
+		
+		int32_t class_get_index_of_instance_variable(const VALUE cls, SnSymbol name) {
+			return snow::class_get_index_of_instance_variable(cls, name);
+		}
+		
+		VALUE snow_call_frame_as_object(SnCallFrame* call_frame) {
+			return ::snow_call_frame_as_object(call_frame);
+		}
+		
+		void array_push(VALUE array, VALUE value) {
+			snow::array_push(array, value);
+		}
+	}
+	
 	class Codegen::Function : public Asm {
 	public:
 		typedef std::vector<SnSymbol> Names;
@@ -259,7 +277,7 @@ namespace snow {
 				Label* get_method = label();
 				Label* after = label();
 				
-				cmpb(SnMethodTypeFunction, RAX);
+				cmpb(MethodTypeFunction, RAX);
 				j(CC_EQUAL, get_method);
 				
 				{
@@ -487,7 +505,7 @@ namespace snow {
 				for (size_t j = i; j < num_values; ++j) {
 					movq(RBX, RDI);
 					movq(values[j], RSI);
-					CALL(array_push);
+					CALL(ccall::array_push);
 				}
 				movq(RBX, values[i]);
 			}
@@ -710,7 +728,7 @@ namespace snow {
 		Label* after = label();
 		
 		compile_get_method_inline_cache(in_self, method_name, RSI, RDI);
-		cmpl(SnMethodTypeFunction, RSI);
+		cmpl(MethodTypeFunction, RSI);
 		j(CC_NOT_EQUAL, property_call);
 		
 		{
@@ -752,18 +770,18 @@ namespace snow {
 
 			{
 				bind_label(uninitialized);
-				Alloca _1(*this, RBX, sizeof(SnObject*) + sizeof(SnMethod), 1);
+				Alloca _1(*this, RBX, sizeof(SnObject*) + sizeof(Method), 1);
 				movq(RAX, address(RBX));
 				movq(RAX, RDI);
 				movq(name, RSI);
 				leaq(address(RBX, sizeof(SnObject*)), RDX);
-				CALL(snow_class_get_method);
+				CALL(ccall::class_get_method);
 				movl_label_to_jmp(monomorphic, state_jmp_data);
 				movq(address(RBX), RAX);
 				movq(RAX, Operand(monomorphic_class_data));
-				movq(address(RBX, sizeof(SnObject*) + offsetof(SnMethod, type)), out_type);
+				movq(address(RBX, sizeof(SnObject*) + offsetof(Method, type)), out_type);
 				movq(out_type, Operand(monomorphic_method_type_data));
-				movq(address(RBX, sizeof(SnObject*) + offsetof(SnMethod, function)), out_method_getter);
+				movq(address(RBX, sizeof(SnObject*) + offsetof(Method, function)), out_method_getter);
 				movq(out_method_getter, Operand(monomorphic_method_data));
 				jmp(after);
 			}
@@ -783,26 +801,26 @@ namespace snow {
 
 			{
 				bind_label(miss);
-				Alloca _1(*this, RBX, sizeof(SnMethod), 1);
+				Alloca _1(*this, RBX, sizeof(Method), 1);
 				movq(RBX, RDX);
 				movq(RAX, RDI);
 				movq(name, RSI);
-				CALL(snow_class_get_method);
-				movq(address(RBX, offsetof(SnMethod, type)), out_type);
-				movq(address(RBX, offsetof(SnMethod, function)), out_method_getter);
+				CALL(ccall::class_get_method);
+				movq(address(RBX, offsetof(Method, type)), out_type);
+				movq(address(RBX, offsetof(Method, function)), out_method_getter);
 			}
 
 			bind_label(after);
 		} else {
 			movq(object, RDI);
 			CALL(snow_get_class);
-			Alloca _1(*this, RBX, sizeof(SnMethod));
+			Alloca _1(*this, RBX, sizeof(Method));
 			movq(RAX, RDI);
 			movq(name, RSI);
 			movq(RBX, RDX);
-			CALL(snow_class_get_method);
-			movq(address(RBX, offsetof(SnMethod, type)), out_type);
-			movq(address(RBX, offsetof(SnMethod, function)), out_method_getter);
+			CALL(ccall::class_get_method);
+			movq(address(RBX, offsetof(Method, type)), out_type);
+			movq(address(RBX, offsetof(Method, function)), out_method_getter);
 		}
 	}
 	
@@ -829,7 +847,7 @@ namespace snow {
 				movq(RAX, in_class);
 				movq(RAX, RDI);
 				movq(name, RSI);
-				CALL(snow_class_get_index_of_instance_variable);
+				CALL(ccall::class_get_index_of_instance_variable);
 				movq(RAX, target);
 				cmpq(0, target);
 				j(CC_LESS, after);
@@ -855,7 +873,7 @@ namespace snow {
 				bind_label(miss);
 				movq(RAX, RDI);
 				movq(name, RSI);
-				CALL(snow_class_get_index_of_instance_variable);
+				CALL(ccall::class_get_index_of_instance_variable);
 				movq(RAX, target);
 			}
 
@@ -865,7 +883,7 @@ namespace snow {
 			CALL(snow_get_class);
 			movq(RAX, RDI);
 			movq(name, RSI);
-			CALL(snow_class_get_index_of_instance_variable);
+			CALL(ccall::class_get_index_of_instance_variable);
 			movq(RAX, target);
 		}
 	}
