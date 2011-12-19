@@ -216,6 +216,7 @@ namespace snow {
 	}
 	
 	VALUE function_call(const ObjectPtr<Function>& function, CallFrame* frame) {
+		const SnArguments* args = frame->args;
 		// Allocate locals
 		size_t num_locals = function->descriptor->num_locals;
 		VALUE locals[num_locals];
@@ -223,38 +224,16 @@ namespace snow {
 		frame->function = function;
 		frame->locals = locals;
 		
-		// TODO: There *must* be a way to optimize this!
-		// First, assign named arguments to the proper locals
+		// Copy arguments to locals
+		// TODO: Named args
 		snow::assign_range<VALUE>(locals, NULL, num_locals);
-		size_t num_params = function->descriptor->num_params;
-		ASSERT(num_params <= num_locals);
-		const SnArguments* args = frame->args;
-		bool taken_for_named_args[args->size];
-		snow::assign_range<bool>(taken_for_named_args, false, args->size);
-		for (size_t i = 0; i < num_params; ++i) {
-			Symbol name = function->descriptor->param_names[i];
-			for (size_t j = 0; j < args->num_names; ++j) {
-				if (name == args->names[j]) {
-					locals[i] = args->data[j];
-					taken_for_named_args[j] = true;
-					break;
-				}
-			}
-		}
-		// Second, assign remaining arguments (named or not) to the remaining locals
-		if (args->size) {
-			size_t arg_i = 0;
-			for (size_t i = 0; i < num_params; ++i) {
-				if (locals[i] != NULL) continue; // already set by named arg
-				while (taken_for_named_args[arg_i]) ++arg_i;
-				if (arg_i >= args->size) break;
-				locals[i] = args->data[arg_i];
-			}
-		}
+		if (frame->args)
+			snow::copy_range(locals, args->data, args->size);
 
 		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
-		return function->descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
+		FunctionPtr fptr = function->descriptor->ptr;
+		return fptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
 	Symbol function_get_name(const ObjectPtr<const Function>& function) {
