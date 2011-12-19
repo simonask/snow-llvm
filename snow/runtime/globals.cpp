@@ -19,7 +19,7 @@ using namespace snow;
 
 
 static VALUE get_load_paths(const CallFrame* here, VALUE self, VALUE it) {
-	return snow_get_load_paths();
+	return get_load_paths();
 }
 
 static VALUE get_version(const CallFrame* here, VALUE self, VALUE it) {
@@ -52,18 +52,18 @@ static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
 
 static VALUE global_import(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* file = value_to_string(it);
-	return snow_import(file);
+	return import(file);
 }
 
 static VALUE global_import_global(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* file = value_to_string(it);
-	snow_load_in_global_module(file);
+	load_in_global_module(file);
 	return SN_TRUE;
 }
 
 static VALUE global_load(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* file = value_to_string(it);
-	return snow_load(file);
+	return load(file);
 }
 
 static VALUE global_resolve_symbol(const CallFrame* here, VALUE self, VALUE it) {

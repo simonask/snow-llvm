@@ -48,7 +48,7 @@ static void interactive_prompt()
 		if (!unfinished_expr) {
 			try {
 				ObjectPtr<String> str = create_string_from_linkbuffer(input_buffer);
-				VALUE result = snow_eval_in_global_module(str);
+				VALUE result = eval_in_global_module(str);
 				ObjectPtr<String> inspected = value_inspect(result);
 				if (inspected == NULL) {
 					inspected = string_format("[Object@%p]", result);
@@ -142,7 +142,7 @@ int main(int argc, char* const* argv) {
 	for (size_t i = 0; i < array_size(require_files); ++i) {
 		ObjectPtr<String> str = array_get(require_files, i);
 		ASSERT(str != NULL);
-		snow_load(str);
+		load(str);
 	}
 	
 	if (interactive_mode) {

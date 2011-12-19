@@ -37,7 +37,7 @@ namespace snow {
 		snow_init_gc(&stk);
 		snow_init_fibers();
 		snow_init_globals();
-		snow_load_in_global_module(snow::create_string_constant("lib/prelude.sn"));
+		load_in_global_module(snow::create_string_constant("lib/prelude.sn"));
 	}
 
 	void finish() {}
@@ -47,12 +47,12 @@ namespace snow {
 	}
 
 	VALUE get_global(SnSymbol name) {
-		SnObject* go = snow_get_global_module();
+		SnObject* go = get_global_module();
 		return snow_object_get_instance_variable(go, name);
 	}
 
 	VALUE set_global(SnSymbol name, VALUE val) {
-		SnObject* go = snow_get_global_module();
+		SnObject* go = get_global_module();
 		return snow_object_set_instance_variable(go, name, val);
 	}
 
