@@ -11,15 +11,19 @@ namespace snow {
 	class ObjectPtr {
 	public:
 		typedef typename ReplicateConstPtr<T, SnObject>::Result Ptr;
+		typedef typename ReplicateConstPtr<T, void>::Result ValuePtr;
 		
 		ObjectPtr() : object_(NULL), priv_(NULL) {}
 		ObjectPtr(VALUE val) { assign(val); }
 		ObjectPtr(Ptr obj) { assign(obj); }
+		ObjectPtr(long) : object_(NULL), priv_(NULL) {}
 		ObjectPtr(const ObjectPtr<T>& other) : object_(other.object_), priv_(other.priv_) {}
 		ObjectPtr<T>& operator=(const ObjectPtr<T>& other) { object_ = other.object_; priv_ = other.priv_; return *this; }
 		ObjectPtr<T>& operator=(VALUE val) { assign(val); return *this; }
 		ObjectPtr<T>& operator=(Ptr obj) { assign(obj); return *this; }
+		ObjectPtr<T>& operator=(long) { assign((Ptr)NULL); return *this; }
 		
+		ValuePtr value() const { return object_; }
 		operator Ptr() const { return object_; }
 		operator ObjectPtr<const T>() const { return ObjectPtr<const T>(object_, priv_); }
 		T* operator->() const { return priv_; }
