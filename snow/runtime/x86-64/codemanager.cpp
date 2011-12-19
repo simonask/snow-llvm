@@ -21,7 +21,7 @@ namespace snow {
 	
 	class CodeManager::Impl {
 	public:
-		CodeModule* compile_ast(const SnAST* ast, const char* source, const char* module_name)
+		CodeModule* compile_ast(const ASTBase* ast, const char* source, const char* module_name)
 		{
 			CodegenSettings settings = {
 				.use_inline_cache = false,
@@ -36,7 +36,7 @@ namespace snow {
 				codegen.materialize_at((byte*)mod->code);
 				mprotect(mod->code, mod->code_size, PROT_WRITE|PROT_EXEC);
 				mod->globals = (VALUE*)mod->code;
-				mod->global_names = new SnSymbol[codegen.module_globals.size()];
+				mod->global_names = new Symbol[codegen.module_globals.size()];
 				for (size_t i = 0; i < codegen.module_globals.size(); ++i) {
 					mod->global_names[i] = codegen.module_globals[i];
 				}
@@ -49,7 +49,7 @@ namespace snow {
 			return NULL;
 		}
 		
-		SnModuleInitFunc load_module(const char* path) {
+		ModuleInitFunc load_module(const char* path) {
 			// TODO!!
 			return NULL;
 		}
@@ -70,11 +70,11 @@ namespace snow {
 	CodeManager::~CodeManager() {
 		delete _impl;
 	}
-	CodeModule* CodeManager::compile_ast(const SnAST* ast, const char* source, const char* module_name)
+	CodeModule* CodeManager::compile_ast(const ASTBase* ast, const char* source, const char* module_name)
 	{
 		return _impl->compile_ast(ast, source, module_name);
 	}
-	SnModuleInitFunc CodeManager::load_module(const char* path) {
+	ModuleInitFunc CodeManager::load_module(const char* path) {
 		return _impl->load_module(path);
 	}
 	

@@ -3,10 +3,10 @@
 #include "snow/util.hpp"
 #include "snow/objectptr.hpp"
 #include "function-internal.hpp"
-#include "fiber-internal.h"
+#include "fiber-internal.hpp"
 #include "snow/snow.hpp"
 #include "snow/class.hpp"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 #include "snow/array.hpp"
 
 namespace snow {
@@ -66,7 +66,7 @@ namespace snow {
 	SN_REGISTER_CPP_TYPE(Environment, environment_gc_each_root)
 
 	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, const ObjectPtr<Environment>& definition_scope) {
-		ObjectPtr<Function> function = snow_create_object(get_function_class(), 0, NULL);
+		ObjectPtr<Function> function = create_object(get_function_class(), 0, NULL);
 		function->descriptor = descriptor;
 		function->definition_scope = definition_scope;
 		if (descriptor->num_variable_references) {
@@ -100,11 +100,11 @@ namespace snow {
 		cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
 	}
 
-	ObjectPtr<Function> create_function(FunctionPtr ptr, SnSymbol name) {
+	ObjectPtr<Function> create_function(FunctionPtr ptr, Symbol name) {
 		snow::FunctionDescriptor* descriptor = new snow::FunctionDescriptor;
 		descriptor->ptr = ptr;
 		descriptor->name = name;
-		descriptor->return_type = SnAnyType;
+		descriptor->return_type = AnyType;
 		descriptor->num_params = 0; // TODO: Named parameter support
 		descriptor->param_types = NULL;
 		descriptor->param_names = NULL;
@@ -118,8 +118,8 @@ namespace snow {
 	ObjectPtr<Class> get_function_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = create_class_for_type(snow_sym("Function"), snow::get_type<Function>());
-			root = snow_gc_create_root(cls);
+			SnObject* cls = create_class_for_type(snow::sym("Function"), snow::get_type<Function>());
+			root = gc_create_root(cls);
 			SN_DEFINE_METHOD(cls, "__call__", bindings::function_call);
 		}
 		return *root;
@@ -128,7 +128,7 @@ namespace snow {
 	ObjectPtr<Environment> call_frame_environment(CallFrame* frame) {
 		if (frame->environment != NULL) return frame->environment;
 		
-		ObjectPtr<Environment> obj = snow_create_object(get_environment_class(), 0, NULL);
+		ObjectPtr<Environment> obj = create_object(get_environment_class(), 0, NULL);
 		obj->function = frame->function;
 		obj->self = frame->self;
 		obj->locals = frame->locals; // shared until call_frame_liberate
@@ -160,10 +160,10 @@ namespace snow {
 	ObjectPtr<Class> get_environment_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			ObjectPtr<Class> cls = create_class_for_type(snow_sym("Environment"), get_type<Environment>());
+			ObjectPtr<Class> cls = create_class_for_type(snow::sym("Environment"), get_type<Environment>());
 			SN_DEFINE_PROPERTY(cls, "self", bindings::environment_get_self, NULL);
 			SN_DEFINE_PROPERTY(cls, "arguments", bindings::environment_get_arguments, NULL);
-			root = snow_gc_create_root(cls);
+			root = gc_create_root(cls);
 		}
 		return *root;
 	}
@@ -173,22 +173,22 @@ namespace snow {
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			ObjectPtr<Class> cls = get_class(functor);
 			Method method;
-			if (class_lookup_method(cls, snow_sym("__call__"), &method)) {
+			if (class_lookup_method(cls, snow::sym("__call__"), &method)) {
 				*out_new_self = functor;
 				if (method.type == MethodTypeFunction) {
 					functor = method.function;
 				} else {
 					if (method.property->getter == NULL) {
-						snow_throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls.value());
+						throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls.value());
 					}
 					functor = call(method.property->getter, *out_new_self, 0, NULL);
 				}
 			} else {
-				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls.value());
+				throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls.value());
 			}
 		}
 		
-		if (snow_eval_truth(functor)) {
+		if (is_truthy(functor)) {
 			ObjectPtr<Function> function = functor;
 			if (*out_new_self == NULL && function->definition_scope != NULL) {
 				// If self isn't given, pick the self from when the function was defined.
@@ -203,12 +203,12 @@ namespace snow {
 	namespace {
 		struct CallFramePusher {
 			CallFramePusher(CallFrame* frame) : frame(frame) {
-				snow_push_call_frame(frame);
+				push_call_frame(frame);
 			}
 			~CallFramePusher() {
 				if (frame->environment != NULL)
 					environment_liberate(frame->environment);
-				snow_pop_call_frame(frame);
+				pop_call_frame(frame);
 			}
 
 			CallFrame* frame;
@@ -232,7 +232,7 @@ namespace snow {
 		bool taken_for_named_args[args->size];
 		snow::assign_range<bool>(taken_for_named_args, false, args->size);
 		for (size_t i = 0; i < num_params; ++i) {
-			SnSymbol name = function->descriptor->param_names[i];
+			Symbol name = function->descriptor->param_names[i];
 			for (size_t j = 0; j < args->num_names; ++j) {
 				if (name == args->names[j]) {
 					locals[i] = args->data[j];
@@ -257,7 +257,7 @@ namespace snow {
 		return function->descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
-	SnSymbol function_get_name(const ObjectPtr<const Function>& function) {
+	Symbol function_get_name(const ObjectPtr<const Function>& function) {
 		return function->descriptor->name;
 	}
 	
@@ -270,19 +270,19 @@ namespace snow {
 	}
 	
 	static VALUE method_proxy_call(const CallFrame* here, VALUE self, VALUE it) {
-		ASSERT(snow_is_object(self));
+		ASSERT(is_object(self));
 		SnObject* s = (SnObject*)self;
-		VALUE obj = snow_object_get_instance_variable(s, snow_sym("object"));
-		VALUE method = snow_object_get_instance_variable(s, snow_sym("method"));
+		VALUE obj = object_get_instance_variable(s, snow::sym("object"));
+		VALUE method = object_get_instance_variable(s, snow::sym("method"));
 		return call_with_arguments(method, obj, here->args);
 	}
 
 	SnObject* create_method_proxy(VALUE self, VALUE method) {
 		// TODO: Use a real class for proxy methods
-		SnObject* obj = snow_create_object(snow_get_object_class(), 0, NULL);
-		snow_object_define_method(obj, "__call__", method_proxy_call);
-		snow_object_set_instance_variable(obj, snow_sym("object"), self);
-		snow_object_set_instance_variable(obj, snow_sym("method"), method);
+		SnObject* obj = create_object(get_object_class(), 0, NULL);
+		object_define_method(obj, "__call__", method_proxy_call);
+		object_set_instance_variable(obj, snow::sym("object"), self);
+		object_set_instance_variable(obj, snow::sym("method"), method);
 		return obj;
 	}
 }

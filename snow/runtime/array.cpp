@@ -3,7 +3,7 @@
 #include "snow/class.hpp"
 #include "snow/util.hpp"
 #include "snow/objectptr.hpp"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 #include "snow/function.hpp"
 #include "snow/snow.hpp"
 #include "snow/str.hpp"
@@ -29,7 +29,7 @@ namespace snow {
 	SN_REGISTER_CPP_TYPE(Array, array_gc_each_root);
 
 	ObjectPtr<Array> create_array() {
-		return snow_create_object(get_array_class(), 0, NULL);
+		return create_object(get_array_class(), 0, NULL);
 	}
 
 	ObjectPtr<Array> create_array_with_size(uint32_t sz) {
@@ -41,7 +41,7 @@ namespace snow {
 	ObjectPtr<Array> create_array_from_range(VALUE* begin, VALUE* end) {
 		ASSERT(begin <= end);
 		int32_t sz = (int32_t)(end - begin);
-		return snow_create_object(get_array_class(), sz, begin);
+		return create_object(get_array_class(), sz, begin);
 	}
 	
 	size_t array_size(ArrayConstPtr array) {
@@ -72,7 +72,7 @@ namespace snow {
 		if (idx < 0)
 			idx += array->size();
 		if (idx < 0) {
-			snow_throw_exception_with_description("Index %d is out of bounds.", idx - array->size());
+			throw_exception_with_description("Index %d is out of bounds.", idx - array->size());
 			return NULL;
 		}
 		(*array)[idx] = val;
@@ -99,7 +99,7 @@ namespace snow {
 		VALUE array_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) {
-				snow_throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
+				throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
 			}
 
 			array->reserve(here->args->size);
@@ -110,7 +110,7 @@ namespace snow {
 		VALUE array_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) {
-				snow_throw_exception_with_description("Array#inspect called for object that doesn't derive from Array.");
+				throw_exception_with_description("Array#inspect called for object that doesn't derive from Array.");
 			}
 
 			SnObject* result = create_string_constant("@(");
@@ -131,20 +131,20 @@ namespace snow {
 		VALUE array_index_get(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
-			if (snow_type_of(it) != SnIntegerType) {
-				snow_throw_exception_with_description("Array#get called with a non-integer index %p.", it);
+			if (type_of(it) != IntegerType) {
+				throw_exception_with_description("Array#get called with a non-integer index %p.", it);
 			}
-			return array_get(array, snow_value_to_integer(it));
+			return array_get(array, value_to_integer(it));
 		}
 
 		VALUE array_index_set(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
-			if (snow_type_of(it) != SnIntegerType) {
-				snow_throw_exception_with_description("Array#set called with a non-integer index %p.", it);
+			if (type_of(it) != IntegerType) {
+				throw_exception_with_description("Array#set called with a non-integer index %p.", it);
 			}
 			VALUE val = here->args->size > 1 ? here->args->data[1] : SN_NIL;
-			return array_set(array, snow_value_to_integer(it), val);
+			return array_set(array, value_to_integer(it), val);
 		}
 
 		VALUE array_multiply_or_splat(const CallFrame* here, VALUE self, VALUE it) {
@@ -172,14 +172,14 @@ namespace snow {
 
 		VALUE array_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			if (!snow::value_is_of_type(self, get_type<Array>())) return NULL;
-			return snow_integer_to_value(array_size(self));
+			return integer_to_value(array_size(self));
 		}
 	}
 
 	SnObject* get_array_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = create_class_for_type(snow_sym("Array"), get_type<Array>());
+			SnObject* cls = create_class_for_type(snow::sym("Array"), get_type<Array>());
 			SN_DEFINE_METHOD(cls, "initialize", bindings::array_initialize);
 			SN_DEFINE_METHOD(cls, "inspect", bindings::array_inspect);
 			SN_DEFINE_METHOD(cls, "to_string", bindings::array_inspect);
@@ -190,7 +190,7 @@ namespace snow {
 			SN_DEFINE_METHOD(cls, "push", bindings::array_push);
 			SN_DEFINE_METHOD(cls, "<<", bindings::array_push);
 			SN_DEFINE_PROPERTY(cls, "size", bindings::array_get_size, NULL);
-			root = snow_gc_create_root(cls);
+			root = gc_create_root(cls);
 		}
 		return *root;
 	}

@@ -37,7 +37,7 @@ namespace snow {
 		template <typename U> friend class ObjectPtr;
 		ObjectPtr(Ptr o, T* p) : object_(o), priv_(p) {}
 		void assign(VALUE val) {
-			if (snow_is_object(val)) {
+			if (is_object(val)) {
 				priv_ = object_get_private<T>((Ptr)val, get_type<T>());
 				object_ = priv_ ? (Ptr)val : NULL;
 			} else {

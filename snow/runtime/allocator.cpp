@@ -13,7 +13,7 @@ namespace snow {
 			p = create_block();
 		}
 		SnObject* object = allocate_from_block(p);
-		object->gc_info.flags = SnGCAllocated;
+		object->gc_info.flags = GCAllocated;
 		object->gc_info.page_offset = p->block_offset_for((GCObject*)object);
 		ASSERT(get_block_for_object_fast(object) == p);
 		return object;
@@ -25,8 +25,8 @@ namespace snow {
 	
 	void Allocator::free(SnObject* object, Allocator::Block* block) {
 		ASSERT(block->contains(object));
-		ASSERT(object->gc_info.flags & SnGCAllocated);
-		object->gc_info.flags &= ~SnGCAllocated;
+		ASSERT(object->gc_info.flags & GCAllocated);
+		object->gc_info.flags &= ~GCAllocated;
 		if (UNLIKELY(object == block->end-1)) {
 			--block->end;
 		} else {
@@ -41,7 +41,7 @@ namespace snow {
 	bool Allocator::is_allocated(SnObject* ptr) const {
 		for (size_t i = 0; i < _blocks.size(); ++i) {
 			if (_blocks[i]->contains(ptr))
-				return (ptr->gc_info.flags & SnGCAllocated) != 0;
+				return (ptr->gc_info.flags & GCAllocated) != 0;
 		}
 		return false;
 	}
@@ -127,6 +127,6 @@ namespace snow {
 	
 	bool Allocator::Block::is_allocated(const SnObject* ptr) const {
 		ASSERT(contains(ptr));
-		return (ptr->gc_info.flags & SnGCAllocated) != SnGCNoFlags;
+		return (ptr->gc_info.flags & GCAllocated) != GCNoFlags;
 	}
 }

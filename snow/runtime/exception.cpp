@@ -4,21 +4,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-namespace {
-	struct Ensure {
-		Ensure(VALUE ensure_f) : ensure_f(ensure_f) {}
-		~Ensure() {
-			if (snow_eval_truth(ensure_f))
-				snow::call(ensure_f, NULL, 0, NULL);
-		}
-		VALUE ensure_f;
-	};
-}
-
-CAPI {
-	using namespace snow;
+namespace snow {
+	namespace {
+		struct Ensure {
+			Ensure(VALUE ensure_f) : ensure_f(ensure_f) {}
+			~Ensure() {
+				if (is_truthy(ensure_f))
+					snow::call(ensure_f, NULL, 0, NULL);
+			}
+			VALUE ensure_f;
+		};
+	}
 	
-	VALUE snow_try_catch_ensure(VALUE try_f, VALUE catch_f, VALUE ensure_f) {
+	VALUE try_catch_ensure(VALUE try_f, VALUE catch_f, VALUE ensure_f) {
 		Ensure ensure(ensure_f);
 		VALUE result = NULL;
 		try {
@@ -32,7 +30,7 @@ CAPI {
 		return result;
 	}
 
-	CAPI void snow_throw_exception(VALUE ex) {
+	CAPI void throw_exception(VALUE ex) {
 		// TODO: Backtrace and all that jazz
 		
 		SnObject* str = value_to_string(ex);
@@ -48,11 +46,11 @@ CAPI {
 		throw snow::Exception(ex);
 	}
 
-	void snow_throw_exception_with_description(const char* fmt, ...) {
+	void throw_exception_with_description(const char* fmt, ...) {
 		va_list ap;
 		va_start(ap, fmt);
 		VALUE ex = snow::string_format_va(fmt, ap);
 		va_end(ap);
-		snow_throw_exception(ex);
+		throw_exception(ex);
 	}
 }

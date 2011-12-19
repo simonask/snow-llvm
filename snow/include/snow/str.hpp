@@ -14,11 +14,13 @@ namespace snow {
 	typedef const ObjectPtr<const String>& StringConstPtr;
 	typedef const ObjectPtr<String>& StringPtr;
 	
+	template <typename T> class LinkBuffer;
+	
 	bool is_string(VALUE);
 	ObjectPtr<String> create_string(const char* utf8);
 	ObjectPtr<String> create_string_constant(const char* utf8);
 	ObjectPtr<String> create_string_with_size(const char* utf8, size_t size);
-	ObjectPtr<String> create_string_from_linkbuffer(SnLinkBuffer* buf); // TODO: Remove
+	ObjectPtr<String> create_string_from_linkbuffer(const LinkBuffer<char>& buf); // TODO: Remove
 	inline ObjectPtr<String> create_empty_string() { return create_string_constant(""); }
 	ObjectPtr<String> string_concat(StringConstPtr a, StringConstPtr b);
 	void string_append(StringPtr str, StringConstPtr other);

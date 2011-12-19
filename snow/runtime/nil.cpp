@@ -17,10 +17,10 @@ static VALUE nil_to_string(const CallFrame* here, VALUE self, VALUE it) {
 CAPI SnObject* snow_get_nil_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = create_class(snow_sym("Nil"), NULL);
+		SnObject* cls = create_class(snow::sym("Nil"), NULL);
 		SN_DEFINE_METHOD(cls, "inspect", nil_inspect);
 		SN_DEFINE_METHOD(cls, "to_string", nil_to_string);
-		root = snow_gc_create_root(cls);
+		root = gc_create_root(cls);
 	}
 	return *root;
 }

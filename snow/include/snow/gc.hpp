@@ -6,26 +6,29 @@
 #include <stdlib.h>
 
 struct SnObject;
-namespace snow { struct Type; }
 
-typedef enum SnGCFlags {
-	SnGCNoFlags   = 0x0,
-	SnGCAllocated = 0x1,
-	SnGCReachable = 0x2,
-} SnGCFlags;
+namespace snow {
+	struct Type;
 
-CAPI void snow_init_gc(const void** stack_top);
-CAPI void snow_gc();
-CAPI struct SnObject* snow_gc_allocate_object(const snow::Type*);
-CAPI struct SnObject** snow_gc_create_root(struct SnObject* initial_value);
-CAPI struct SnObject*  snow_gc_free_root(struct SnObject** root); 
+	typedef enum GCFlags {
+		GCNoFlags   = 0x0,
+		GCAllocated = 0x1,
+		GCReachable = 0x2,
+	} GCFlags;
 
-#define SN_GC_RDLOCK(OBJECT) snow_gc_rdlock((const struct SnObject*)(OBJECT), &(OBJECT))
-#define SN_GC_WRLOCK(OBJECT) snow_gc_wrlock((const struct SnObject*)(OBJECT), &(OBJECT))
-#define SN_GC_UNLOCK(OBJECT) snow_gc_unlock((const struct SnObject*)(OBJECT))
+	void init_gc(const void** stack_top);
+	void gc();
+	struct SnObject* gc_allocate_object(const snow::Type*);
+	struct SnObject** gc_create_root(struct SnObject* initial_value);
+	struct SnObject*  gc_free_root(struct SnObject** root); 
 
-CAPI void snow_gc_rdlock(const struct SnObject* object, void* gc_root);
-CAPI void snow_gc_wrlock(const struct SnObject* object, void* gc_root);
-CAPI void snow_gc_unlock(const struct SnObject* object);
+	#define SN_GC_RDLOCK(OBJECT) gc_rdlock((const struct SnObject*)(OBJECT), &(OBJECT))
+	#define SN_GC_WRLOCK(OBJECT) gc_wrlock((const struct SnObject*)(OBJECT), &(OBJECT))
+	#define SN_GC_UNLOCK(OBJECT) gc_unlock((const struct SnObject*)(OBJECT))
+
+	void gc_rdlock(const struct SnObject* object, void* gc_root);
+	void gc_wrlock(const struct SnObject* object, void* gc_root);
+	void gc_unlock(const struct SnObject* object);
+}
 
 #endif /* end of include guard: GC_H_X9TH74GE */

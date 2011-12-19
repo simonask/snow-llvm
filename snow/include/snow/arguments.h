@@ -7,9 +7,9 @@
 
 typedef struct SnArguments {
 	size_t num_names;
-	SnSymbol* names;
+	snow::Symbol* names;
 	size_t size;
-	VALUE* data;
+	snow::VALUE* data;
 } SnArguments;
 
 #endif /* end of include guard: ARGUMENTS_H_5M3JAXPP */

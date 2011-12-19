@@ -3,9 +3,8 @@
 #include "snow/array.hpp"
 #include "snow/str.hpp"
 #include "snow/function.hpp"
-#include "snow/vm.h"
-#include "snow/exception.h"
-#include "snow/parser.h"
+#include "snow/exception.hpp"
+#include "snow/parser.hpp"
 
 #include <google/dense_hash_map>
 #include <string>
@@ -84,7 +83,7 @@ namespace snow {
 				for (size_t i = 0; i < array_size(load_paths); ++i) {
 					ObjectPtr<String> p = array_get(load_paths, i);
 					if (p == NULL) {
-						snow_throw_exception_with_description("Load path is not a string: %p.", p.value());
+						throw_exception_with_description("Load path is not a string: %p.", p.value());
 					}
 
 					std::string spath;
@@ -156,7 +155,7 @@ namespace snow {
 			m->source = source;
 			m->module = mod;
 
-			struct SnAST* ast = snow_parse(m->source.c_str());
+			struct ASTBase* ast = snow::parse(m->source.c_str());
 			if (ast) {
 				snow::CodeModule* code = snow::get_code_manager()->compile_ast(ast, m->source.c_str(), get_module_name(path).c_str());
 				if (code) {
@@ -173,10 +172,10 @@ namespace snow {
 						.environment = NULL
 					};
 					VALUE result = function_call(m->entry, &frame);
-					snow_object_set_instance_variable(mod, snow_sym("__module_value__"), result);
+					object_set_instance_variable(mod, snow::sym("__module_value__"), result);
 					// Import module globals
 					for (size_t i = 0; i < code->num_globals; ++i) {
-						snow_object_set_instance_variable(mod, code->global_names[i], code->globals[i]);
+						object_set_instance_variable(mod, code->global_names[i], code->globals[i]);
 					}
 					return m;
 				}
@@ -191,13 +190,13 @@ namespace snow {
 			Module* module = NULL;
 			switch (get_module_type(path)) {
 				case ModuleTypeSource: {
-					SnObject* mod = snow_create_object(snow_get_object_class(), 0, NULL);
-					snow_object_give_meta_class(mod);
+					SnObject* mod = create_object(get_object_class(), 0, NULL);
+					object_give_meta_class(mod);
 					module = compile_module(path, load_source(path), mod);
 					break;
 				}
 				default: {
-					snow_throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");
+					throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");
 					return NULL;
 				}
 			}
@@ -212,7 +211,7 @@ namespace snow {
 		if (!root) {
 			ObjectPtr<Array> load_paths = create_array_with_size(10);
 			array_push(load_paths, create_string_constant("./"));
-			root = snow_gc_create_root(load_paths);
+			root = gc_create_root(load_paths);
 		}
 		return *root;
 	}
@@ -220,9 +219,9 @@ namespace snow {
 	SnObject* get_global_module() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* global_module = snow_create_object(snow_get_object_class(), 0, NULL);
-			snow_object_give_meta_class(global_module);
-			root = snow_gc_create_root(global_module);
+			SnObject* global_module = create_object(get_object_class(), 0, NULL);
+			object_give_meta_class(global_module);
+			root = gc_create_root(global_module);
 		}
 		return *root;
 	}
@@ -240,7 +239,7 @@ namespace snow {
 				return load_module(path)->module;
 			}
 		}
-		snow_throw_exception_with_description("File not found in any load path: %s", file.c_str());
+		throw_exception_with_description("File not found in any load path: %s", file.c_str());
 		return NULL;
 	}
 	
@@ -263,13 +262,13 @@ namespace snow {
 			ASSERT(get_module_type(path) == ModuleTypeSource); // only source modules are supported in load_in_global_module
 			SnObject* mod = get_global_module();
 			if (compile_module(path, load_source(file), mod)) {
-				return snow_object_get_instance_variable(mod, snow_sym("__module_value__"));
+				return object_get_instance_variable(mod, snow::sym("__module_value__"));
 			} else {
 				fprintf(stderr, "ERROR: Could not compile module: %s\n", path.c_str());
 				return NULL;
 			}
 		} else {
-			snow_throw_exception_with_description("File not found in any load path: %s", file.c_str());
+			throw_exception_with_description("File not found in any load path: %s", file.c_str());
 			return NULL;
 		}
 	}
@@ -281,7 +280,7 @@ namespace snow {
 		SnObject* mod = get_global_module();
 		Module* module = compile_module("<eval>", source, mod);
 		if (module) {
-			return snow_object_get_instance_variable(mod, snow_sym("__module_value__"));
+			return object_get_instance_variable(mod, snow::sym("__module_value__"));
 		} else {
 			return NULL;
 		}

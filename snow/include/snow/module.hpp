@@ -11,6 +11,9 @@ struct SnObject;
 namespace snow {
 	struct Array;
 	
+	typedef VALUE(*ModuleInitFunc)();
+	typedef int(*TestSuiteFunc)();
+	
 	ObjectPtr<Array> get_load_paths();
 	SnObject* get_global_module();
 	

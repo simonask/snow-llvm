@@ -6,181 +6,181 @@
 #include "linkheap.hpp"
 
 namespace snow {
-	class AST : public SnAST {
+	class AST : public ASTBase {
 	public:
-		SnAstNode* root() const { return _root; }
-		void set_root(SnAstNode* n) { _root = n; }
+		ASTNode* root() const { return _root; }
+		void set_root(ASTNode* n) { _root = n; }
 		void clear();
-		void print(SnAstNode* n = NULL, int indent = 0) const; // NULL means start from root
-		void free(SnAstNode* n, bool recursive = true);
+		void print(ASTNode* n = NULL, int indent = 0) const; // NULL means start from root
+		void free(ASTNode* n, bool recursive = true);
 
-		SnAstNode* sequence(unsigned int n = 0, ...);
-		void sequence_push(SnAstNode* seq, SnAstNode* n);
-		SnAstNode* literal(VALUE val);
-		SnAstNode* closure(SnAstNode* parameters, SnAstNode* body);
-		SnAstNode* parameter(SnSymbol name, SnAstNode* id_type, SnAstNode* default_value);
-		SnAstNode* return_(SnAstNode* value = NULL);
-		SnAstNode* identifier(SnSymbol sym);
-		SnAstNode* break_() { return create(SN_AST_BREAK); }
-		SnAstNode* continue_() { return create(SN_AST_CONTINUE); }
-		SnAstNode* self() { return create(SN_AST_SELF); }
-		SnAstNode* here() { return create(SN_AST_HERE); }
-		SnAstNode* it() { return create(SN_AST_IT); }
-		SnAstNode* assign(SnAstNode* target, SnAstNode* value);
-		SnAstNode* method(SnAstNode* object, SnSymbol sym);
-		SnAstNode* instance_variable(SnAstNode* object, SnSymbol sym);
-		SnAstNode* call(SnAstNode* object, SnAstNode* arguments);
-		SnAstNode* association(SnAstNode* object, SnAstNode* arguments);
-		SnAstNode* named_argument(SnSymbol name, SnAstNode* expr);
-		SnAstNode* logic_and(SnAstNode* left, SnAstNode* right);
-		SnAstNode* logic_or(SnAstNode* left, SnAstNode* right);
-		SnAstNode* logic_xor(SnAstNode* left, SnAstNode* right);
-		SnAstNode* logic_not(SnAstNode* expr);
-		SnAstNode* loop(SnAstNode* cond, SnAstNode* body);
-		SnAstNode* if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body);
+		ASTNode* sequence(unsigned int n = 0, ...);
+		void sequence_push(ASTNode* seq, ASTNode* n);
+		ASTNode* literal(VALUE val);
+		ASTNode* closure(ASTNode* parameters, ASTNode* body);
+		ASTNode* parameter(Symbol name, ASTNode* id_type, ASTNode* default_value);
+		ASTNode* return_(ASTNode* value = NULL);
+		ASTNode* identifier(Symbol sym);
+		ASTNode* break_() { return create(SN_AST_BREAK); }
+		ASTNode* continue_() { return create(SN_AST_CONTINUE); }
+		ASTNode* self() { return create(SN_AST_SELF); }
+		ASTNode* here() { return create(SN_AST_HERE); }
+		ASTNode* it() { return create(SN_AST_IT); }
+		ASTNode* assign(ASTNode* target, ASTNode* value);
+		ASTNode* method(ASTNode* object, Symbol sym);
+		ASTNode* instance_variable(ASTNode* object, Symbol sym);
+		ASTNode* call(ASTNode* object, ASTNode* arguments);
+		ASTNode* association(ASTNode* object, ASTNode* arguments);
+		ASTNode* named_argument(Symbol name, ASTNode* expr);
+		ASTNode* logic_and(ASTNode* left, ASTNode* right);
+		ASTNode* logic_or(ASTNode* left, ASTNode* right);
+		ASTNode* logic_xor(ASTNode* left, ASTNode* right);
+		ASTNode* logic_not(ASTNode* expr);
+		ASTNode* loop(ASTNode* cond, ASTNode* body);
+		ASTNode* if_else(ASTNode* cond, ASTNode* body, ASTNode* else_body);
 	private:
-		LinkHeap<SnAstNode> _heap;
+		LinkHeap<ASTNode> _heap;
 
-		SnAstNode* create(SnAstNodeType type);
-		void print_r(SnAstNode* n, int indent) const;
+		ASTNode* create(ASTNodeType type);
+		void print_r(ASTNode* n, int indent) const;
 	};
 
-	inline SnAstNode* AST::sequence(unsigned int n, ...) {
-		SnAstNode* seq = create(SN_AST_SEQUENCE);
+	inline ASTNode* AST::sequence(unsigned int n, ...) {
+		ASTNode* seq = create(SN_AST_SEQUENCE);
 		seq->sequence.length = 0;
 		seq->sequence.head = seq->sequence.tail = NULL;
 		
 		va_list ap;
 		va_start(ap, n);
 		for (int i = 0; i < n; ++i) {
-			sequence_push(seq, va_arg(ap, SnAstNode*));
+			sequence_push(seq, va_arg(ap, ASTNode*));
 		}
 		va_end(ap);
 		
 		return seq;
 	}
 	
-	inline void AST::sequence_push(SnAstNode* seq, SnAstNode* n) {
+	inline void AST::sequence_push(ASTNode* seq, ASTNode* n) {
 		ASSERT(seq->type == SN_AST_SEQUENCE);
 		++seq->sequence.length;
 		if (!seq->sequence.head) { seq->sequence.head = seq->sequence.tail = n; }
 		else { seq->sequence.tail->next = n; seq->sequence.tail = n; }
 	}
 	
-	inline SnAstNode* AST::literal(VALUE val) {
-		SnAstNode* n = create(SN_AST_LITERAL);
+	inline ASTNode* AST::literal(VALUE val) {
+		ASTNode* n = create(SN_AST_LITERAL);
 		n->literal.value = val;
 		return n;
 	}
 	
-	inline SnAstNode* AST::closure(SnAstNode* parameters, SnAstNode* body) {
-		SnAstNode* n = create(SN_AST_CLOSURE);
+	inline ASTNode* AST::closure(ASTNode* parameters, ASTNode* body) {
+		ASTNode* n = create(SN_AST_CLOSURE);
 		n->closure.parameters = parameters; n->closure.body = body;
 		return n;
 	}
 	
-	inline SnAstNode* AST::parameter(SnSymbol name, SnAstNode* id_type, SnAstNode* default_value) {
-		SnAstNode* n = create(SN_AST_PARAMETER);
+	inline ASTNode* AST::parameter(Symbol name, ASTNode* id_type, ASTNode* default_value) {
+		ASTNode* n = create(SN_AST_PARAMETER);
 		n->parameter.name = name;
 		n->parameter.id_type = id_type;
 		n->parameter.default_value = default_value;
 		return n;
 	}
 	
-	inline SnAstNode* AST::return_(SnAstNode* value) {
-		SnAstNode* n = create(SN_AST_RETURN);
+	inline ASTNode* AST::return_(ASTNode* value) {
+		ASTNode* n = create(SN_AST_RETURN);
 		n->return_expr.value = value;
 		return n;
 	}
 	
-	inline SnAstNode* AST::identifier(SnSymbol sym) {
-		SnAstNode* n = create(SN_AST_IDENTIFIER);
+	inline ASTNode* AST::identifier(Symbol sym) {
+		ASTNode* n = create(SN_AST_IDENTIFIER);
 		n->identifier.name = sym;
 		return n;
 	}
 	
-	inline SnAstNode* AST::assign(SnAstNode* target, SnAstNode* value) {
-		SnAstNode* n = create(SN_AST_ASSIGN);
+	inline ASTNode* AST::assign(ASTNode* target, ASTNode* value) {
+		ASTNode* n = create(SN_AST_ASSIGN);
 		n->assign.target = target;
 		n->assign.value = value;
 		return n;
 	}
 	
-	inline SnAstNode* AST::method(SnAstNode* object, SnSymbol sym) {
-		SnAstNode* n = create(SN_AST_METHOD);
+	inline ASTNode* AST::method(ASTNode* object, Symbol sym) {
+		ASTNode* n = create(SN_AST_METHOD);
 		n->method.object = object;
 		n->method.name = sym;
 		return n;
 	}
 	
-	inline SnAstNode* AST::instance_variable(SnAstNode* object, SnSymbol sym) {
-		SnAstNode* n = create(SN_AST_INSTANCE_VARIABLE);
+	inline ASTNode* AST::instance_variable(ASTNode* object, Symbol sym) {
+		ASTNode* n = create(SN_AST_INSTANCE_VARIABLE);
 		n->instance_variable.object = object;
 		n->instance_variable.name = sym;
 		return n;
 	}
 	
-	inline SnAstNode* AST::call(SnAstNode* object, SnAstNode* arguments) {
-		SnAstNode* n = create(SN_AST_CALL);
+	inline ASTNode* AST::call(ASTNode* object, ASTNode* arguments) {
+		ASTNode* n = create(SN_AST_CALL);
 		n->call.object = object;
 		n->call.args = arguments;
 		return n;
 	}
 	
-	inline SnAstNode* AST::association(SnAstNode* object, SnAstNode* arguments) {
-		SnAstNode* n = create(SN_AST_ASSOCIATION);
+	inline ASTNode* AST::association(ASTNode* object, ASTNode* arguments) {
+		ASTNode* n = create(SN_AST_ASSOCIATION);
 		n->association.object = object;
 		n->association.args = arguments;
 		return n;
 	}
 	
-	inline SnAstNode* AST::named_argument(SnSymbol name, SnAstNode* expr) {
-		SnAstNode* n = create(SN_AST_NAMED_ARGUMENT);
+	inline ASTNode* AST::named_argument(Symbol name, ASTNode* expr) {
+		ASTNode* n = create(SN_AST_NAMED_ARGUMENT);
 		n->named_argument.name = name;
 		n->named_argument.expr = expr;
 		return n;
 	}
 	
-	inline SnAstNode* AST::logic_and(SnAstNode* left, SnAstNode* right) {
-		SnAstNode* n = create(SN_AST_AND);
+	inline ASTNode* AST::logic_and(ASTNode* left, ASTNode* right) {
+		ASTNode* n = create(SN_AST_AND);
 		n->logic_and.left = left;
 		n->logic_and.right = right;
 		return n;
 	}
 	
-	inline SnAstNode* AST::logic_or(SnAstNode* left, SnAstNode* right) {
-		SnAstNode* n = logic_and(left, right); n->type = SN_AST_OR;
+	inline ASTNode* AST::logic_or(ASTNode* left, ASTNode* right) {
+		ASTNode* n = logic_and(left, right); n->type = SN_AST_OR;
 		return n;
 	}
 	
-	inline SnAstNode* AST::logic_xor(SnAstNode* left, SnAstNode* right) {
-		SnAstNode* n = logic_and(left, right); n->type = SN_AST_XOR;
+	inline ASTNode* AST::logic_xor(ASTNode* left, ASTNode* right) {
+		ASTNode* n = logic_and(left, right); n->type = SN_AST_XOR;
 		return n;
 	}
 	
-	inline SnAstNode* AST::logic_not(SnAstNode* expr) {
-		SnAstNode* n = create(SN_AST_NOT);
+	inline ASTNode* AST::logic_not(ASTNode* expr) {
+		ASTNode* n = create(SN_AST_NOT);
 		n->logic_not.expr = expr;
 		return n;
 	}
 	
-	inline SnAstNode* AST::loop(SnAstNode* cond, SnAstNode* body) {
-		SnAstNode* n = create(SN_AST_LOOP);
+	inline ASTNode* AST::loop(ASTNode* cond, ASTNode* body) {
+		ASTNode* n = create(SN_AST_LOOP);
 		n->loop.cond = cond;
 		n->loop.body = body;
 		return n;
 	}
 	
-	inline SnAstNode* AST::if_else(SnAstNode* cond, SnAstNode* body, SnAstNode* else_body) {
-		SnAstNode* n = create(SN_AST_IF_ELSE);
+	inline ASTNode* AST::if_else(ASTNode* cond, ASTNode* body, ASTNode* else_body) {
+		ASTNode* n = create(SN_AST_IF_ELSE);
 		n->if_else.cond = cond;
 		n->if_else.body = body;
 		n->if_else.else_body = else_body;
 		return n;
 	}
 
-	inline SnAstNode* AST::create(SnAstNodeType type) {
-		SnAstNode* n = _heap.alloc();
+	inline ASTNode* AST::create(ASTNodeType type) {
+		ASTNode* n = _heap.alloc();
 		n->type = type;
 		n->next = NULL;
 		return n;

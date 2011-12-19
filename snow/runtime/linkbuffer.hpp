@@ -130,6 +130,15 @@ namespace snow {
 	}
 	
 	template <typename T>
+	void LinkBuffer<T>::push_range(const T* begin, const T* end) {
+		// TODO: optimize
+		ASSERT(begin < end);
+		for (const T* p = begin; p < end; ++p) {
+			push(*p);
+		}
+	}
+	
+	template <typename T>
 	size_t LinkBuffer<T>::extract(T* destination, size_t n) const {
 		Page* current = _head;
 		size_t copied = 0;
@@ -137,7 +146,7 @@ namespace snow {
 			size_t remaining = n - copied; // remaining space in dst
 			size_t to_copy = remaining < current->offset ? remaining : current->offset;
 			for (size_t i = 0; i < to_copy; ++i) {
-				destination[copied + i] = current->data[i];
+				destination[copied + i] = *reinterpret_cast<const T*>(current->data + i);
 			}
 			copied += to_copy;
 			current = current->next;

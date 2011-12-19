@@ -3,10 +3,10 @@
 #include "snow/class.hpp"
 #include "snow/function.hpp"
 #include "snow/gc.hpp"
-#include "snow/linkbuffer.h"
+#include "linkbuffer.hpp"
 #include "snow/numeric.hpp"
 #include "snow/snow.hpp"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 
 #include "snow/util.hpp"
 #include "snow/objectptr.hpp"
@@ -61,7 +61,7 @@ namespace snow {
 	}
 
 	ObjectPtr<String> create_string_constant(const char* utf8) {
-		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
+		ObjectPtr<String> str = create_object(get_string_class(), 0, NULL);
 		str->size = strlen(utf8);
 		str->data = (char*)utf8;
 		str->constant = true;
@@ -70,7 +70,7 @@ namespace snow {
 	}
 
 	ObjectPtr<String> create_string_with_size(const char* utf8, size_t size) {
-		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
+		ObjectPtr<String> str = create_object(get_string_class(), 0, NULL);
 		str->size = size;
 		if (size) {
 			str->data = new char[size];
@@ -81,13 +81,13 @@ namespace snow {
 		return str;
 	}
 
-	ObjectPtr<String> create_string_from_linkbuffer(struct SnLinkBuffer* buf) {
-		size_t s = snow_linkbuffer_size(buf);
-		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
+	ObjectPtr<String> create_string_from_linkbuffer(const LinkBuffer<char>& buf) {
+		size_t s = buf.size();
+		ObjectPtr<String> str = create_object(get_string_class(), 0, NULL);
 		str->size = s;
 		if (s) {
 			str->data = new char[s];
-			snow_linkbuffer_copy_data(buf, str->data, s);
+			buf.extract(str->data, s);
 			str->length = get_utf8_length(str->data, s);
 			str->constant = false;
 		}
@@ -107,7 +107,7 @@ namespace snow {
 		size_b = string_copy_to(b, buffer + size_a, size_b);
 		s = size_a + size_b;
 		
-		ObjectPtr<String> str = snow_create_object(get_string_class(), 0, NULL);
+		ObjectPtr<String> str = create_object(get_string_class(), 0, NULL);
 		str->size = s;
 		str->data = buffer;
 		str->length = get_utf8_length(buffer, s);
@@ -185,7 +185,7 @@ namespace snow {
 
 	namespace bindings {
 		static VALUE string_inspect(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_string(self)) snow_throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
+			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
 			ObjectPtr<String> s = self;
 			size_t size = string_size(s);
 			char buffer[size + 2];
@@ -196,12 +196,12 @@ namespace snow {
 		}
 
 		static VALUE string_to_string(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_string(self)) snow_throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
+			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
 			return self;
 		}
 
 		static VALUE string_add(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_string(self)) snow_throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
+			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
 
 			if (it) {
 				ObjectPtr<String> other = value_to_string(it);
@@ -212,14 +212,14 @@ namespace snow {
 
 		static VALUE string_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			if (is_string(self)) {
-				return snow_integer_to_value((int64_t)string_size(self));
+				return integer_to_value((int64_t)string_size(self));
 			}
 			return NULL;
 		}
 
 		static VALUE string_get_length(const CallFrame* here, VALUE self, VALUE it) {
 			if (is_string(self)) {
-				return snow_integer_to_value((int64_t)string_length(self));
+				return integer_to_value((int64_t)string_length(self));
 			}
 			return NULL;
 		}
@@ -228,13 +228,13 @@ namespace snow {
 	SnObject* get_string_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = create_class_for_type(snow_sym("String"), get_type<String>());
+			SnObject* cls = create_class_for_type(snow::sym("String"), get_type<String>());
 			SN_DEFINE_METHOD(cls, "inspect", bindings::string_inspect);
 			SN_DEFINE_METHOD(cls, "to_string", bindings::string_to_string);
 			SN_DEFINE_METHOD(cls, "+", bindings::string_add);
 			SN_DEFINE_PROPERTY(cls, "size", bindings::string_get_size, NULL);
 			SN_DEFINE_PROPERTY(cls, "length", bindings::string_get_length, NULL);
-			root = snow_gc_create_root(cls);
+			root = gc_create_root(cls);
 		}
 		return *root;
 	}

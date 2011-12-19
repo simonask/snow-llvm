@@ -1,6 +1,5 @@
 #include "snow/fiber.hpp"
-#include "snow/vm.h"
-#include "../fiber-internal.h"
+#include "../fiber-internal.hpp"
 
 #include <assert.h>
 
@@ -14,12 +13,14 @@ static void _fiber_trampoline() {
 	);
 }
 
+namespace snow {
+
 void __attribute__((noreturn))
-snow_start_fiber(struct SnObject* fiber, byte* stack, struct SnObject* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback)
+start_fiber(FiberPtr fiber, byte* stack, FiberPtr caller, VALUE data, FiberStartFunc start_func, FiberReturnFunc return_callback)
 {
 	void** stack_top = (void**)(stack + SN_FIBER_STACK_SIZE);
 	
-	*(stack_top-1) = fiber;
+	*(stack_top-1) = fiber.value();
 	*(stack_top-2) = (void*)return_callback; 
 	*(stack_top-3) = (void*)_fiber_trampoline; // "saved" rip
 	
@@ -33,9 +34,11 @@ snow_start_fiber(struct SnObject* fiber, byte* stack, struct SnObject* caller, V
 		"subq $0x10, %%rbp\n" // rbp for trampoline
 		"jmpq *%%r8\n"
 		:
-		: "r"(fiber), "r"(caller), "r"(data), "r"(start_func), "r"(stack_top-3)
+		: "r"(fiber.value()), "r"(caller.value()), "r"(data), "r"(start_func), "r"(stack_top-3)
 		: "%rdi", "%rsi", "%rdx", "%r8", "%rsp"
 	);
 	
 	assert(false);
+}
+
 }

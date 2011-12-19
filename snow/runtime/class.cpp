@@ -1,6 +1,6 @@
 #include "snow/class.hpp"
 #include "snow/function.hpp"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 #include "snow/str.hpp"
 #include "snow/snow.hpp"
 
@@ -13,11 +13,11 @@
 
 namespace snow {
 	struct Class {
-		SnSymbol name;
+		Symbol name;
 		const Type* instance_type;
 		ObjectPtr<Class> super;
 		std::vector<Method> methods;
-		std::vector<SnSymbol> instance_variables;
+		std::vector<Symbol> instance_variables;
 		VALUE initialize;
 		bool is_meta;
 		
@@ -71,8 +71,8 @@ namespace snow {
 				cls->super = super;
 				cls->instance_type = super->instance_type;
 				cls->instance_variables = super->instance_variables;
-			} else if (snow_eval_truth(it)) {
-				snow_throw_exception_with_description("Cannot use %p as superclass.", it);
+			} else if (is_truthy(it)) {
+				throw_exception_with_description("Cannot use %p as superclass.", it);
 			}
 			return self;
 		}
@@ -81,15 +81,15 @@ namespace snow {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
-					snow_throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args->size);
+					throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args->size);
 				}
 				VALUE vname = it;
 				VALUE vmethod = here->args->data[1];
-				if (!snow_is_symbol(vname)) snow_throw_exception_with_description("Expected method name as argument 1 of Class#define_method.");
-				_class_define_method(cls, snow_value_to_symbol(vname), vmethod);
+				if (!is_symbol(vname)) throw_exception_with_description("Expected method name as argument 1 of Class#define_method.");
+				_class_define_method(cls, value_to_symbol(vname), vmethod);
 				return self;
 			}
-			snow_throw_exception_with_description("Class#define_method called on an object that isn't a class: %p.", self);
+			throw_exception_with_description("Class#define_method called on an object that isn't a class: %p.", self);
 			return NULL; // unreachable
 		}
 
@@ -98,21 +98,21 @@ namespace snow {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
-					snow_throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args->size);
+					throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args->size);
 				}
 				VALUE vname = it;
 				VALUE vgetter = here->args->data[1];
 				VALUE vsetter = here->args->size >= 3 ? here->args->data[2] : NULL;
-				if (!snow_is_symbol(vname)) snow_throw_exception_with_description("Class#define_property expects a property name as a symbol for the first argument.");
-				_class_define_property(cls, snow_value_to_symbol(vname), vgetter, vsetter);
+				if (!is_symbol(vname)) throw_exception_with_description("Class#define_property expects a property name as a symbol for the first argument.");
+				_class_define_property(cls, value_to_symbol(vname), vgetter, vsetter);
 				return self;
 			}
-			snow_throw_exception_with_description("Class#define_property called on an object that isn't a class: %p.", self);
+			throw_exception_with_description("Class#define_property called on an object that isn't a class: %p.", self);
 			return NULL; // unreachable
 		}
 
 		VALUE class_inspect(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_class(self)) snow_throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self);
+			if (!is_class(self)) throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self);
 			return string_format("[Class@%p name:%s]", self, class_get_name((SnObject*)self));
 		}
 
@@ -122,7 +122,7 @@ namespace snow {
 
 		static VALUE class_call(const CallFrame* here, VALUE self, VALUE it) {
 			SN_CHECK_CLASS(self, Class, __call__);
-			return snow_create_object_with_arguments((SnObject*)self, here->args);
+			return create_object_with_arguments((SnObject*)self, here->args);
 		}
 	}
 
@@ -132,21 +132,21 @@ namespace snow {
 	}
 	
 	const char* class_get_name(ClassConstPtr cls) {
-		return snow_sym_to_cstr(cls->name);
+		return snow::sym_to_cstr(cls->name);
 	}
 	
 	bool class_is_meta(ClassConstPtr cls) {
 		return cls->is_meta;
 	}
 	
-	int32_t class_get_index_of_instance_variable(ClassConstPtr cls, SnSymbol name) {
+	int32_t class_get_index_of_instance_variable(ClassConstPtr cls, Symbol name) {
 		for (size_t i = 0; i < cls->instance_variables.size(); ++i) {
 			if (cls->instance_variables[i] == name) return (int32_t)i;
 		}
 		return -1;
 	}
 	
-	int32_t class_define_instance_variable(ClassPtr cls, SnSymbol name) {
+	int32_t class_define_instance_variable(ClassPtr cls, Symbol name) {
 		ASSERT(class_get_index_of_instance_variable(cls, name) < 0); // variable already defined
 		int32_t i = (int32_t)cls->instance_variables.size();
 		cls->instance_variables.push_back(name);
@@ -157,9 +157,9 @@ namespace snow {
 		return cls->instance_variables.size();
 	}
 	
-	bool class_lookup_method(ClassConstPtr cls, SnSymbol name, Method* out_method) {
-		ObjectPtr<const Class> object_class = snow_get_object_class();
-		static const SnSymbol init_sym = snow_sym("initialize");
+	bool class_lookup_method(ClassConstPtr cls, Symbol name, Method* out_method) {
+		ObjectPtr<const Class> object_class = get_object_class();
+		static const Symbol init_sym = snow::sym("initialize");
 		Method key = { .name = name, .type = MethodTypeNone };
 		ObjectPtr<const Class> c = cls;
 		while (c != NULL) {
@@ -187,9 +187,9 @@ namespace snow {
 		return false;
 	}
 	
-	void class_get_method(ClassConstPtr cls, SnSymbol name, Method* out_method) {
+	void class_get_method(ClassConstPtr cls, Symbol name, Method* out_method) {
 		if (!class_lookup_method(cls, name, out_method)) {
-			snow_throw_exception_with_description("Class %s@%p does not contain a method or property named '%s'.", class_get_name(cls), cls.value(), snow_sym_to_cstr(name));
+			throw_exception_with_description("Class %s@%p does not contain a method or property named '%s'.", class_get_name(cls), cls.value(), snow::sym_to_cstr(name));
 		}
 	}
 	
@@ -198,10 +198,10 @@ namespace snow {
 	}
 	
 	static bool class_define_method_or_property(ClassPtr cls, const Method& key) {
-		static const SnSymbol init_sym = snow_sym("initialize");
+		static const Symbol init_sym = snow::sym("initialize");
 		if (key.name == init_sym) {
 			if (key.type == MethodTypeProperty)
-				snow_throw_exception_with_description("Cannot define a property by the name 'initialize'.");
+				throw_exception_with_description("Cannot define a property by the name 'initialize'.");
 			cls->initialize = key.function;
 		}
 
@@ -213,22 +213,22 @@ namespace snow {
 		return false;
 	}
 	
-	ClassPtr _class_define_method(ClassPtr cls, SnSymbol name, VALUE function) {
+	ClassPtr _class_define_method(ClassPtr cls, Symbol name, VALUE function) {
 		Method key = { .name = name, .type = MethodTypeFunction, .function = function };
 		if (!class_define_method_or_property(cls, key)) {
-			snow_throw_exception_with_description("Method or property '%s' is already defined in class %s@%p.", snow_sym_to_cstr(name), class_get_name(cls), (VALUE)cls);
+			throw_exception_with_description("Method or property '%s' is already defined in class %s@%p.", snow::sym_to_cstr(name), class_get_name(cls), (VALUE)cls);
 		}
 		return cls;
 	}
 	
-	ClassPtr _class_define_property(ClassPtr cls, SnSymbol name, VALUE getter, VALUE setter) {
+	ClassPtr _class_define_property(ClassPtr cls, Symbol name, VALUE getter, VALUE setter) {
 		Property* property = new Property;
 		property->getter = getter;
 		property->setter = setter;
 		Method key = { .name = name, .type = MethodTypeProperty, .property = property };
 		if (!class_define_method_or_property(cls, key)) {
 			delete property;
-			snow_throw_exception_with_description("Method or property '%s' is already defined in class %s@%p.", snow_sym_to_cstr(name), class_get_name(cls), (VALUE)cls);
+			throw_exception_with_description("Method or property '%s' is already defined in class %s@%p.", snow::sym_to_cstr(name), class_get_name(cls), (VALUE)cls);
 		}
 		return cls;
 	}
@@ -237,11 +237,11 @@ namespace snow {
 		static SnObject** root = NULL;
 		if (!root) {
 			// bootstrapping
-			SnObject* class_class = snow_gc_allocate_object(get_type<Class>());
+			SnObject* class_class = gc_allocate_object(get_type<Class>());
 			class_class->cls = class_class;
 			Class* priv = snow::object_get_private<Class>(class_class, get_type<Class>());
 			priv->instance_type = get_type<Class>();
-			root = snow_gc_create_root(class_class);
+			root = gc_create_root(class_class);
 			
 			SN_DEFINE_METHOD(class_class, "initialize", bindings::class_initialize);
 			SN_DEFINE_METHOD(class_class, "define_method", bindings::class_define_method);
@@ -254,17 +254,17 @@ namespace snow {
 		return *root;
 	}
 	
-	ObjectPtr<Class> create_class(SnSymbol name, ClassPtr super) {
+	ObjectPtr<Class> create_class(Symbol name, ClassPtr super) {
 		VALUE args[] = { super };
-		ObjectPtr<Class> cls = snow_create_object(get_class_class(), countof(args), args);
+		ObjectPtr<Class> cls = create_object(get_class_class(), countof(args), args);
 		cls->name = name;
 		cls->initialize = NULL;
 		cls->is_meta = false;
 		return cls;
 	}
 	
-	ObjectPtr<Class> create_class_for_type(SnSymbol name, const Type* type) {
-		ObjectPtr<Class> cls = snow_create_object_without_initialize(get_class_class());
+	ObjectPtr<Class> create_class_for_type(Symbol name, const Type* type) {
+		ObjectPtr<Class> cls = create_object_without_initialize(get_class_class());
 		cls->name = name;
 		cls->instance_type = type;
 		cls->super = NULL;
@@ -276,21 +276,17 @@ namespace snow {
 	ObjectPtr<Class> create_meta_class(ClassPtr super) {
 		ASSERT(is_class(super));
 		VALUE args[] = { super };
-		ObjectPtr<Class> cls = snow_create_object(get_class_class(), countof(args), args);
+		ObjectPtr<Class> cls = create_object(get_class_class(), countof(args), args);
 		ObjectPtr<Class> sup = super;
 		cls->name = sup->name;
 		cls->is_meta = true;
 		return cls;
 	}
-}
 
-CAPI {
-	using namespace snow;
-	
-	SnObject* snow_create_object_without_initialize(SnObject* klass) {
+	SnObject* create_object_without_initialize(SnObject* klass) {
 		ObjectPtr<Class> cls = klass;
 		ASSERT(cls != NULL); // klass is not a class!
-		SnObject* obj = snow_gc_allocate_object(cls->instance_type);
+		SnObject* obj = gc_allocate_object(cls->instance_type);
 		obj->cls = cls;
 		obj->type = cls->instance_type;
 		obj->num_alloc_members = 0;
@@ -298,16 +294,16 @@ CAPI {
 		return obj;
 	}
 	
-	SnObject* snow_create_object(SnObject* cls, size_t num_constructor_args, VALUE* args) {
+	SnObject* create_object(SnObject* cls, size_t num_constructor_args, VALUE* args) {
 		SnArguments arguments = {
 			.size = num_constructor_args,
 			.data = args,
 		};
-		return snow_create_object_with_arguments(cls, &arguments);
+		return create_object_with_arguments(cls, &arguments);
 	}
 	
-	SnObject* snow_create_object_with_arguments(SnObject* cls, const SnArguments* args) {
-		SnObject* obj = snow_create_object_without_initialize(cls);
+	SnObject* create_object_with_arguments(SnObject* cls, const SnArguments* args) {
+		SnObject* obj = create_object_without_initialize(cls);
 		// TODO: Consider how to call superclass initializers
 		VALUE initialize = class_get_initialize(cls);
 		if (initialize) {

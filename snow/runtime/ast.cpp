@@ -4,31 +4,24 @@ using namespace snow;
 
 static void inprintf(int indent, const char* fmt, ...);
 
-/*
-	Public API
-*/
-CAPI void snow_ast_free(SnAST* _ast) {
-	AST* ast = (AST*)_ast;
-	delete ast;
-}
-
-CAPI SnAST* snow_ast_copy(SnAST* ast) {
-	TRAP(); // NIY
-	return NULL;
-}
-
-
-/*
-	Private API
-*/
 namespace snow {
-	void AST::free(SnAstNode* node, bool recursive) {
+	void ast_free(ASTBase* _ast) {
+		AST* ast = (AST*)_ast;
+		delete ast;
+	}
+
+	ASTBase* ast_copy(ASTBase* ast) {
+		TRAP(); // NIY
+		return NULL;
+	}
+	
+	void AST::free(ASTNode* node, bool recursive) {
 		if (node && recursive) {
 			switch (node->type) {
 				case SN_AST_SEQUENCE: {
-					SnAstNode* x = node->sequence.head;
+					ASTNode* x = node->sequence.head;
 					while (x) {
-						SnAstNode* next = x->next;
+						ASTNode* next = x->next;
 						this->free(x);
 						x = next;
 					}
@@ -103,17 +96,17 @@ namespace snow {
 		_heap.free(node);
 	}
 	
-	void AST::print(SnAstNode* n, int indent) const {
+	void AST::print(ASTNode* n, int indent) const {
 		print_r(n ? n : _root, indent);
 	}
 	
-	void AST::print_r(SnAstNode* n, int indent) const {
+	void AST::print_r(ASTNode* n, int indent) const {
 		if (!n) inprintf(indent, "<NULL>\n");
 		
 		switch (n->type) {
 			case SN_AST_SEQUENCE: {
 				inprintf(indent, "SEQUENCE: ");
-				SnAstNode* x = n->sequence.head;
+				ASTNode* x = n->sequence.head;
 				if (x) printf("\n");
 				else printf("<EMPTY>\n");
 				while (x) {
@@ -128,11 +121,11 @@ namespace snow {
 			}
 			case SN_AST_CLOSURE: {
 				inprintf(indent, "CLOSURE: (");
-				SnAstNode* params = n->closure.parameters;
+				ASTNode* params = n->closure.parameters;
 				if (params) {
-					for (SnAstNode* x = params->sequence.head; x; x = x->next) {
+					for (ASTNode* x = params->sequence.head; x; x = x->next) {
 						ASSERT(x->type == SN_AST_PARAMETER);
-						printf("%s%s", snow_sym_to_cstr(x->parameter.name), x->next == NULL ? "" : ", ");
+						printf("%s%s", snow::sym_to_cstr(x->parameter.name), x->next == NULL ? "" : ", ");
 					}
 				}
 				printf(")\n");
@@ -152,7 +145,7 @@ namespace snow {
 				}
 				break;
 			}
-			case SN_AST_IDENTIFIER: { inprintf(indent, "IDENTIFIER: %s\n", snow_sym_to_cstr(n->identifier.name)); break; }
+			case SN_AST_IDENTIFIER: { inprintf(indent, "IDENTIFIER: %s\n", snow::sym_to_cstr(n->identifier.name)); break; }
 			case SN_AST_BREAK: { inprintf(indent, "BREAK\n"); break; }
 			case SN_AST_CONTINUE: { inprintf(indent, "CONTINUE\n"); break; }
 			case SN_AST_SELF: { inprintf(indent, "SELF\n"); break; }
@@ -168,14 +161,14 @@ namespace snow {
 			}
 			case SN_AST_METHOD: {
 				inprintf(indent, "METHOD:\n");
-				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->method.name));
+				inprintf(indent+1, "NAME: %s\n", snow::sym_to_cstr(n->method.name));
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->method.object, indent+2);
 				break;
 			}
 			case SN_AST_INSTANCE_VARIABLE: {
 				inprintf(indent, "INSTANCE VARIABLE:\n");
-				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->instance_variable.name));
+				inprintf(indent+1, "NAME: %s\n", snow::sym_to_cstr(n->instance_variable.name));
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->instance_variable.object, indent+2);
 				break;
@@ -188,7 +181,7 @@ namespace snow {
 				if (n->call.args) {
 					printf(" \n");
 					int i = 0;
-					for (SnAstNode* x = n->call.args->sequence.head; x; x = x->next) {
+					for (ASTNode* x = n->call.args->sequence.head; x; x = x->next) {
 						inprintf(indent+2, "ARG %d:\n", i++);
 						print_r(x, indent+3);
 					}
@@ -204,7 +197,7 @@ namespace snow {
 				inprintf(indent+1, "ARGUMENTS:\n");
 				if (n->association.args) {
 					int i = 0;
-					for (SnAstNode* x = n->association.args->sequence.head; x; x = x->next) {
+					for (ASTNode* x = n->association.args->sequence.head; x; x = x->next) {
 						inprintf(indent+2, "ARG %d:\n", i++);
 						print_r(x, indent+3);
 					}
@@ -213,7 +206,7 @@ namespace snow {
 			}
 			case SN_AST_NAMED_ARGUMENT: {
 				inprintf(indent, "NAMED ARGUMENT:\n");
-				inprintf(indent+1, "NAME: %s\n", snow_sym_to_cstr(n->named_argument.name));
+				inprintf(indent+1, "NAME: %s\n", snow::sym_to_cstr(n->named_argument.name));
 				inprintf(indent+1, "VALUE:\n");
 				print_r(n->named_argument.expr, indent+2);
 				break;

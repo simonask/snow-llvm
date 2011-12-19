@@ -16,12 +16,12 @@ namespace snow {
 	
 	struct FunctionDescriptor {
 		FunctionPtr ptr;
-		SnSymbol name;
-		SnValueType return_type;
+		Symbol name;
+		ValueType return_type;
 		size_t num_params;
-		SnValueType* param_types;
-		SnSymbol* param_names;
-		SnSymbol* local_names;
+		ValueType* param_types;
+		Symbol* param_names;
+		Symbol* local_names;
 		uint32_t num_locals; // num_locals >= num_params (locals include arguments)
 		size_t num_variable_references;
 		VariableReference* variable_references;

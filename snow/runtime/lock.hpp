@@ -9,10 +9,10 @@ namespace snow {
 		const SnObject* object;
 		
 		ScopedGCReadLock(const SnObject* object) : object(object) {
-			snow_gc_rdlock(object, &object);
+			gc_rdlock(object, &object);
 		}
 		~ScopedGCReadLock() {
-			snow_gc_unlock(object);
+			gc_unlock(object);
 		}
 	};
 	
@@ -20,10 +20,10 @@ namespace snow {
 		const SnObject* object;
 		
 		ScopedGCWriteLock(const SnObject* object) : object(object) {
-			snow_gc_wrlock(object, &object);
+			gc_wrlock(object, &object);
 		}
 		~ScopedGCWriteLock() {
-			snow_gc_unlock(object);
+			gc_unlock(object);
 		}
 	};
 }

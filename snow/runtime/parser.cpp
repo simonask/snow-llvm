@@ -1,4 +1,4 @@
-#include "snow/parser.h"
+#include "snow/parser.hpp"
 #include "snow/symbol.hpp"
 #include "snow/numeric.hpp"
 #include "snow/str.hpp"
@@ -18,7 +18,7 @@
 #define GET_TOKEN_SZ(SZ, TOKEN) char* SZ = (char*)alloca((TOKEN)->length+1); memcpy(SZ, (TOKEN)->begin, (TOKEN)->length); (SZ)[(TOKEN)->length] = '\0'
 
 #define FIRST_MATCH(BLOCK) do BLOCK while(0)
-#define MATCH(RULE) { Pos p = pos; SnAstNode* r = RULE(p); if (r) { result = r; pos = p; break; } }
+#define MATCH(RULE) { Pos p = pos; ASTNode* r = RULE(p); if (r) { result = r; pos = p; break; } }
 
 #define PARSER_DEBUG 0
 
@@ -43,47 +43,47 @@ namespace snow {
 	private:
 		void error(Pos error_pos, const char* message, ...);
 		
-		SnAstNode* sequence(Pos&);
-		SnAstNode* statement(Pos&);
-		SnAstNode* expression(Pos&);
-		SnAstNode* expression_no_assign(Pos&);
-		SnAstNode* control(Pos&);
-		SnAstNode* operation(Pos&);
-		SnAstNode* operand(Pos&);
-		SnAstNode* operand_with_unary(Pos&);
-		SnAstNode* assignment(Pos&);
-		SnAstNode* assign_target(Pos&);
-		SnAstNode* assign_values(Pos&);
-		SnAstNode* lvalue(Pos&);
-		SnAstNode* lvalues(Pos&);
-		SnAstNode* postcondition(Pos&);
-		SnAstNode* postloop(Pos&);
-		SnAstNode* condition(Pos&);
-		SnAstNode* loop(Pos&);
-		SnAstNode* atomic_expression(Pos&);
-		SnAstNode* chain(Pos&);
-		SnAstNode* chainable(Pos&);
-		SnAstNode* call(Pos&);
-		SnAstNode* method(Pos&);
-		SnAstNode* instance_variable(Pos&);
-		SnAstNode* argument_list(Pos&);
-		SnAstNode* argument(Pos&);
-		SnAstNode* named_argument(Pos&);
-		SnAstNode* association_key_list(Pos&);
-		SnAstNode* closure(Pos&);
-		SnAstNode* parameter_list(Pos&);
-		SnAstNode* parameter(Pos&);
-		SnAstNode* identifier(Pos&);
-		SnAstNode* literal(Pos&);
-		SnAstNode* symbol(Pos&);
-		SnAstNode* self(Pos&);
-		SnAstNode* it(Pos&);
-		SnAstNode* here(Pos&);
+		ASTNode* sequence(Pos&);
+		ASTNode* statement(Pos&);
+		ASTNode* expression(Pos&);
+		ASTNode* expression_no_assign(Pos&);
+		ASTNode* control(Pos&);
+		ASTNode* operation(Pos&);
+		ASTNode* operand(Pos&);
+		ASTNode* operand_with_unary(Pos&);
+		ASTNode* assignment(Pos&);
+		ASTNode* assign_target(Pos&);
+		ASTNode* assign_values(Pos&);
+		ASTNode* lvalue(Pos&);
+		ASTNode* lvalues(Pos&);
+		ASTNode* postcondition(Pos&);
+		ASTNode* postloop(Pos&);
+		ASTNode* condition(Pos&);
+		ASTNode* loop(Pos&);
+		ASTNode* atomic_expression(Pos&);
+		ASTNode* chain(Pos&);
+		ASTNode* chainable(Pos&);
+		ASTNode* call(Pos&);
+		ASTNode* method(Pos&);
+		ASTNode* instance_variable(Pos&);
+		ASTNode* argument_list(Pos&);
+		ASTNode* argument(Pos&);
+		ASTNode* named_argument(Pos&);
+		ASTNode* association_key_list(Pos&);
+		ASTNode* closure(Pos&);
+		ASTNode* parameter_list(Pos&);
+		ASTNode* parameter(Pos&);
+		ASTNode* identifier(Pos&);
+		ASTNode* literal(Pos&);
+		ASTNode* symbol(Pos&);
+		ASTNode* self(Pos&);
+		ASTNode* it(Pos&);
+		ASTNode* here(Pos&);
 		
-		SnAstNode* parse_post_terms(Pos&, SnAstNode* for_expr); // postconditions and postloops
+		ASTNode* parse_post_terms(Pos&, ASTNode* for_expr); // postconditions and postloops
 		bool skip_end_of_statement(Pos&);
 		
-		SnAstNode* reduce_operation(SnAstNode* a, SnAstNode* b, Pos op);
+		ASTNode* reduce_operation(ASTNode* a, ASTNode* b, Pos op);
 	private:
 		class PrecedenceParser;
 		friend class PrecedenceParser;
@@ -100,14 +100,14 @@ namespace snow {
 		typedef std::pair<Token::Type, Parser::Pos> Op;
 		Parser* parser;
 		std::vector<Op> operators;
-		std::vector<SnAstNode*> operands;
+		std::vector<ASTNode*> operands;
 		
-		PrecedenceParser(Parser* parser, SnAstNode* first) : parser(parser) {
+		PrecedenceParser(Parser* parser, ASTNode* first) : parser(parser) {
 			operands.push_back(first);
 			operators.push_back(Op(Token::INVALID, Parser::Pos()));
 		}
 		
-		void push_operand(SnAstNode* a) {
+		void push_operand(ASTNode* a) {
 			operands.push_back(a);
 		}
 		
@@ -118,18 +118,18 @@ namespace snow {
 			operators.push_back(Op(pos->type, pos));
 		}
 		void pop_operator() {
-			SnAstNode* b = operands.back();
+			ASTNode* b = operands.back();
 			operands.pop_back();
-			SnAstNode* a = operands.back();
+			ASTNode* a = operands.back();
 			operands.pop_back();
 			Parser::Pos op = operators.back().second;
 			operators.pop_back();
 			
-			SnAstNode* reduced = parser->reduce_operation(a, b, op);
+			ASTNode* reduced = parser->reduce_operation(a, b, op);
 			operands.push_back(reduced);
 		}
 		
-		SnAstNode* reduce() {
+		ASTNode* reduce() {
 			while (operands.size() > 1) { pop_operator(); }
 			return operands.back();
 		}
@@ -164,7 +164,7 @@ namespace snow {
 		ast = new AST;
 		ast->set_root(NULL);
 		if (!setjmp(_error_handler)) {
-			SnAstNode* seq = sequence(_pos);
+			ASTNode* seq = sequence(_pos);
 			if (_pos->type != Token::END_OF_FILE) {
 				error(_pos, "Expected END_OF_FILE, got '%s'!", get_token_name(_pos->type));
 			}
@@ -206,25 +206,25 @@ namespace snow {
 		longjmp(_error_handler, 1);
 	}
 	
-	SnAstNode* Parser::sequence(Pos& pos) {
+	ASTNode* Parser::sequence(Pos& pos) {
 		/*
 			sequence := separator* statement*;
 		*/
 		while (skip_end_of_statement(pos));
-		SnAstNode* seq = ast->sequence();
+		ASTNode* seq = ast->sequence();
 		while (!pos.at_end()) {
-			SnAstNode* s = statement(pos);
+			ASTNode* s = statement(pos);
 			if (s) ast->sequence_push(seq, s);
 			else break;
 		}
 		MATCH_SUCCESS(seq);
 	}
 	
-	SnAstNode* Parser::statement(Pos& pos) {
+	ASTNode* Parser::statement(Pos& pos) {
 		/*
 			statement := (expression | control) separator*;
 		*/
-		SnAstNode* result = NULL;
+		ASTNode* result = NULL;
 		FIRST_MATCH({
 			MATCH(expression);
 			MATCH(control);
@@ -233,11 +233,11 @@ namespace snow {
 		MATCH_SUCCESS(result);
 	}
 	
-	SnAstNode* Parser::expression(Pos& pos) {
+	ASTNode* Parser::expression(Pos& pos) {
 		/*
 			expression := (assignment | operation) (postcondition | postloop)*;
 		*/
-		SnAstNode* result = NULL;
+		ASTNode* result = NULL;
 		FIRST_MATCH({
 			MATCH(assignment);
 			MATCH(operation);
@@ -248,11 +248,11 @@ namespace snow {
 		MATCH_SUCCESS(result);
 	}
 	
-	SnAstNode* Parser::expression_no_assign(Pos& pos) {
+	ASTNode* Parser::expression_no_assign(Pos& pos) {
 		/*
 			expression_no_assign := operation (postcondition | postloop)*;
 		*/
-		SnAstNode* expr = operation(pos);
+		ASTNode* expr = operation(pos);
 		if (expr) {
 			expr = parse_post_terms(pos, expr);
 			MATCH_SUCCESS(expr);
@@ -260,22 +260,22 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::control(Pos& pos) {
+	ASTNode* Parser::control(Pos& pos) {
 		/*
 			control := (return | BREAK | CONTINUE) postcondition?;
 			return := RETURN operand;
 		*/
-		SnAstNode* result = NULL;
+		ASTNode* result = NULL;
 		if (pos->type == Token::BREAK) { result = ast->break_(); ++pos; }
 		else if (pos->type == Token::CONTINUE) { result = ast->continue_(); ++pos; }
 		else if (pos->type == Token::RETURN) {
 			++pos;
-			SnAstNode* v = operand(pos);
+			ASTNode* v = operand(pos);
 			result = ast->return_(v);
 		}
 		
 		if (result) {
-			SnAstNode* postcond = postcondition(pos);
+			ASTNode* postcond = postcondition(pos);
 			if (postcond) {
 				postcond->if_else.body = result;
 				result = postcond;
@@ -285,12 +285,12 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::operation(Pos& pos) {
+	ASTNode* Parser::operation(Pos& pos) {
 		/*
 			operation := operand (operator operand)*;
 		*/
 		Pos p = pos;
-		SnAstNode* a = operand_with_unary(p);
+		ASTNode* a = operand_with_unary(p);
 		
 		if (a) {
 			PrecedenceParser prec(this, a);
@@ -312,12 +312,12 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::operand(Pos& pos) {
+	ASTNode* Parser::operand(Pos& pos) {
 		/*
 			operand :=  operator? (condition | loop | chain | atomic_expression);
 		*/
 		
-		SnAstNode* result = NULL;
+		ASTNode* result = NULL;
 		FIRST_MATCH({
 			MATCH(condition);
 			MATCH(loop);
@@ -329,13 +329,13 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::operand_with_unary(Pos& pos) {
+	ASTNode* Parser::operand_with_unary(Pos& pos) {
 		Pos p = pos;
 		Token::Type type = p->type;
 		if (is_operator(type) || type == Token::LOG_NOT) {
 			GET_TOKEN_SZ(data, p);
 			++p;
-			SnAstNode* a = operand(p);
+			ASTNode* a = operand(p);
 			if (!a) {
 				error(p, "Expected operand for unary operator, got %s.", get_token_name(p->type));
 				MATCH_FAILED();
@@ -343,14 +343,14 @@ namespace snow {
 			pos = p;
 			if (type == Token::LOG_NOT)
 				return ast->logic_not(a);
-			return ast->call(ast->method(a, snow_sym(data)), NULL);
+			return ast->call(ast->method(a, snow::sym(data)), NULL);
 		}
 		return operand(pos);
 	}
 	
-	SnAstNode* Parser::assign_target(Pos& pos) {
+	ASTNode* Parser::assign_target(Pos& pos) {
 		Pos p = pos;
-		SnAstNode* lvs = lvalues(p);
+		ASTNode* lvs = lvalues(p);
 		if (lvs && p->type == Token::ASSIGN) {
 			pos = ++p;
 			MATCH_SUCCESS(ast->assign(lvs, NULL));
@@ -358,11 +358,11 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::assign_values(Pos& pos) {
+	ASTNode* Parser::assign_values(Pos& pos) {
 		Pos p = pos;
-		SnAstNode* a = operation(p);
+		ASTNode* a = operation(p);
 		if (a) {
-			SnAstNode* seq = ast->sequence(1, a);
+			ASTNode* seq = ast->sequence(1, a);
 			while (p->type == Token::COMMA) {
 				++p;
 				a = operation(p);
@@ -375,22 +375,22 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::assignment(Pos& pos) {
+	ASTNode* Parser::assignment(Pos& pos) {
 		/*
 			assignment := (lvalues ':')+ operation (',' operation)*;
 		*/
 		Pos p = pos;
-		SnAstNode* result = assign_target(p);
+		ASTNode* result = assign_target(p);
 		if (result) {
-			SnAstNode* last_assign = result;
-			SnAstNode* assign = assign_target(p);
+			ASTNode* last_assign = result;
+			ASTNode* assign = assign_target(p);
 			while (assign) {
 				last_assign->assign.value = assign;
 				last_assign = assign;
 				assign = assign_target(p);
 			}
 			
-			SnAstNode* values = assign_values(p);
+			ASTNode* values = assign_values(p);
 			if (values) {
 				last_assign->assign.value = values;
 			} else {
@@ -401,26 +401,26 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::lvalue(Pos& pos) {
+	ASTNode* Parser::lvalue(Pos& pos) {
 		/*
 			lvalue := association | instance_variable | identifier | method;
 			
 			TODO:
 			lvalue := chain_that_doesnt_end_with_call | identifier;
 		*/
-		SnAstNode* result = chain(pos);
+		ASTNode* result = chain(pos);
 		if (result) MATCH_SUCCESS(result);
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::lvalues(Pos& pos) {
+	ASTNode* Parser::lvalues(Pos& pos) {
 		/*
 			lvalues := lvalue (',' lvalue)*;
 		*/
 		
-		SnAstNode* lv = lvalue(pos);
+		ASTNode* lv = lvalue(pos);
 		if (lv) {
-			SnAstNode* seq = ast->sequence(1, lv);
+			ASTNode* seq = ast->sequence(1, lv);
 			while (pos->type == Token::COMMA) {
 				++pos;
 				lv = lvalue(pos);
@@ -435,11 +435,11 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::postcondition(Pos& pos) {
+	ASTNode* Parser::postcondition(Pos& pos) {
 		Token::Type type = pos->type;
 		if (type == Token::IF || type == Token::UNLESS) {
 			++pos;
-			SnAstNode* op = operation(pos);
+			ASTNode* op = operation(pos);
 			if (!op) {
 				error(pos, "Expected expression for postcondition, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
@@ -447,19 +447,19 @@ namespace snow {
 			if (type == Token::UNLESS) {
 				op = ast->logic_not(op);
 			}
-			SnAstNode* cond = ast->if_else(op, NULL, NULL);
+			ASTNode* cond = ast->if_else(op, NULL, NULL);
 			MATCH_SUCCESS(cond);
 		}
 		MATCH_FAILED();
 	}
-	SnAstNode* Parser::postloop(Pos& pos) {
+	ASTNode* Parser::postloop(Pos& pos) {
 		/*
 			postloop := (WHILE | UNTIL) operation;
 		*/
 		Token::Type type = pos->type;
 		if (type == Token::WHILE || type == Token::UNTIL) {
 			++pos;
-			SnAstNode* op = operation(pos);
+			ASTNode* op = operation(pos);
 			if (!op) {
 				error(pos, "Expected expression for postloop, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
@@ -472,18 +472,18 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::condition(Pos& pos) {
+	ASTNode* Parser::condition(Pos& pos) {
 		/*
 			basic_condition := (IF | UNLESS) operation (THEN | separator) sequence (ELSE separator sequence)? END
 			condition := (IF | UNLESS)
 		*/
 		
-		SnAstNode* toplevel_condition = NULL;
-		SnAstNode** place_last_here = &toplevel_condition;
+		ASTNode* toplevel_condition = NULL;
+		ASTNode** place_last_here = &toplevel_condition;
 		
 		while (pos->type == Token::IF || pos->type == Token::UNLESS) {
 			Token::Type type = pos->type;
-			SnAstNode* condition = operation(++pos);
+			ASTNode* condition = operation(++pos);
 			if (!condition) {
 				error(pos, "Expected expression for conditional, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
@@ -492,7 +492,7 @@ namespace snow {
 			
 			if (pos->type == Token::THEN || skip_end_of_statement(pos)) {
 				while (skip_end_of_statement(pos)); // skip additional ends
-				SnAstNode* body = sequence(pos);
+				ASTNode* body = sequence(pos);
 				
 				if (pos->type == Token::END) {
 					*place_last_here = ast->if_else(condition, body, NULL);
@@ -504,7 +504,7 @@ namespace snow {
 						*place_last_here = ast->if_else(condition, body, NULL);
 						place_last_here = &(*place_last_here)->if_else.else_body;
 					} else {
-						SnAstNode* else_body = sequence(++pos);
+						ASTNode* else_body = sequence(++pos);
 						if (pos->type != Token::END) {
 							error(pos, "Expected END of conditional, got %s.", get_token_name(pos->type));
 							MATCH_FAILED();
@@ -525,13 +525,13 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::loop(Pos& pos) {
+	ASTNode* Parser::loop(Pos& pos) {
 		/*
 			loop := (WHILE | UNTIL) operation (DO | separator) sequence END;
 		*/
 		Token::Type type = pos->type;
 		if (type == Token::WHILE || type == Token::UNTIL) {
-			SnAstNode* op = operation(++pos);
+			ASTNode* op = operation(++pos);
 			if (!op) {
 				error(pos, "Expected expression for loop condition, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
@@ -540,10 +540,10 @@ namespace snow {
 			
 			if (pos->type == Token::DO || skip_end_of_statement(pos)) {
 				while (skip_end_of_statement(pos)); // skip additional ends
-				SnAstNode* body = sequence(pos);
+				ASTNode* body = sequence(pos);
 				if (pos->type == Token::END) {
 					++pos;
-					SnAstNode* loop = ast->loop(op, body);
+					ASTNode* loop = ast->loop(op, body);
 					MATCH_SUCCESS(loop);
 				} else {
 					error(pos, "Expected END, got %s.", get_token_name(pos->type));
@@ -557,12 +557,12 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::atomic_expression(Pos& pos) {
+	ASTNode* Parser::atomic_expression(Pos& pos) {
 		/*
 			atomic_expression := literal | instance_variable | self | it | here | identifier | closure | '(' expression ')';
 		*/
 		
-		SnAstNode* result = NULL;
+		ASTNode* result = NULL;
 		FIRST_MATCH({
 			MATCH(literal);
 			MATCH(instance_variable);
@@ -592,27 +592,27 @@ namespace snow {
 		MATCH_SUCCESS(result);
 	}
 	
-	SnAstNode* Parser::instance_variable(Pos& pos){
+	ASTNode* Parser::instance_variable(Pos& pos){
 		if (pos->type == Token::DOLLAR) {
 			++pos;
-			SnAstNode* id = identifier(pos);
+			ASTNode* id = identifier(pos);
 			if (!id) {
 				error(pos, "Expected identifier for name of instance variable, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
 			}
-			SnSymbol sym = id->identifier.name;
+			Symbol sym = id->identifier.name;
 			ast->free(id);
 			MATCH_SUCCESS(ast->instance_variable(ast->self(), sym));
 		}
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::chain(Pos& pos) {
+	ASTNode* Parser::chain(Pos& pos) {
 		/*
 			chain := (call | instance_variable | method | association)+;
 		*/
 		Pos p = pos;
-		SnAstNode* result = atomic_expression(p);
+		ASTNode* result = atomic_expression(p);
 		if (!result && p->type == Token::DOT)
 			result = ast->self();
 		
@@ -623,21 +623,21 @@ namespace snow {
 					++p;
 					if (p->type == Token::DOLLAR) {
 						++p;
-						SnAstNode* id = identifier(p);
+						ASTNode* id = identifier(p);
 						if (!id) {
 							error(p, "Expected identifier for name of instance variable, got %s.", get_token_name(p->type));
 							MATCH_FAILED();
 						}
-						SnSymbol sym = id->identifier.name;
+						Symbol sym = id->identifier.name;
 						ast->free(id);
 						result = ast->instance_variable(result, sym);
 					} else {
-						SnAstNode* id = identifier(p);
+						ASTNode* id = identifier(p);
 						if (!id) {
 							error(p, "Expected identifier as right hand of dot operator, got %s.", get_token_name(p->type));
 							MATCH_FAILED();
 						}
-						SnSymbol sym = id->identifier.name;
+						Symbol sym = id->identifier.name;
 						ast->free(id);
 						result = ast->method(result, sym);
 					}
@@ -647,7 +647,7 @@ namespace snow {
 					// closure call without parameters
 				case Token::PARENS_BEGIN: {
 					// regular call
-					SnAstNode* arg_list = argument_list(p);
+					ASTNode* arg_list = argument_list(p);
 					if (!arg_list) {
 						error(p, "Expected argument list for method call, got %s.", get_token_name(p->type));
 						MATCH_FAILED();
@@ -657,12 +657,12 @@ namespace snow {
 				}
 				case Token::BRACKET_BEGIN: {
 					// either association, or closure call with parameters
-					SnAstNode* block = closure(p);
+					ASTNode* block = closure(p);
 					if (block) {
 						result = ast->call(result, ast->sequence(1, block));
 						break;
 					}
-					SnAstNode* assoc_key = association_key_list(p);
+					ASTNode* assoc_key = association_key_list(p);
 					if (!assoc_key) {
 						error(p, "Expected closure call or dictionary key, got %s.", get_token_name(p->type));
 						MATCH_FAILED();
@@ -680,18 +680,18 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::argument_list(Pos& pos) {
+	ASTNode* Parser::argument_list(Pos& pos) {
 		/*
 			argument_list := closure | ('(' (argument (',' argument)*)? ')' closure?);
 		*/
-		SnAstNode* result = closure(pos);
+		ASTNode* result = closure(pos);
 		if (result) MATCH_SUCCESS(ast->sequence(1, result));
 		
 		Pos p = pos;
 		if (p->type == Token::PARENS_BEGIN) {
 			++p;
 			while (skip_end_of_statement(p));
-			SnAstNode* seq = ast->sequence();
+			ASTNode* seq = ast->sequence();
 			bool first = true;
 			while (p->type != Token::PARENS_END) {
 				if (!first) {
@@ -705,7 +705,7 @@ namespace snow {
 				}
 				first = false;
 				
-				SnAstNode* arg = argument(p);
+				ASTNode* arg = argument(p);
 				if (!arg) {
 					error(p, "Invalid function argument, got %s.", get_token_name(p->type));
 					MATCH_FAILED();
@@ -716,7 +716,7 @@ namespace snow {
 			ASSERT(p->type == Token::PARENS_END);
 			++p; // skip PARENS_END
 			
-			SnAstNode* block = closure(p);
+			ASTNode* block = closure(p);
 			if (block) ast->sequence_push(seq, block);
 			pos = p;
 			MATCH_SUCCESS(seq);
@@ -724,14 +724,14 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::argument(Pos& pos) {
+	ASTNode* Parser::argument(Pos& pos) {
 		/*
 			argument := named_argument | (operation (postcondition | postloop)*));
 		*/
-		SnAstNode* named_arg = named_argument(pos);
+		ASTNode* named_arg = named_argument(pos);
 		if (named_arg) MATCH_SUCCESS(named_arg);
 		
-		SnAstNode* expr = operation(pos);
+		ASTNode* expr = operation(pos);
 		if (expr) {
 			expr = parse_post_terms(pos, expr);
 			MATCH_SUCCESS(expr);
@@ -739,19 +739,19 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::named_argument(Pos& pos) {
+	ASTNode* Parser::named_argument(Pos& pos) {
 		/*
 			named_argument := identifier ':' expression_no_assign;
 		*/
 		Pos p = pos;
 			
-		SnAstNode* id = identifier(p);
+		ASTNode* id = identifier(p);
 		if (!id) MATCH_FAILED();
 		if (p->type != Token::ASSIGN) MATCH_FAILED();
 		++p;
-		SnAstNode* expr = expression_no_assign(p);
+		ASTNode* expr = expression_no_assign(p);
 		if (expr) {
-			SnSymbol name = id->identifier.name;
+			Symbol name = id->identifier.name;
 			ast->free(id);
 			pos = p;
 			MATCH_SUCCESS(ast->named_argument(name, expr));
@@ -760,14 +760,14 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::association_key_list(Pos& pos) {
+	ASTNode* Parser::association_key_list(Pos& pos) {
 		/*
 			association := association_target ('[' expression_no_assign (',' expression_no_assign)* ']')+
 		*/
 		if (pos->type == Token::BRACKET_BEGIN) {
 			++pos;
 			bool first = true;
-			SnAstNode* seq = ast->sequence();
+			ASTNode* seq = ast->sequence();
 			
 			while (pos->type != Token::BRACKET_END) {
 				if (!first) {
@@ -779,7 +779,7 @@ namespace snow {
 				}
 				first = false;
 				
-				SnAstNode* expr = expression_no_assign(pos);
+				ASTNode* expr = expression_no_assign(pos);
 				if (expr) {
 					ast->sequence_push(seq, expr);
 				} else {
@@ -796,16 +796,16 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::closure(Pos& pos) {
+	ASTNode* Parser::closure(Pos& pos) {
 		/*
 			closure := parameter_list? '{' sequence '}';
 		*/
 		Pos p = pos;
-		SnAstNode* params = parameter_list(p);
+		ASTNode* params = parameter_list(p);
 		if (p->type == Token::BRACE_BEGIN) {
 			// TODO: Save beginning position to give better error messages.
 			++p;
-			SnAstNode* body = sequence(p);
+			ASTNode* body = sequence(p);
 			if (p->type == Token::BRACE_END) {
 				++p;
 				pos = p;
@@ -820,14 +820,14 @@ namespace snow {
 		}
 	}
 	
-	SnAstNode* Parser::parameter_list(Pos& pos) {
+	ASTNode* Parser::parameter_list(Pos& pos) {
 		/*
 			parameter_list := '[' (parameter (',' parameter)*)? ']';
 		*/
 		Pos p = pos;
 		if (p->type == Token::BRACKET_BEGIN) {
 			++p;
-			SnAstNode* seq = ast->sequence();
+			ASTNode* seq = ast->sequence();
 			
 			bool first = true;
 			while (p->type != Token::BRACKET_END) {
@@ -840,7 +840,7 @@ namespace snow {
 				}
 				first = false;
 				
-				SnAstNode* param = parameter(p);
+				ASTNode* param = parameter(p);
 				if (param) {
 					ast->sequence_push(seq, param);
 				} else {
@@ -856,14 +856,14 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::parameter(Pos& pos) {
+	ASTNode* Parser::parameter(Pos& pos) {
 		/*
 			parameter := identifier (AS identifier)? (':' operation)?;
 		*/
 		Pos p = pos;
-		SnAstNode* id = identifier(p);
+		ASTNode* id = identifier(p);
 		if (!id) MATCH_FAILED();
-		SnAstNode* type_id = NULL;
+		ASTNode* type_id = NULL;
 		if (p->type == Token::AS) {
 			++p;
 			type_id = identifier(p);
@@ -873,7 +873,7 @@ namespace snow {
 			}
 		}
 		
-		SnAstNode* default_expr = NULL;
+		ASTNode* default_expr = NULL;
 		if (p->type == Token::ASSIGN) {
 			++p;
 			default_expr = operation(p);
@@ -884,24 +884,24 @@ namespace snow {
 		}
 		
 		pos = p;
-		SnSymbol name = id->identifier.name;
+		Symbol name = id->identifier.name;
 		ast->free(id);
 		MATCH_SUCCESS(ast->parameter(name, type_id, default_expr));
 	}
 	
-	SnAstNode* Parser::identifier(Pos& pos) {
+	ASTNode* Parser::identifier(Pos& pos) {
 		/*
 			identifier := IDENTIFIER;
 		*/
 		if (pos->type == Token::IDENTIFIER) {
 			GET_TOKEN_SZ(data, pos);
 			++pos;
-			MATCH_SUCCESS(ast->identifier(snow_sym(data)));
+			MATCH_SUCCESS(ast->identifier(snow::sym(data)));
 		}
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::literal(Pos& pos) {
+	ASTNode* Parser::literal(Pos& pos) {
 		/*
 			literal := nil | true | false | INTEGER | FLOAT | DQSTRING | SQSTRING | symbol;
 		*/
@@ -913,13 +913,13 @@ namespace snow {
 				GET_TOKEN_SZ(data, pos);
 				long long n = atoll(data);
 				++pos;
-				MATCH_SUCCESS(ast->literal(snow_integer_to_value(n)));
+				MATCH_SUCCESS(ast->literal(integer_to_value(n)));
 			}
 			case Token::FLOAT: {
 				GET_TOKEN_SZ(data, pos);
 				float f = strtof(data, NULL);
 				++pos;
-				MATCH_SUCCESS(ast->literal(snow_float_to_value(f)));
+				MATCH_SUCCESS(ast->literal(float_to_value(f)));
 			}
 			case Token::DQSTRING:
 				// TODO: Interpolation, escapes
@@ -933,16 +933,16 @@ namespace snow {
 		}
 	}
 	
-	SnAstNode* Parser::symbol(Pos& pos) {
+	ASTNode* Parser::symbol(Pos& pos) {
 		/*
 			symbol := '#' (identifier | SQSTRING | DQSTRING)
 		*/
 		
 		if (pos->type == Token::HASH) {
 			++pos;
-			SnAstNode* id = identifier(pos);
+			ASTNode* id = identifier(pos);
 			if (id) {
-				SnAstNode* sym = ast->literal(snow_symbol_to_value(id->identifier.name));
+				ASTNode* sym = ast->literal(snow::symbol_to_value(id->identifier.name));
 				ast->free(id);
 				MATCH_SUCCESS(sym);
 			}
@@ -951,21 +951,21 @@ namespace snow {
 				// TODO: Run-time conversion
 				GET_TOKEN_SZ(data, pos);
 				++pos;
-				MATCH_SUCCESS(ast->literal(snow_vsym(data)));
+				MATCH_SUCCESS(ast->literal(vsym(data)));
 			}
 			
 			if (is_operator(pos->type)) {
 				GET_TOKEN_SZ(data, pos);
 				++pos;
-				MATCH_SUCCESS(ast->literal(snow_vsym(data)));
+				MATCH_SUCCESS(ast->literal(vsym(data)));
 			}
 			
-			MATCH_SUCCESS(ast->identifier(snow_sym("#")));
+			MATCH_SUCCESS(ast->identifier(snow::sym("#")));
 		}
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::self(Pos& pos) {
+	ASTNode* Parser::self(Pos& pos) {
 		if (pos->type == Token::SELF) {
 			++pos;
 			MATCH_SUCCESS(ast->self());
@@ -973,7 +973,7 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::it(Pos& pos) {
+	ASTNode* Parser::it(Pos& pos) {
 		if (pos->type == Token::IT) {
 			++pos;
 			MATCH_SUCCESS(ast->it());
@@ -981,7 +981,7 @@ namespace snow {
 		MATCH_FAILED();
 	}
 	
-	SnAstNode* Parser::here(Pos& pos) {
+	ASTNode* Parser::here(Pos& pos) {
 		if (pos->type == Token::HERE) {
 			++pos;
 			MATCH_SUCCESS(ast->here());
@@ -990,9 +990,9 @@ namespace snow {
 	}
 	
 	
-	SnAstNode* Parser::parse_post_terms(Pos& pos, SnAstNode* expr) {
+	ASTNode* Parser::parse_post_terms(Pos& pos, ASTNode* expr) {
 		while (true) {
-			SnAstNode* result = NULL;
+			ASTNode* result = NULL;
 			FIRST_MATCH({
 				MATCH(postcondition);
 				MATCH(postloop);
@@ -1025,25 +1025,25 @@ namespace snow {
 		}
 	}
 	
-	SnAstNode* Parser::reduce_operation(SnAstNode* a, SnAstNode* b, Pos op) {
+	ASTNode* Parser::reduce_operation(ASTNode* a, ASTNode* b, Pos op) {
 		switch (op->type) {
 			case Token::LOG_AND: return ast->logic_and(a, b);
 			case Token::LOG_OR:  return ast->logic_or(a, b);
 			case Token::LOG_XOR: return ast->logic_xor(a, b);
 			default: {
 				GET_TOKEN_SZ(op_str, op);
-				return ast->call(ast->method(a, snow_sym(op_str)), ast->sequence(1, b));
+				return ast->call(ast->method(a, snow::sym(op_str)), ast->sequence(1, b));
 			}
 		}
 	}
+	
+	ASTBase* parse(const char* buffer) {
+		Lexer l(buffer);
+		l.tokenize();
+		Parser parser(l.begin());
+		AST* ast = parser.parse();
+		//ast->print();
+		return ast;
+	}
 }
 
-
-CAPI SnAST* snow_parse(const char* buffer) {
-	snow::Lexer l(buffer);
-	l.tokenize();
-	snow::Parser parser(l.begin());
-	snow::AST* ast = parser.parse();
-	//ast->print();
-	return ast;
-}

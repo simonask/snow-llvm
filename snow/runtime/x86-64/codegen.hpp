@@ -14,13 +14,13 @@ namespace snow {
 	class Codegen {
 	public:
 		Codegen(const CodegenSettings& settings) : _settings(settings) {}
-		bool compile_ast(const SnAST* ast);
+		bool compile_ast(const ASTBase* ast);
 		size_t compiled_size() const;
 		size_t materialize_at(byte* destination);
 		size_t get_offset_for_entry_descriptor() const;
 		
 		class Function;
-		std::vector<SnSymbol> module_globals;
+		std::vector<Symbol> module_globals;
 	private:
 		const CodegenSettings& _settings;
 		

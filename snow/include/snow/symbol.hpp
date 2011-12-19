@@ -5,28 +5,30 @@
 #include "snow/basic.h"
 #include "snow/value.hpp"
 
-typedef uint64_t SnSymbol;
+namespace snow {
+	typedef uint64_t Symbol;
 
-CAPI SnSymbol snow_sym(const char* str);
-CAPI const char* snow_sym_to_cstr(SnSymbol sym);
+	CAPI Symbol sym(const char* str);
+	CAPI const char* sym_to_cstr(Symbol sym);
 
-INLINE bool snow_is_symbol(VALUE val) {
-	return ((uintptr_t)val & SnValueTypeMask) == SnSymbolType;
+	INLINE bool is_symbol(VALUE val) {
+		return ((uintptr_t)val & ValueTypeMask) == SymbolType;
+	}
+
+	INLINE VALUE symbol_to_value(Symbol sym) {
+		return (VALUE)(sym << 4 | SymbolType);
+	}
+
+	INLINE Symbol value_to_symbol(VALUE val) {
+		ASSERT(is_symbol(val));
+		return (Symbol)((uintptr_t)val >> 4);
+	}
+
+	INLINE VALUE vsym(const char* str) {
+		return symbol_to_value(snow::sym(str));
+	}
 }
 
-INLINE VALUE snow_symbol_to_value(SnSymbol sym) {
-	return (VALUE)(sym << 4 | SnSymbolType);
-}
 
-INLINE SnSymbol snow_value_to_symbol(VALUE val) {
-	ASSERT(snow_is_symbol(val));
-	return (SnSymbol)((uintptr_t)val >> 4);
-}
-
-INLINE VALUE snow_vsym(const char* str) {
-	return snow_symbol_to_value(snow_sym(str));
-}
-
-CAPI struct SnObject* snow_get_symbol_class();
 
 #endif /* end of include guard: SYMBOL_H_RKFL2KE8 */

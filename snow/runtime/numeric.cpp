@@ -2,7 +2,7 @@
 #include "internal.h"
 #include "snow/boolean.hpp"
 #include "snow/class.hpp"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 #include "snow/function.hpp"
 #include "snow/object.hpp"
 #include "snow/snow.hpp"
@@ -13,176 +13,176 @@ using namespace snow;
 
 static VALUE numeric_add(const CallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
-	const bool is_self_int = snow_is_integer(self);
-	const bool is_it_int = snow_is_integer(it);
+	const bool is_self_int = is_integer(self);
+	const bool is_it_int = is_integer(it);
 	if (is_self_int && is_it_int) {
-		return snow_integer_to_value(snow_value_to_integer(self) + snow_value_to_integer(it));
+		return integer_to_value(value_to_integer(self) + value_to_integer(it));
 	} else {
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_float_to_value(a + b);
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return float_to_value(a + b);
 	}
 }
 
 static VALUE numeric_subtract(const CallFrame* here, VALUE self, VALUE it) {
-	const bool is_self_int = snow_is_integer(self);
+	const bool is_self_int = is_integer(self);
 	if (!it) {
 		// unary
-		if (is_self_int) return snow_integer_to_value(-snow_value_to_integer(self));
-		else return snow_float_to_value(-snow_value_to_float(self));
+		if (is_self_int) return integer_to_value(-value_to_integer(self));
+		else return float_to_value(-value_to_float(self));
 	} else {
 		// binary
-		const bool is_it_int = snow_is_integer(it);
+		const bool is_it_int = is_integer(it);
 		if (is_self_int && is_it_int) {
-			return snow_integer_to_value(snow_value_to_integer(self) - snow_value_to_integer(it));
+			return integer_to_value(value_to_integer(self) - value_to_integer(it));
 		} else {
-			float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-			float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-			return snow_float_to_value(a-b);
+			float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+			float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+			return float_to_value(a-b);
 		}
 	}
 }
 
 static VALUE numeric_multiply(const CallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
-	const SnValueType self_type = snow_type_of(self);
-	const SnValueType it_type = snow_type_of(it);
-	const bool is_self_int = self_type == SnIntegerType;
-	const bool is_it_int = it_type == SnIntegerType;
+	const ValueType self_type = type_of(self);
+	const ValueType it_type = type_of(it);
+	const bool is_self_int = self_type == IntegerType;
+	const bool is_it_int = it_type == IntegerType;
 	if (is_self_int && is_it_int) {
-		return snow_integer_to_value(snow_value_to_integer(self) * snow_value_to_integer(it));
+		return integer_to_value(value_to_integer(self) * value_to_integer(it));
 	} else {
 		// TODO: Automatic conversion?
-		if (!is_self_int && self_type != SnFloatType) return NULL;
-		if (!is_it_int && it_type != SnFloatType) return NULL;
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_float_to_value(a*b);
+		if (!is_self_int && self_type != FloatType) return NULL;
+		if (!is_it_int && it_type != FloatType) return NULL;
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return float_to_value(a*b);
 	}
 }
 
 static VALUE numeric_divide(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnValueType self_type = snow_type_of(self);
-	const SnValueType it_type = snow_type_of(it);
-	const bool is_self_int = self_type == SnIntegerType;
-	const bool is_it_int = it_type == SnIntegerType;
+	const ValueType self_type = type_of(self);
+	const ValueType it_type = type_of(it);
+	const bool is_self_int = self_type == IntegerType;
+	const bool is_it_int = it_type == IntegerType;
 	if (is_self_int && is_it_int) {
-		return snow_integer_to_value(snow_value_to_integer(self) / snow_value_to_integer(it));
+		return integer_to_value(value_to_integer(self) / value_to_integer(it));
 	} else {
 		// TODO: Automatic conversion?
-		if (!is_self_int && self_type != SnFloatType) return NULL;
-		if (!is_it_int && it_type != SnFloatType) return NULL;
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_float_to_value(a/b);
+		if (!is_self_int && self_type != FloatType) return NULL;
+		if (!is_it_int && it_type != FloatType) return NULL;
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return float_to_value(a/b);
 	}
 }
 
 static VALUE numeric_less_than(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnValueType self_type = snow_type_of(self);
-	const SnValueType it_type = snow_type_of(it);
-	const bool is_self_int = self_type == SnIntegerType;
-	const bool is_it_int = it_type == SnIntegerType;
+	const ValueType self_type = type_of(self);
+	const ValueType it_type = type_of(it);
+	const bool is_self_int = self_type == IntegerType;
+	const bool is_it_int = it_type == IntegerType;
 	if (is_self_int && is_it_int) {
-		return snow_boolean_to_value(snow_value_to_integer(self) < snow_value_to_integer(it));
+		return boolean_to_value(value_to_integer(self) < value_to_integer(it));
 	} else {
 		// TODO: Automatic conversion?
-		if (!is_self_int && self_type != SnFloatType) return NULL;
-		if (!is_it_int && it_type != SnFloatType) return NULL;
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_boolean_to_value(a < b);
+		if (!is_self_int && self_type != FloatType) return NULL;
+		if (!is_it_int && it_type != FloatType) return NULL;
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return boolean_to_value(a < b);
 	}
 }
 
 static VALUE numeric_less_than_or_equal(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnValueType self_type = snow_type_of(self);
-	const SnValueType it_type = snow_type_of(it);
-	const bool is_self_int = self_type == SnIntegerType;
-	const bool is_it_int = it_type == SnIntegerType;
+	const ValueType self_type = type_of(self);
+	const ValueType it_type = type_of(it);
+	const bool is_self_int = self_type == IntegerType;
+	const bool is_it_int = it_type == IntegerType;
 	if (is_self_int && is_it_int) {
-		return snow_boolean_to_value(snow_value_to_integer(self) <= snow_value_to_integer(it));
+		return boolean_to_value(value_to_integer(self) <= value_to_integer(it));
 	} else {
 		// TODO: Automatic conversion?
-		if (!is_self_int && self_type != SnFloatType) return NULL;
-		if (!is_it_int && it_type != SnFloatType) return NULL;
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_boolean_to_value(a <= b);
+		if (!is_self_int && self_type != FloatType) return NULL;
+		if (!is_it_int && it_type != FloatType) return NULL;
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return boolean_to_value(a <= b);
 	}
 }
 
 static VALUE numeric_greater_than(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnValueType self_type = snow_type_of(self);
-	const SnValueType it_type = snow_type_of(it);
-	const bool is_self_int = self_type == SnIntegerType;
-	const bool is_it_int = it_type == SnIntegerType;
+	const ValueType self_type = type_of(self);
+	const ValueType it_type = type_of(it);
+	const bool is_self_int = self_type == IntegerType;
+	const bool is_it_int = it_type == IntegerType;
 	if (is_self_int && is_it_int) {
-		return snow_boolean_to_value(snow_value_to_integer(self) > snow_value_to_integer(it));
+		return boolean_to_value(value_to_integer(self) > value_to_integer(it));
 	} else {
 		// TODO: Automatic conversion?
-		if (!is_self_int && self_type != SnFloatType) return NULL;
-		if (!is_it_int && it_type != SnFloatType) return NULL;
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_boolean_to_value(a > b);
+		if (!is_self_int && self_type != FloatType) return NULL;
+		if (!is_it_int && it_type != FloatType) return NULL;
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return boolean_to_value(a > b);
 	}
 }
 
 static VALUE numeric_greater_than_or_equal(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
-	const SnValueType self_type = snow_type_of(self);
-	const SnValueType it_type = snow_type_of(it);
-	const bool is_self_int = self_type == SnIntegerType;
-	const bool is_it_int = it_type == SnIntegerType;
+	const ValueType self_type = type_of(self);
+	const ValueType it_type = type_of(it);
+	const bool is_self_int = self_type == IntegerType;
+	const bool is_it_int = it_type == IntegerType;
 	if (is_self_int && is_it_int) {
-		return snow_boolean_to_value(snow_value_to_integer(self) >= snow_value_to_integer(it));
+		return boolean_to_value(value_to_integer(self) >= value_to_integer(it));
 	} else {
 		// TODO: Automatic conversion?
-		if (!is_self_int && self_type != SnFloatType) return NULL;
-		if (!is_it_int && it_type != SnFloatType) return NULL;
-		float a = is_self_int ? (float)snow_value_to_integer(self) : snow_value_to_float(self);
-		float b = is_it_int ? (float)snow_value_to_integer(it) : snow_value_to_float(it);
-		return snow_boolean_to_value(a >= b);
+		if (!is_self_int && self_type != FloatType) return NULL;
+		if (!is_it_int && it_type != FloatType) return NULL;
+		float a = is_self_int ? (float)value_to_integer(self) : value_to_float(self);
+		float b = is_it_int ? (float)value_to_integer(it) : value_to_float(it);
+		return boolean_to_value(a >= b);
 	}
 }
 
 static VALUE integer_complement(const CallFrame* here, VALUE self, VALUE it) {
-	if (!snow_is_integer(self)) return NULL;
-	return snow_integer_to_value(~snow_value_to_integer(self));
+	if (!is_integer(self)) return NULL;
+	return integer_to_value(~value_to_integer(self));
 }
 
 static VALUE integer_modulo(const CallFrame* here, VALUE self, VALUE it) {
-	if (!snow_is_integer(self)) return NULL;
-	if (!snow_is_integer(it)) {
-		snow_throw_exception_with_description("Error in modulo operation: %p is not an integer.", it);
+	if (!is_integer(self)) return NULL;
+	if (!is_integer(it)) {
+		throw_exception_with_description("Error in modulo operation: %p is not an integer.", it);
 		return NULL;
 	}
-	return snow_integer_to_value(snow_value_to_integer(self) % snow_value_to_integer(it));
+	return integer_to_value(value_to_integer(self) % value_to_integer(it));
 }
 
 static VALUE numeric_inspect(const CallFrame* here, VALUE self, VALUE it) {
-	if (snow_is_integer(self)) {
+	if (is_integer(self)) {
 		char buffer[100];
-		snprintf(buffer, 100, "%d", snow_value_to_integer(self));
+		snprintf(buffer, 100, "%d", value_to_integer(self));
 		return snow::create_string(buffer);
-	} else if (snow_is_float(self)) {
+	} else if (is_float(self)) {
 		char buffer[100];
-		snprintf(buffer, 100, "%f", snow_value_to_float(self));
+		snprintf(buffer, 100, "%f", value_to_float(self));
 		return snow::create_string(buffer);
 	}
 	return SN_NIL;
 }
 
-CAPI {
-SnObject* snow_get_numeric_class() {
+namespace snow {
+ObjectPtr<Class> get_numeric_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = create_class(snow_sym("Numeric"), NULL);
+		ObjectPtr<Class> cls = create_class(snow::sym("Numeric"), NULL);
 		SN_DEFINE_METHOD(cls, "+", numeric_add);
 		SN_DEFINE_METHOD(cls, "-", numeric_subtract);
 		SN_DEFINE_METHOD(cls, "*", numeric_multiply);
@@ -193,27 +193,27 @@ SnObject* snow_get_numeric_class() {
 		SN_DEFINE_METHOD(cls, ">=", numeric_greater_than_or_equal);
 		SN_DEFINE_METHOD(cls, "inspect", numeric_inspect);
 		SN_DEFINE_METHOD(cls, "to_string", numeric_inspect);
-		root = snow_gc_create_root(cls);
+		root = gc_create_root(cls);
 	}
 	return *root;
 }
 
-SnObject* snow_get_float_class() {
+ObjectPtr<Class> get_float_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = create_class(snow_sym("Float"), snow_get_numeric_class());
-		root = snow_gc_create_root(cls);
+		ObjectPtr<Class> cls = create_class(snow::sym("Float"), get_numeric_class());
+		root = gc_create_root(cls);
 	}
 	return *root;
 }
 
-SnObject* snow_get_integer_class() {
+ObjectPtr<Class> get_integer_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = create_class(snow_sym("Integer"), snow_get_numeric_class());
+		ObjectPtr<Class> cls = create_class(snow::sym("Integer"), get_numeric_class());
 		SN_DEFINE_METHOD(cls, "%", integer_modulo);
 		SN_DEFINE_METHOD(cls, "~", integer_complement);
-		root = snow_gc_create_root(cls);
+		root = gc_create_root(cls);
 	}
 	return *root;
 }

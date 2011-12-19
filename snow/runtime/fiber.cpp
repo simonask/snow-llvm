@@ -1,5 +1,5 @@
 #include "snow/fiber.hpp"
-#include "fiber-internal.h"
+#include "fiber-internal.hpp"
 #include "internal.h"
 #include "snow/util.hpp"
 #include "snow/type.hpp"
@@ -10,14 +10,11 @@
 #include "snow/gc.hpp"
 #include "snow/snow.hpp"
 #include "snow/str.hpp"
-#include "snow/vm.h"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 
 #include <pthread.h>
 #include <sys/mman.h>
 #include <setjmp.h>
-
-using namespace snow;
 
 namespace snow {
 	struct Fiber {
@@ -29,14 +26,14 @@ namespace snow {
 		CallFrame* current_frame;
 		jmp_buf context;
 		unsigned flags;
-		
+
 		Fiber() :
-			functor(NULL),
+		functor(NULL),
 			incoming_value(NULL),
 			stack(NULL),
 			suspended_stack_boundary(NULL),
 			current_frame(NULL),
-			flags(SnFiberNoFlags)
+			flags(FiberNoFlags)
 		{
 		}
 		~Fiber() {
@@ -44,229 +41,224 @@ namespace snow {
 				munmap(stack, SN_FIBER_STACK_SIZE);
 		}
 	};
-}
-	
-static	void fiber_gc_each_root(void* data, void(*callback)(VALUE* root)) {
+
+	static void fiber_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		// TODO: Scan stack
 	}
 
-SN_REGISTER_TYPE(Fiber, ((Type){ .data_size = sizeof(Fiber), .initialize = snow::construct<Fiber>, .finalize = snow::destruct<Fiber>, .copy = NULL, .gc_each_root = fiber_gc_each_root}))
+	SN_REGISTER_TYPE(Fiber, ((Type){ .data_size = sizeof(Fiber), .initialize = snow::construct<Fiber>, .finalize = snow::destruct<Fiber>, .copy = NULL, .gc_each_root = fiber_gc_each_root}))
 
-static pthread_key_t _current_fiber;
+		static pthread_key_t _current_fiber;
 
-static VALUE fiber_start(SnObject* fiber, SnObject* caller, VALUE data);
-static void fiber_return(SnObject* return_from, VALUE data);
-void snow_start_fiber(SnObject* fiber, SnObject* caller, VALUE data, SnFiberStartFunc start_func, SnFiberReturnFunc return_callback);
+	static VALUE fiber_start(FiberPtr fiber, FiberPtr caller, VALUE data);
+	static void fiber_return(FiberPtr return_from, VALUE data);
 
-CAPI SnObject* snow_get_current_fiber() {
-	SnObject** root = (SnObject**)pthread_getspecific(_current_fiber);
-	return *root;
-}
+	ObjectPtr<Fiber> get_current_fiber() {
+		SnObject** root = (SnObject**)pthread_getspecific(_current_fiber);
+		return *root;
+	}
 
-static void set_current_fiber(SnObject* fiber) {
-	SnObject** root = (SnObject**)pthread_getspecific(_current_fiber);
-	*root = fiber;
-}
+	static void set_current_fiber(FiberPtr fiber) {
+		SnObject** root = (SnObject**)pthread_getspecific(_current_fiber);
+		*root = fiber;
+	}
 
-CAPI void snow_init_fibers() {
-	pthread_key_create(&_current_fiber, NULL);
-	snow_fiber_begin_thread(); // init main thread
-}
+	void init_fibers() {
+		pthread_key_create(&_current_fiber, NULL);
+		fiber_begin_thread(); // init main thread
+	}
 
-CAPI void snow_fiber_begin_thread() {
-	SnObject** current_fiber_ptr = (SnObject**)pthread_getspecific(_current_fiber);
-	ASSERT(current_fiber_ptr == NULL);
-	current_fiber_ptr = snow_gc_create_root(NULL);
-	pthread_setspecific(_current_fiber, current_fiber_ptr);
-	
-	ObjectPtr<Fiber> fiber = snow_create_fiber(NULL);
-	fiber->flags = SnFiberIsRunning | SnFiberIsStarted;
-	*current_fiber_ptr = fiber;
-}
+	void fiber_begin_thread() {
+		SnObject** current_fiber_ptr = (SnObject**)pthread_getspecific(_current_fiber);
+		ASSERT(current_fiber_ptr == NULL);
+		current_fiber_ptr = gc_create_root(NULL);
+		pthread_setspecific(_current_fiber, current_fiber_ptr);
 
-CAPI void snow_fiber_end_thread() {
-	SnObject** root = (SnObject**)pthread_getspecific(_current_fiber);
-	ASSERT(root != NULL);
-	ASSERT(*root != NULL);
-	snow_gc_free_root(root);
-	pthread_setspecific(_current_fiber, NULL);
-}
+		ObjectPtr<Fiber> fiber = create_fiber(NULL);
+		fiber->flags = FiberIsRunning | FiberIsStarted;
+		*current_fiber_ptr = fiber;
+	}
 
-CAPI SnObject* snow_create_fiber(VALUE functor) {
-	ObjectPtr<Fiber> fiber = snow_create_object_without_initialize(snow_get_fiber_class());
-	fiber->functor = functor;
-	return fiber;
-}
+	void fiber_end_thread() {
+		SnObject** root = (SnObject**)pthread_getspecific(_current_fiber);
+		ASSERT(root != NULL);
+		ASSERT(*root != NULL);
+		gc_free_root(root);
+		pthread_setspecific(_current_fiber, NULL);
+	}
 
-static NO_INLINE byte* get_sp() {
-	void* foo = NULL;
-	byte* ptr = (byte*)&foo;
-	return ptr;
-}
+	ObjectPtr<Fiber> create_fiber(VALUE functor) {
+		ObjectPtr<Fiber> fiber = create_object_without_initialize(get_fiber_class());
+		fiber->functor = functor;
+		return fiber;
+	}
 
-static VALUE fiber_resume_internal(const ObjectPtr<Fiber>& fiber, VALUE incoming_value, bool update_link) {
-	ObjectPtr<Fiber> caller = snow_get_current_fiber();
-	if (caller == fiber) return incoming_value;
-	
-	ASSERT(fiber != NULL); // fiber is not a Fiber
-	
-	ASSERT(!(fiber->flags & SnFiberIsRunning)); // tried to resume an already resumed fiber
-	
-	volatile bool came_back = false;
-	
-	caller->flags &= ~SnFiberIsRunning;
-	jmp_buf* caller_context = &caller->context;
-	caller->suspended_stack_boundary = get_sp();
-	setjmp(*caller_context);
-	
-	if (came_back) {
-		caller->flags |= SnFiberIsRunning;
-		VALUE val = caller->incoming_value;
-		return val;
-	} else {
-		came_back = true;
+	static NO_INLINE byte* get_sp() {
+		void* foo = NULL;
+		byte* ptr = (byte*)&foo;
+		return ptr;
+	}
 
-		if (update_link && fiber->stack)
-			fiber->link = caller;
-			
-		if (fiber->flags & SnFiberIsStarted) {
-			fiber->incoming_value = incoming_value;
-			jmp_buf* fiber_context = &fiber->context;
-			set_current_fiber(fiber);
-			longjmp(*fiber_context, 1);
+	static VALUE fiber_resume_internal(FiberPtr fiber, VALUE incoming_value, bool update_link) {
+		ObjectPtr<Fiber> caller = get_current_fiber();
+		if (caller == fiber) return incoming_value;
+
+		ASSERT(fiber != NULL); // fiber is not a Fiber
+
+		ASSERT(!(fiber->flags & FiberIsRunning)); // tried to resume an already resumed fiber
+
+		volatile bool came_back = false;
+
+		caller->flags &= ~FiberIsRunning;
+		jmp_buf* caller_context = &caller->context;
+		caller->suspended_stack_boundary = get_sp();
+		setjmp(*caller_context);
+
+		if (came_back) {
+			caller->flags |= FiberIsRunning;
+			VALUE val = caller->incoming_value;
+			return val;
 		} else {
-			fiber->flags |= SnFiberIsStarted;
-			set_current_fiber(fiber);
-			snow_start_fiber(fiber, fiber->stack, caller, incoming_value, fiber_start, fiber_return);
+			came_back = true;
+
+			if (update_link && fiber->stack)
+				fiber->link = caller;
+
+			if (fiber->flags & FiberIsStarted) {
+				fiber->incoming_value = incoming_value;
+				jmp_buf* fiber_context = &fiber->context;
+				set_current_fiber(fiber);
+				longjmp(*fiber_context, 1);
+			} else {
+				fiber->flags |= FiberIsStarted;
+				set_current_fiber(fiber);
+				start_fiber(fiber, fiber->stack, caller, incoming_value, fiber_start, fiber_return);
+			}
+			ASSERT(false); // unreachable
+			return NULL;
 		}
-		ASSERT(false); // unreachable
-		return NULL;
 	}
-}
 
-CAPI VALUE snow_fiber_resume(SnObject* fiber, VALUE incoming_value) {
-	return fiber_resume_internal(fiber, incoming_value, true);
-}
-
-static VALUE fiber_start(SnObject* fiber_, SnObject* caller, VALUE incoming_value) {
-	VALUE functor = ObjectPtr<Fiber>(fiber_)->functor;
-	
-	VALUE args[] = { (VALUE)caller, incoming_value };
-	VALUE return_value = call(functor, NULL, 2, args);
-	
-	return return_value;
-}
-
-static void fiber_return(SnObject* return_from_, VALUE returned_value) {
-	ObjectPtr<Fiber> return_from = return_from_;
-	return_from->flags &= ~SnFiberIsStarted;
-	ObjectPtr<Fiber> link = return_from->link;
-	fiber_resume_internal(link, returned_value, false);
-	ASSERT(false);
-}
-
-CAPI CallFrame* snow_fiber_get_current_frame(const SnObject* fiber) {
-	return ObjectPtr<const Fiber>(fiber)->current_frame;
-}
-
-CAPI SnObject* snow_fiber_get_link(const SnObject* fiber) {
-	return ObjectPtr<const Fiber>(fiber)->link;
-}
-
-CAPI void snow_fiber_suspend_for_garbage_collection(SnObject* fiber) {
-	ObjectPtr<Fiber> f = fiber;
-	f->suspended_stack_boundary = get_sp();
-	setjmp(f->context); // bogus, never longjmp'ed to
-}
-
-//----------------------------------------------------------------------------
-
-CAPI void snow_push_call_frame(CallFrame* frame) {
-	ObjectPtr<Fiber> fiber = snow_get_current_fiber();
-	frame->caller = fiber->current_frame;
-	fiber->current_frame = frame;
-}
-
-CAPI void snow_pop_call_frame(CallFrame* frame) {
-	ObjectPtr<Fiber> fiber = snow_get_current_fiber();
-	ASSERT(fiber->current_frame == frame);
-	fiber->current_frame = fiber->current_frame->caller;
-	frame->caller = NULL;
-}
-
-//----------------------------------------------------------------------------
-
-static VALUE fiber_inspect(const CallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Fiber, inspect);
-	ObjectPtr<Fiber> fiber = self;
-	
-	VALUE functor = fiber->functor;
-	void* stack = fiber->stack;
-	
-	SnObject* inspected_functor = value_inspect(functor);
-	SnObject* result = string_format("[Fiber@%p stack:%p functor:", (VALUE)fiber, stack);
-	string_append(result, inspected_functor);
-	string_append_cstr(result, "]");
-	return result;
-}
-
-static VALUE fiber_resume(const CallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Fiber, resume);
-	SnObject* c = (SnObject*)self;
-	return snow_fiber_resume(c, it);
-}
-
-static VALUE fiber_is_running(const CallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Fiber, running);
-	ObjectPtr<Fiber> fiber = self;
-	bool is_running = (fiber->flags & SnFiberIsRunning) != 0;
-	return snow_boolean_to_value(is_running);
-}
-
-static bool _fiber_is_started(const ObjectPtr<const Fiber>& fiber) {
-	bool is_started = (fiber->flags & SnFiberIsStarted) != 0;
-	return is_started;
-}
-
-static VALUE fiber_is_started(const CallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Fiber, is_started);
-	return snow_boolean_to_value(_fiber_is_started(self));
-}
-
-
-static VALUE fiber_each(const CallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Fiber, each);
-	SnObject* f = (SnObject*)self;
-	bool is_started = _fiber_is_started(f);
-	VALUE first_result = snow_fiber_resume(f, NULL);
-	call(it, NULL, 1, &first_result);
-	while(_fiber_is_started(f)) {
-		VALUE result = snow_fiber_resume(f, NULL);
-		call(it, NULL, 1, &result);
+	VALUE fiber_resume(FiberPtr fiber, VALUE incoming_value) {
+		return fiber_resume_internal(fiber, incoming_value, true);
 	}
-	return SN_NIL;
-}
 
-static VALUE fiber_initialize(const CallFrame* here, VALUE self, VALUE it) {
-	SN_CHECK_CLASS(self, Fiber, initialize);
-	ObjectPtr<Fiber> fiber = self;
-	fiber->functor = it;
-	return self;
-}
+	static VALUE fiber_start(FiberPtr fiber, FiberPtr caller, VALUE incoming_value) {
+		VALUE functor = fiber->functor;
 
-CAPI SnObject* snow_get_fiber_class() {
-	static SnObject** root = NULL;
-	if (!root) {
-		SnObject* cls = create_class_for_type(snow_sym("Fiber"), snow::get_type<Fiber>());
-		SN_DEFINE_METHOD(cls, "initialize", fiber_initialize);
-		SN_DEFINE_METHOD(cls, "inspect", fiber_inspect);
-		SN_DEFINE_METHOD(cls, "to_string", fiber_inspect);
-		SN_DEFINE_METHOD(cls, "resume", fiber_resume);
-		SN_DEFINE_METHOD(cls, "__call__", fiber_resume);
-		SN_DEFINE_METHOD(cls, "each", fiber_each);
-		SN_DEFINE_PROPERTY(cls, "running?", fiber_is_running, NULL);
-		SN_DEFINE_PROPERTY(cls, "started?", fiber_is_started, NULL);
-		root = snow_gc_create_root(cls);
+		VALUE args[] = { caller.value(), incoming_value };
+		VALUE return_value = call(functor, NULL, 2, args);
+
+		return return_value;
 	}
-	return *root;
+
+	static void fiber_return(FiberPtr return_from, VALUE returned_value) {
+		return_from->flags &= ~FiberIsStarted;
+		ObjectPtr<Fiber> link = return_from->link;
+		fiber_resume_internal(link, returned_value, false);
+		ASSERT(false);
+	}
+
+	CallFrame* fiber_get_current_frame(FiberConstPtr fiber) {
+		return fiber->current_frame;
+	}
+
+	ObjectPtr<Fiber> fiber_get_link(FiberConstPtr fiber) {
+		return fiber->link;
+	}
+
+	void fiber_suspend_for_garbage_collection(FiberPtr f) {
+		f->suspended_stack_boundary = get_sp();
+		setjmp(f->context); // bogus, never longjmp'ed to
+	}
+
+
+	void push_call_frame(CallFrame* frame) {
+		ObjectPtr<Fiber> fiber = get_current_fiber();
+		frame->caller = fiber->current_frame;
+		fiber->current_frame = frame;
+	}
+
+	void pop_call_frame(CallFrame* frame) {
+		ObjectPtr<Fiber> fiber = get_current_fiber();
+		ASSERT(fiber->current_frame == frame);
+		fiber->current_frame = fiber->current_frame->caller;
+		frame->caller = NULL;
+	}
+	
+	static bool _fiber_is_started(const ObjectPtr<const Fiber>& fiber) {
+		bool is_started = (fiber->flags & FiberIsStarted) != 0;
+		return is_started;
+	}
+
+	namespace bindings {
+		static VALUE fiber_inspect(const CallFrame* here, VALUE self, VALUE it) {
+			SN_CHECK_CLASS(self, Fiber, inspect);
+			ObjectPtr<Fiber> fiber = self;
+
+			VALUE functor = fiber->functor;
+			void* stack = fiber->stack;
+
+			SnObject* inspected_functor = value_inspect(functor);
+			SnObject* result = string_format("[Fiber@%p stack:%p functor:", (VALUE)fiber, stack);
+			string_append(result, inspected_functor);
+			string_append_cstr(result, "]");
+			return result;
+		}
+
+		static VALUE fiber_resume(const CallFrame* here, VALUE self, VALUE it) {
+			SN_CHECK_CLASS(self, Fiber, resume);
+			return snow::fiber_resume(self, it);
+		}
+
+		static VALUE fiber_is_running(const CallFrame* here, VALUE self, VALUE it) {
+			SN_CHECK_CLASS(self, Fiber, running);
+			ObjectPtr<Fiber> fiber = self;
+			bool is_running = (fiber->flags & FiberIsRunning) != 0;
+			return boolean_to_value(is_running);
+		}
+	
+		static VALUE fiber_is_started(const CallFrame* here, VALUE self, VALUE it) {
+			SN_CHECK_CLASS(self, Fiber, is_started);
+			return boolean_to_value(_fiber_is_started(self));
+		}
+
+
+		static VALUE fiber_each(const CallFrame* here, VALUE self, VALUE it) {
+			ObjectPtr<Fiber> f = self;
+			ASSERT(f != NULL);
+			bool is_started = _fiber_is_started(f);
+			VALUE first_result = fiber_resume(f, NULL);
+			call(it, NULL, 1, &first_result);
+			while(_fiber_is_started(f)) {
+				VALUE result = fiber_resume(f, NULL);
+				call(it, NULL, 1, &result);
+			}
+			return SN_NIL;
+		}
+
+		static VALUE fiber_initialize(const CallFrame* here, VALUE self, VALUE it) {
+			SN_CHECK_CLASS(self, Fiber, initialize);
+			ObjectPtr<Fiber> fiber = self;
+			fiber->functor = it;
+			return self;
+		}
+	}
+
+	ObjectPtr<Class> get_fiber_class() {
+		static SnObject** root = NULL;
+		if (!root) {
+			SnObject* cls = create_class_for_type(snow::sym("Fiber"), snow::get_type<Fiber>());
+			SN_DEFINE_METHOD(cls, "initialize", bindings::fiber_initialize);
+			SN_DEFINE_METHOD(cls, "inspect", bindings::fiber_inspect);
+			SN_DEFINE_METHOD(cls, "to_string", bindings::fiber_inspect);
+			SN_DEFINE_METHOD(cls, "resume", bindings::fiber_resume);
+			SN_DEFINE_METHOD(cls, "__call__", bindings::fiber_resume);
+			SN_DEFINE_METHOD(cls, "each", bindings::fiber_each);
+			SN_DEFINE_PROPERTY(cls, "running?", bindings::fiber_is_running, NULL);
+			SN_DEFINE_PROPERTY(cls, "started?", bindings::fiber_is_started, NULL);
+			root = gc_create_root(cls);
+		}
+		return *root;
+	}
 }

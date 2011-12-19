@@ -67,11 +67,11 @@ namespace {
 
 namespace snow {
 	namespace ccall {
-		void class_get_method(const VALUE cls, SnSymbol name, Method* out_method) {
+		void class_get_method(const VALUE cls, Symbol name, Method* out_method) {
 			snow::class_get_method(cls, name, out_method);
 		}
 		
-		int32_t class_get_index_of_instance_variable(const VALUE cls, SnSymbol name) {
+		int32_t class_get_index_of_instance_variable(const VALUE cls, Symbol name) {
 			return snow::class_get_index_of_instance_variable(cls, name);
 		}
 		
@@ -94,7 +94,7 @@ namespace snow {
 	
 	class Codegen::Function : public Asm {
 	public:
-		typedef std::vector<SnSymbol> Names;
+		typedef std::vector<Symbol> Names;
 		
 		Function(Codegen& codegen) :
 			codegen(codegen),
@@ -113,7 +113,7 @@ namespace snow {
 		size_t materialized_descriptor_offset;
 		size_t materialized_code_offset;
 		Function* parent;
-		SnSymbol name;
+		Symbol name;
 		Names local_names;
 		Names param_names;
 		int it_index;
@@ -135,18 +135,18 @@ namespace snow {
 		void free_temporary(int);
 		Operand temporary(int);
 		
-		bool compile_function_body(const SnAstNode* body_seq);
+		bool compile_function_body(const ASTNode* body_seq);
 		void materialize_at(byte* destination);
 	private:
-		bool compile_ast_node(const SnAstNode* node);
-		bool compile_assignment(const SnAstNode* assign);
-		bool compile_call(const SnAstNode* call);
+		bool compile_ast_node(const ASTNode* node);
+		bool compile_assignment(const ASTNode* assign);
+		bool compile_call(const ASTNode* call);
 		void compile_call(const Operand& functor, const Operand& self, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
-		void compile_method_call(const Operand& self, SnSymbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
-		void compile_get_method_inline_cache(const Operand& self, SnSymbol name, const Register& out_type, const Register& out_method);
-		void compile_get_index_of_field_inline_cache(const Operand& self, SnSymbol name, const Register& target);
-		Operand compile_get_address_for_local(const Register& reg, SnSymbol name, bool can_define = false);
-		Function* compile_function(const SnAstNode* function);
+		void compile_method_call(const Operand& self, Symbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
+		void compile_get_method_inline_cache(const Operand& self, Symbol name, const Register& out_type, const Register& out_method);
+		void compile_get_index_of_field_inline_cache(const Operand& self, Symbol name, const Register& target);
+		Operand compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
+		Function* compile_function(const ASTNode* function);
 		void call_direct(void(*callee)(void));
 		void call_indirect(void(*callee)(void));
 		
@@ -174,7 +174,7 @@ namespace snow {
 	#define REG_SELF       R13
 	#define REG_IT         R14
 	
-	bool Codegen::Function::compile_function_body(const SnAstNode* body_seq) {
+	bool Codegen::Function::compile_function_body(const ASTNode* body_seq) {
 		pushq(RBP);
 		movq(RSP, RBP);
 		size_t stack_size_offset1 = subq(0, RSP);
@@ -218,10 +218,10 @@ namespace snow {
 		return true;
 	}
 	
-	bool Codegen::Function::compile_ast_node(const SnAstNode* node) {
+	bool Codegen::Function::compile_ast_node(const ASTNode* node) {
 		switch (node->type) {
 			case SN_AST_SEQUENCE: {
-				for (const SnAstNode* x = node->sequence.head; x; x = x->next) {
+				for (const ASTNode* x = node->sequence.head; x; x = x->next) {
 					if (!compile_ast_node(x)) return false;
 				}
 				return true;
@@ -313,7 +313,7 @@ namespace snow {
 				movq(RAX, self);
 				compile_get_index_of_field_inline_cache(RAX, node->instance_variable.name, RSI);
 				movq(self, RDI);
-				CALL(snow_object_get_instance_variable_by_index);
+				CALL(object_get_instance_variable_by_index);
 				return true;
 			}
 			case SN_AST_CALL: {
@@ -329,12 +329,12 @@ namespace snow {
 				Alloca _1(*this, args_ptr, sizeof(VALUE)*num_args);
 				
 				size_t i = 0;
-				for (SnAstNode* x = node->association.args->sequence.head; x; x = x->next) {
+				for (ASTNode* x = node->association.args->sequence.head; x; x = x->next) {
 					if (!compile_ast_node(x)) return false;
 					movq(args_ptr, RCX);
 					movq(RAX, address(RCX, sizeof(VALUE) * i++));
 				}
-				compile_method_call(self, snow_sym("get"), num_args, args_ptr);
+				compile_method_call(self, snow::sym("get"), num_args, args_ptr);
 				return true;
 			}
 			case SN_AST_AND: {
@@ -344,7 +344,7 @@ namespace snow {
 				if (!compile_ast_node(node->logic_and.left)) return false;
 				movq(RAX, RBX);
 				movq(RAX, RDI);
-				CALL(snow_eval_truth);
+				CALL(is_truthy);
 				cmpq(0, RAX);
 				j(CC_NOT_EQUAL, left_true);
 				movq(RBX, RAX);
@@ -363,7 +363,7 @@ namespace snow {
 				if (!compile_ast_node(node->logic_or.left)) return false;
 				movq(RAX, RBX);
 				movq(RAX, RDI);
-				CALL(snow_eval_truth);
+				CALL(is_truthy);
 				cmpq(0, RAX);
 				j(CC_EQUAL, left_false);
 				movq(RBX, RAX);
@@ -387,11 +387,11 @@ namespace snow {
 				if (!compile_ast_node(node->logic_xor.right)) return false;
 				movq(RAX, RBX); // save right value in caller-preserved register
 				movq(RAX, RDI);
-				CALL(snow_eval_truth);
+				CALL(is_truthy);
 				Temporary right_truth(*this);
 				movq(RAX, right_truth);
 				movq(left_value, RDI);
-				CALL(snow_eval_truth);
+				CALL(is_truthy);
 				cmpb(RAX, right_truth); // compare left truth to right truth
 				j(CC_EQUAL, equal_truth);
 				cmpq(0, RAX); // compare left truth to zero
@@ -432,7 +432,7 @@ namespace snow {
 				bind_label(cond);
 				if (!compile_ast_node(node->loop.cond)) return false;
 				movq(RAX, RDI);
-				CALL(snow_eval_truth);
+				CALL(is_truthy);
 				cmpq(0, RAX);
 				j(CC_EQUAL, after);
 				
@@ -456,7 +456,7 @@ namespace snow {
 				
 				if (!compile_ast_node(node->if_else.cond)) return false;
 				movq(RAX, RDI);
-				CALL(snow_eval_truth);
+				CALL(is_truthy);
 				cmpq(0, RAX);
 				j(CC_EQUAL, else_body);
 				if (!compile_ast_node(node->if_else.body)) return false;
@@ -478,15 +478,15 @@ namespace snow {
 		}
 	}
 	
-	bool Codegen::Function::compile_assignment(const SnAstNode* node) {
+	bool Codegen::Function::compile_assignment(const ASTNode* node) {
 		ASSERT(node->assign.value->type == SN_AST_SEQUENCE);
 		ASSERT(node->assign.target->type == SN_AST_SEQUENCE);
 		
 		// gather assign targets
 		const size_t num_targets = node->assign.target->sequence.length;
-		SnAstNode* targets[num_targets];
+		ASTNode* targets[num_targets];
 		size_t i = 0;
-		for (SnAstNode* x = node->assign.target->sequence.head; x; x = x->next) {
+		for (ASTNode* x = node->assign.target->sequence.head; x; x = x->next) {
 			targets[i++] = x;
 		}
 		
@@ -495,7 +495,7 @@ namespace snow {
 		TemporaryArray values(*this, num_values);
 		// compile assignment values
 		i = 0;
-		for (SnAstNode* x = node->assign.value->sequence.head; x; x = x->next) {
+		for (ASTNode* x = node->assign.value->sequence.head; x; x = x->next) {
 			// TODO: Assignment name
 			if (!compile_ast_node(x)) return false;
 			movq(RAX, values[i++]);
@@ -518,7 +518,7 @@ namespace snow {
 				movq(RBX, values[i]);
 			}
 			
-			SnAstNode* target = targets[i];
+			ASTNode* target = targets[i];
 			switch (target->type) {
 				case SN_AST_ASSOCIATION: {
 					size_t num_args = target->association.args->sequence.length + 1;
@@ -526,7 +526,7 @@ namespace snow {
 					Alloca _1(*this, args_ptr, sizeof(VALUE) * num_args);
 					
 					size_t j = 0;
-					for (SnAstNode* x = target->association.args->sequence.head; x; x = x->next) {
+					for (ASTNode* x = target->association.args->sequence.head; x; x = x->next) {
 						if (!compile_ast_node(x)) return false;
 						movq(args_ptr, RCX);
 						movq(RAX, address(RCX, sizeof(VALUE) * j++));
@@ -539,7 +539,7 @@ namespace snow {
 					movq(RDX, address(RCX, sizeof(VALUE) * j));
 					
 					if (!compile_ast_node(target->association.object)) return false;
-					compile_method_call(RAX, snow_sym("set"), num_args, args_ptr);
+					compile_method_call(RAX, snow::sym("set"), num_args, args_ptr);
 					break;
 				}
 				case SN_AST_INSTANCE_VARIABLE: {
@@ -552,7 +552,7 @@ namespace snow {
 						movq(values[i], RDX);
 					else
 						xorq(RDX, RDX);
-					CALL(snow_object_set_instance_variable_by_index);
+					CALL(object_set_instance_variable_by_index);
 					break;
 				}
 				case SN_AST_IDENTIFIER: {
@@ -570,7 +570,7 @@ namespace snow {
 						movq(values[i], RDX);
 					else
 						xorq(RDX, RDX);
-					CALL(snow_object_set_property_or_define_method);
+					CALL(object_set_property_or_define_method);
 				}
 				default:
 					fprintf(stderr, "CODEGEN: Invalid target for assignment! (type=%d)", target->type);
@@ -580,12 +580,12 @@ namespace snow {
 		return true;
 	}
 	
-	Codegen::Function* Codegen::Function::compile_function(const SnAstNode* function) {
+	Codegen::Function* Codegen::Function::compile_function(const ASTNode* function) {
 		ASSERT(function->type == SN_AST_CLOSURE);
 		Function* f = new Function(codegen);
 		if (function->closure.parameters) {
 			f->param_names.reserve(function->closure.parameters->sequence.length);
-			for (const SnAstNode* x = function->closure.parameters->sequence.head; x; x = x->next) {
+			for (const ASTNode* x = function->closure.parameters->sequence.head; x; x = x->next) {
 				ASSERT(x->type == SN_AST_PARAMETER);
 				f->param_names.push_back(x->parameter.name);
 				f->local_names.push_back(x->parameter.name);
@@ -599,7 +599,7 @@ namespace snow {
 		return f;
 	}
 	
-	Operand Codegen::Function::compile_get_address_for_local(const Register& reg, SnSymbol name, bool can_define) {
+	Operand Codegen::Function::compile_get_address_for_local(const Register& reg, Symbol name, bool can_define) {
 		// Look for locals
 		Function* f = this;
 		ssize_t level = 0;
@@ -643,15 +643,15 @@ namespace snow {
 		}
 	}
 	
-	bool Codegen::Function::compile_call(const SnAstNode* node) {
-		std::vector<std::pair<const SnAstNode*, int> > args;
-		std::vector<SnSymbol> names;
+	bool Codegen::Function::compile_call(const ASTNode* node) {
+		std::vector<std::pair<const ASTNode*, int> > args;
+		std::vector<Symbol> names;
 		
 		if (node->call.args) {
 			args.reserve(node->call.args->sequence.length);
 
 			size_t num_names = 0;
-			for (const SnAstNode* x = node->call.args->sequence.head; x; x = x->next) {
+			for (const ASTNode* x = node->call.args->sequence.head; x; x = x->next) {
 				if (x->type == SN_AST_NAMED_ARGUMENT) {
 					++num_names;
 				}
@@ -660,12 +660,12 @@ namespace snow {
 			size_t named_i = 0;
 			size_t unnamed_i = num_names;
 			names.reserve(num_names);
-			for (const SnAstNode* x = node->call.args->sequence.head; x; x = x->next) {
+			for (const ASTNode* x = node->call.args->sequence.head; x; x = x->next) {
 				if (x->type == SN_AST_NAMED_ARGUMENT) {
-					args.push_back(std::pair<const SnAstNode*,int>(x->named_argument.expr, named_i++));
+					args.push_back(std::pair<const ASTNode*,int>(x->named_argument.expr, named_i++));
 					names.push_back(x->named_argument.name);
 				} else {
-					args.push_back(std::pair<const SnAstNode*,int>(x, unnamed_i++));
+					args.push_back(std::pair<const ASTNode*,int>(x, unnamed_i++));
 				}
 			}
 			ASSERT(named_i == names.size());
@@ -676,11 +676,11 @@ namespace snow {
 		Temporary names_ptr(*this);
 		Alloca _1(*this, args_ptr, args.size(), sizeof(VALUE));
 		// TODO: Use static storage for name lists
-		Alloca _2(*this, names_ptr, names.size(), sizeof(SnSymbol));
+		Alloca _2(*this, names_ptr, names.size(), sizeof(Symbol));
 		
 		// Compile arguments and put them in their places.
 		for (size_t i = 0; i < args.size(); ++i) {
-			const SnAstNode* x = args[i].first;
+			const ASTNode* x = args[i].first;
 			int idx = args[i].second;
 			if (!compile_ast_node(x)) return false;
 			movq(args_ptr, RDX);
@@ -692,7 +692,7 @@ namespace snow {
 		movq(names_ptr, RDX);
 		for (size_t i = 0; i < names.size(); ++i) {
 			movq(names[i], RAX); // cannot move a 64-bit operand directly to memory
-			movq(RAX, address(RDX, sizeof(SnSymbol) * i));
+			movq(RAX, address(RDX, sizeof(Symbol) * i));
 		}
 		
 		if (node->call.object->type == SN_AST_METHOD) {
@@ -726,7 +726,7 @@ namespace snow {
 		}
 	}
 	
-	void Codegen::Function::compile_method_call(const Operand& in_self, SnSymbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names, const Operand& names_ptr) {
+	void Codegen::Function::compile_method_call(const Operand& in_self, Symbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names, const Operand& names_ptr) {
 		ASSERT(args_ptr.is_memory());
 		if (num_names) ASSERT(names_ptr.is_memory());
 		Temporary self(*this);
@@ -757,7 +757,7 @@ namespace snow {
 		bind_label(after);
 	}
 	
-	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, SnSymbol name, const Register& out_type, const Register& out_method_getter) {
+	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, Symbol name, const Register& out_type, const Register& out_method_getter) {
 		if (settings.use_inline_cache) {
 			Label* uninitialized = label();
 			Label* monomorphic = label();
@@ -832,7 +832,7 @@ namespace snow {
 		}
 	}
 	
-	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, SnSymbol name, const Register& target) {
+	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target) {
 		if (settings.use_inline_cache) {
 			Label* uninitialized = label();
 			Label* monomorphic = label();
@@ -917,7 +917,7 @@ namespace snow {
 	}
 	
 	
-	bool Codegen::compile_ast(const SnAST* ast) {
+	bool Codegen::compile_ast(const ASTBase* ast) {
 		Function* function = new Function(*this);
 		_functions.push_back(function);
 		_entry = function;
@@ -950,22 +950,22 @@ namespace snow {
 			
 			descriptor->ptr = 0; // linked later
 			descriptor->name = f->name;
-			descriptor->return_type = SnAnyType;
+			descriptor->return_type = AnyType;
 			size_t num_params = f->param_names.size();
 			descriptor->num_params = num_params;
-			descriptor->param_types = (SnValueType*)(destination + offset);
-			offset += sizeof(SnValueType) * num_params;
-			descriptor->param_names = (SnSymbol*)(destination + offset);
-			offset += sizeof(SnSymbol) * num_params;
+			descriptor->param_types = (ValueType*)(destination + offset);
+			offset += sizeof(ValueType) * num_params;
+			descriptor->param_names = (Symbol*)(destination + offset);
+			offset += sizeof(Symbol) * num_params;
 			for (size_t j = 0; j < num_params; ++j) {
-				descriptor->param_types[j] = SnAnyType; // TODO
+				descriptor->param_types[j] = AnyType; // TODO
 				descriptor->param_names[j] = f->param_names[j];
 			}
 			
 			size_t num_locals = f->local_names.size();
 			descriptor->num_locals = num_locals;
-			descriptor->local_names = (SnSymbol*)(destination + offset);
-			offset += sizeof(SnSymbol) * num_locals;
+			descriptor->local_names = (Symbol*)(destination + offset);
+			offset += sizeof(Symbol) * num_locals;
 			for (size_t j = 0; j < num_locals; ++j) {
 				descriptor->local_names[j] = f->local_names[j];
 			}

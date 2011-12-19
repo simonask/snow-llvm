@@ -5,10 +5,10 @@
 #include "snow/exception.hpp"
 #include "snow/function.hpp"
 #include "snow/gc.hpp"
-#include "snow/linkbuffer.h"
+#include "linkbuffer.hpp"
 #include "snow/module.hpp"
 #include "snow/object.hpp"
-#include "snow/parser.h"
+#include "snow/parser.hpp"
 #include "snow/str.hpp"
 
 #include <stdlib.h>
@@ -35,13 +35,13 @@ static void interactive_prompt()
 	const char* unfinished_prompt = "snow*> ";
 	bool unfinished_expr = false;
 	
-	SnLinkBuffer* input_buffer = snow_create_linkbuffer(1024);
+	snow::LinkBuffer<char> input_buffer;
 
 	char* line;
 	while ((line = readline(unfinished_expr ? unfinished_prompt : global_prompt)) != NULL) {
 		if (*line) // strlen(line) != 0
 			add_history(line);
-		snow_linkbuffer_push_string(input_buffer, line);
+		input_buffer.push_range(line, line + strlen(line));
 		free(line);
 
 		//unfinished_expr = is_expr_unfinished(buffer.str());
@@ -65,10 +65,9 @@ static void interactive_prompt()
 			}
 			catch (...) {
 				fprintf(stderr, "ERROR: Unhandled C++ exception, rethrowing!\n");
-				snow_linkbuffer_clear(input_buffer);
 				throw;
 			}
-			snow_linkbuffer_clear(input_buffer);
+			input_buffer.clear();
 		}
 	}
 }
@@ -137,7 +136,7 @@ int main(int argc, char* const* argv) {
 		ObjectPtr<String> argument = create_string_constant(argv[optind++]);
 		array_push(ARGV, argument);
 	}
-	set_global(snow_sym("ARGV"), ARGV);
+	set_global(snow::sym("ARGV"), ARGV);
 	
 	for (size_t i = 0; i < array_size(require_files); ++i) {
 		ObjectPtr<String> str = array_get(require_files, i);

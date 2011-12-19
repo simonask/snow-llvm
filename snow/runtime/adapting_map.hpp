@@ -3,7 +3,7 @@
 #define ADAPTING_MAP_HPP_GHRARLGI
 
 #include "snow/basic.h"
-#include "snow/exception.h"
+#include "snow/exception.hpp"
 #include "snow/util.hpp"
 
 #include <google/dense_hash_map>
@@ -85,8 +85,8 @@ namespace snow {
 		size_t operator()(const VALUE _v) const {
 			VALUE v = const_cast<VALUE>(_v);
 			VALUE hash = SN_CALL_METHOD(v, "hash", 0, NULL);
-			if (!snow_is_integer(hash)) snow_throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v, hash);
-			return (size_t)snow_value_to_integer(hash);
+			if (!is_integer(hash)) throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v, hash);
+			return (size_t)value_to_integer(hash);
 		}
 	};
 	
@@ -100,8 +100,8 @@ namespace snow {
 				return (int64_t)((intptr_t)a - (intptr_t)b);
 			} else {
 				VALUE diff = SN_CALL_METHOD(a, "<=>", 1, &b);
-				if (!snow_is_integer(diff)) snow_throw_exception_with_description("A comparison method (<=>) for object %p returned a non-integer (%p).", a, diff);
-				return snow_value_to_integer(diff);
+				if (!is_integer(diff)) throw_exception_with_description("A comparison method (<=>) for object %p returned a non-integer (%p).", a, diff);
+				return value_to_integer(diff);
 			}
 		}
 	};
@@ -111,7 +111,7 @@ namespace snow {
 			VALUE a = const_cast<VALUE>(_a);
 			VALUE b = const_cast<VALUE>(_b);
 			VALUE truth = SN_CALL_METHOD(a, "=", 1, &b);
-			return snow_eval_truth(truth);
+			return is_truthy(truth);
 		}
 	};
 	
@@ -173,7 +173,7 @@ namespace snow {
 			return -1;
 		} else {
 			// binary search
-			if (has_immediate_keys() && !snow_is_immediate(key)) return -1;
+			if (has_immediate_keys() && !is_immediate(key)) return -1;
 			VALUE* end = flat.keys + flat.size;
 			VALUE* result = std::lower_bound(flat.keys, end, key, CallValueLessThan(*this));
 			if (result == end || !CallValueEquals(*this)(key, *result)) return -1;
@@ -200,9 +200,9 @@ namespace snow {
 	}
 	
 	inline VALUE AdaptingMap::set(VALUE key, VALUE value) {
-		if (has_immediate_keys() && snow_is_object(key)) {
+		if (has_immediate_keys() && is_object(key)) {
 			// TODO: Convert from immediate-only to regular map?
-			snow_throw_exception_with_description("Attempted to use an object as key in an immediates-only hash map.");
+			throw_exception_with_description("Attempted to use an object as key in an immediates-only hash map.");
 		}
 		if (is_flat()) {
 			if (maintains_insertion_order()) {

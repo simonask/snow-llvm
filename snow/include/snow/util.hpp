@@ -140,39 +140,6 @@ namespace snow {
 	template <typename A, typename B> struct ReplicateConstPtr;
 	template <typename A, typename B> struct ReplicateConstPtr<const A, B> { typedef const B* Result; };
 	template <typename A, typename B> struct ReplicateConstPtr { typedef B* Result; };
-	
-	template <typename T>
-	T* object_get_private(SnObject* obj, const Type* check_type) {
-		return reinterpret_cast<T*>(snow_object_get_private(obj, check_type));
-	}
-	
-	template <typename T>
-	const T* object_get_private(const SnObject* obj, const Type* check_type) {
-		return reinterpret_cast<const T*>(snow_object_get_private(obj, check_type));
-	}
-	
-	template <typename T>
-	T* value_get_private(VALUE val, const Type* check_type) {
-		if (snow_is_object(val)) {
-			return object_get_private<T>((SnObject*)val, check_type);
-		}
-		return NULL;
-	}
-	
-	inline bool object_is_of_type(const SnObject* obj, const Type* check_type) {
-		return snow_object_is_of_type(obj, check_type);
-	}
-	
-	inline bool value_is_of_type(VALUE val, const Type* check_type) {
-		if (snow_is_object(val)) {
-			return object_is_of_type((SnObject*)val, check_type);
-		}
-		return false;
-	}
-	
-	inline bool value_is_of_type(VALUE val, SnValueType check_type) {
-		return snow_type_of(val) == check_type;
-	}
 }
 
 #endif /* end of include guard: UTIL_HPP_A83WWPWN */
