@@ -47,16 +47,16 @@ static void interactive_prompt()
 		//unfinished_expr = is_expr_unfinished(buffer.str());
 		if (!unfinished_expr) {
 			try {
-				SnObject* str = create_string_from_linkbuffer(input_buffer);
+				ObjectPtr<String> str = create_string_from_linkbuffer(input_buffer);
 				VALUE result = snow_eval_in_global_module(str);
-				VALUE inspected = SN_CALL_METHOD(result, "inspect", 0, NULL);
-				if (!is_string(inspected)) {
+				ObjectPtr<String> inspected = value_inspect(result);
+				if (inspected == NULL) {
 					inspected = string_format("[Object@%p]", result);
 				}
 				
-				size_t sz = string_size((SnObject*)inspected);
+				size_t sz = string_size(inspected);
 				char buffer[sz+1];
-				string_copy_to((SnObject*)inspected, buffer, sz);
+				string_copy_to(inspected, buffer, sz);
 				buffer[sz] = '\0';
 				printf("=> %s\n", buffer);
 			}
@@ -79,7 +79,7 @@ int main(int argc, char* const* argv) {
 	static int verbose_mode = false;
 	static int interactive_mode = false;
 	
-	SnObject* require_files = create_array();
+	ObjectPtr<Array> require_files = create_array();
 	
 	while (true)
 	{
@@ -109,7 +109,7 @@ int main(int argc, char* const* argv) {
 			}
 			case 'r':
 			{
-				SnObject* filename = create_string_constant(optarg);
+				ObjectPtr<String> filename = create_string_constant(optarg);
 				array_push(require_files, filename);
 				break;
 			}
@@ -127,22 +127,22 @@ int main(int argc, char* const* argv) {
 	
 	// require first loose argument, unless -- was used
 	if (optind < argc && strcmp("--", argv[optind-1]) != 0) {
-		SnObject* filename = create_string_constant(argv[optind++]);
+		ObjectPtr<String> filename = create_string_constant(argv[optind++]);
 		array_push(require_files, filename);
 	}
 	
 	// stuff the rest in ARGV
-	SnObject* ARGV = create_array_with_size(argc);
+	ObjectPtr<Array> ARGV = create_array_with_size(argc);
 	while (optind < argc) {
-		SnObject* argument = create_string_constant(argv[optind++]);
+		ObjectPtr<String> argument = create_string_constant(argv[optind++]);
 		array_push(ARGV, argument);
 	}
 	set_global(snow_sym("ARGV"), ARGV);
 	
 	for (size_t i = 0; i < array_size(require_files); ++i) {
-		VALUE vstr = array_get(require_files, i);
-		ASSERT(is_string(vstr));
-		snow_load((SnObject*)vstr);
+		ObjectPtr<String> str = array_get(require_files, i);
+		ASSERT(str != NULL);
+		snow_load(str);
 	}
 	
 	if (interactive_mode) {
