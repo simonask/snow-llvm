@@ -8,8 +8,8 @@
 namespace snow {
 	typedef uint64_t Symbol;
 
-	CAPI Symbol sym(const char* str);
-	CAPI const char* sym_to_cstr(Symbol sym);
+	Symbol sym(const char* str);
+	const char* sym_to_cstr(Symbol sym);
 
 	INLINE bool is_symbol(VALUE val) {
 		return ((uintptr_t)val & ValueTypeMask) == SymbolType;
