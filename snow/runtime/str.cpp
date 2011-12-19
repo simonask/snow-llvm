@@ -204,7 +204,7 @@ namespace snow {
 			if (!is_string(self)) snow_throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
 
 			if (it) {
-				ObjectPtr<String> other = snow_value_to_string(it);
+				ObjectPtr<String> other = value_to_string(it);
 				return string_concat(self, other);
 			}
 			return self;

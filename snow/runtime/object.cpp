@@ -15,12 +15,12 @@ namespace {
 	using namespace snow;
 	
 	VALUE object_inspect(const CallFrame* here, VALUE self, VALUE it) {
-		return snow::string_format("[%s@%p]", class_get_name(snow_get_class(self)), self);
+		return snow::string_format("[%s@%p]", class_get_name(get_class(self)), self);
 	}
 
 	VALUE object_instance_eval(const CallFrame* here, VALUE self, VALUE it) {
 		VALUE functor = it;
-		return snow_call(functor, self, 0, NULL);
+		return call(functor, self, 0, NULL);
 	}
 
 	VALUE object_equals(const CallFrame* here, VALUE self, VALUE it) {
@@ -114,7 +114,7 @@ CAPI {
 		if (class_lookup_method(cls, name, &method_or_property)) {
 			if (method_or_property.type == MethodTypeProperty) {
 				if (method_or_property.property->setter) {
-					return snow_call(method_or_property.property->setter, obj, 1, &val);
+					return call(method_or_property.property->setter, obj, 1, &val);
 				}
 				snow_throw_exception_with_description("Property '%s' is not writable on objects of class %s.", snow_sym_to_cstr(name), class_get_name(cls));
 			}

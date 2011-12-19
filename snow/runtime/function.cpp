@@ -171,7 +171,7 @@ namespace snow {
 	ObjectPtr<Function> value_to_function(VALUE val, VALUE* out_new_self) {
 		VALUE functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
-			ObjectPtr<Class> cls = snow_get_class(functor);
+			ObjectPtr<Class> cls = get_class(functor);
 			Method method;
 			if (class_lookup_method(cls, snow_sym("__call__"), &method)) {
 				*out_new_self = functor;
@@ -181,7 +181,7 @@ namespace snow {
 					if (method.property->getter == NULL) {
 						snow_throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls.value());
 					}
-					functor = snow_call(method.property->getter, *out_new_self, 0, NULL);
+					functor = call(method.property->getter, *out_new_self, 0, NULL);
 				}
 			} else {
 				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls.value());
@@ -274,7 +274,7 @@ namespace snow {
 		SnObject* s = (SnObject*)self;
 		VALUE obj = snow_object_get_instance_variable(s, snow_sym("object"));
 		VALUE method = snow_object_get_instance_variable(s, snow_sym("method"));
-		return snow_call_with_arguments(method, obj, here->args);
+		return call_with_arguments(method, obj, here->args);
 	}
 
 	SnObject* create_method_proxy(VALUE self, VALUE method) {

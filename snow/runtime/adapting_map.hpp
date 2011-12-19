@@ -84,7 +84,7 @@ namespace snow {
 	struct CallValueHash {
 		size_t operator()(const VALUE _v) const {
 			VALUE v = const_cast<VALUE>(_v);
-			VALUE hash = SNOW_CALL_METHOD(v, "hash", 0, NULL);
+			VALUE hash = SN_CALL_METHOD(v, "hash", 0, NULL);
 			if (!snow_is_integer(hash)) snow_throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v, hash);
 			return (size_t)snow_value_to_integer(hash);
 		}
@@ -99,7 +99,7 @@ namespace snow {
 			if (map->has_immediate_keys()) {
 				return (int64_t)((intptr_t)a - (intptr_t)b);
 			} else {
-				VALUE diff = SNOW_CALL_METHOD(a, "<=>", 1, &b);
+				VALUE diff = SN_CALL_METHOD(a, "<=>", 1, &b);
 				if (!snow_is_integer(diff)) snow_throw_exception_with_description("A comparison method (<=>) for object %p returned a non-integer (%p).", a, diff);
 				return snow_value_to_integer(diff);
 			}
@@ -110,7 +110,7 @@ namespace snow {
 		bool operator()(const VALUE _a, const VALUE _b) const {
 			VALUE a = const_cast<VALUE>(_a);
 			VALUE b = const_cast<VALUE>(_b);
-			VALUE truth = SNOW_CALL_METHOD(a, "=", 1, &b);
+			VALUE truth = SN_CALL_METHOD(a, "=", 1, &b);
 			return snow_eval_truth(truth);
 		}
 	};

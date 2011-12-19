@@ -9,23 +9,24 @@ namespace {
 		Ensure(VALUE ensure_f) : ensure_f(ensure_f) {}
 		~Ensure() {
 			if (snow_eval_truth(ensure_f))
-				snow_call(ensure_f, NULL, 0, NULL);
+				snow::call(ensure_f, NULL, 0, NULL);
 		}
 		VALUE ensure_f;
 	};
 }
 
 CAPI {
+	using namespace snow;
 	
 	VALUE snow_try_catch_ensure(VALUE try_f, VALUE catch_f, VALUE ensure_f) {
 		Ensure ensure(ensure_f);
 		VALUE result = NULL;
 		try {
-			result = snow_call(try_f, NULL, 0, NULL);
+			result = call(try_f, NULL, 0, NULL);
 		}
 		catch (snow::Exception ex) {
 			if (catch_f)
-				return snow_call(catch_f, NULL, 1, &ex.value);
+				return call(catch_f, NULL, 1, &ex.value);
 			throw ex;
 		}
 		return result;
@@ -34,7 +35,7 @@ CAPI {
 	CAPI void snow_throw_exception(VALUE ex) {
 		// TODO: Backtrace and all that jazz
 		
-		SnObject* str = snow_value_to_string(ex);
+		SnObject* str = value_to_string(ex);
 		size_t sz = snow::string_size(str);
 		char buffer[sz+1];
 		snow::string_copy_to(str, buffer, sz);

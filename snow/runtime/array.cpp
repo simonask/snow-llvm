@@ -117,7 +117,7 @@ namespace snow {
 
 			for (size_t i = 0; i < array->size(); ++i) {
 				VALUE val = (*array)[i];
-				string_append(result, snow_value_inspect(val));
+				string_append(result, value_inspect(val));
 				if (i != array->size() - 1) {
 					string_append_cstr(result, ", ");
 				}
@@ -157,7 +157,7 @@ namespace snow {
 			if (array == NULL) return NULL;
 			for (size_t i = 0; i < array->size(); ++i) {
 				VALUE args[] = { (*array)[i] };
-				snow_call(it, NULL, 1, args);
+				call(it, NULL, 1, args);
 			}
 			return SN_NIL;
 		}

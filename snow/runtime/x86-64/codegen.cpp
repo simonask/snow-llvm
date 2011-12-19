@@ -86,6 +86,10 @@ namespace snow {
 		SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, VALUE definition_environment) {
 			return snow::create_function_for_descriptor(descriptor, definition_environment);
 		}
+		
+		SnObject* get_class(VALUE val) {
+			return snow::get_class(val);
+		}
 	}
 	
 	class Codegen::Function : public Asm {
@@ -254,7 +258,7 @@ namespace snow {
 				} else {
 					movq(REG_CALL_FRAME, RDI);
 					movq(node->identifier.name, RSI);
-					CALL(snow_local_missing);
+					CALL(snow::local_missing);
 				}
 				return true;
 			}
@@ -504,7 +508,7 @@ namespace snow {
 			if (i == num_targets-1 && num_values > num_targets) {
 				size_t num_remaining = num_values - num_targets + 1;
 				movq(num_remaining, RDI);
-				CALL(create_array_with_size);
+				CALL(snow::create_array_with_size);
 				movq(RAX, RBX);
 				for (size_t j = i; j < num_values; ++j) {
 					movq(RBX, RDI);
@@ -711,14 +715,14 @@ namespace snow {
 			movq(names_ptr, RCX);
 			movq(num_args, R8);
 			movq(args_ptr, R9);
-			CALL(snow_call_with_named_arguments);
+			CALL(snow::call_with_named_arguments);
 		} else {
 			if (num_args)
 				movq(num_args, RDX);
 			else
 				xorq(RDX, RDX);
 			movq(args_ptr, RCX);
-			CALL(snow_call);
+			CALL(snow::call);
 		}
 	}
 	
@@ -769,7 +773,7 @@ namespace snow {
 			Label* monomorphic_method_data = label();
 
 			movq(object, RDI);
-			CALL(snow_get_class);
+			CALL(ccall::get_class);
 			bind_label_at(state_jmp_data, jmp(uninitialized));
 
 			{
@@ -792,7 +796,7 @@ namespace snow {
 
 			{
 				bind_label(monomorphic);
-				// compare incoming class (in RAX from call to snow_get_class) with cached value
+				// compare incoming class (in RAX from call to ccall::get_class) with cached value
 				bind_label_at(monomorphic_class_data, movq(0, RDI));
 				cmpq(RDI, RAX); // cmpq does not support 8-byte immediates
 				gc_root_offsets.push_back(monomorphic_class_data->offset);
@@ -817,7 +821,7 @@ namespace snow {
 			bind_label(after);
 		} else {
 			movq(object, RDI);
-			CALL(snow_get_class);
+			CALL(ccall::get_class);
 			Alloca _1(*this, RBX, sizeof(Method));
 			movq(RAX, RDI);
 			movq(name, RSI);
@@ -842,7 +846,7 @@ namespace snow {
 			Label* monomorphic_iv_offset_data = label();
 
 			movq(object, RDI);
-			CALL(snow_get_class);
+			CALL(ccall::get_class);
 			bind_label_at(state_jmp_data, jmp(uninitialized));
 
 			{
@@ -884,7 +888,7 @@ namespace snow {
 			bind_label(after);
 		} else {
 			movq(object, RDI);
-			CALL(snow_get_class);
+			CALL(ccall::get_class);
 			movq(RAX, RDI);
 			movq(name, RSI);
 			CALL(ccall::class_get_index_of_instance_variable);

@@ -23,7 +23,7 @@ static VALUE get_load_paths(const CallFrame* here, VALUE self, VALUE it) {
 }
 
 static VALUE get_version(const CallFrame* here, VALUE self, VALUE it) {
-	return create_string_constant(snow_version());
+	return create_string_constant(snow::version());
 }
 
 CAPI SnObject* snow_get_vm_interface() {
@@ -39,7 +39,7 @@ CAPI SnObject* snow_get_vm_interface() {
 
 static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->args->size; ++i) {
-		SnObject* str = snow_value_to_string(here->args->data[i]);
+		SnObject* str = value_to_string(here->args->data[i]);
 		size_t sz = string_size(str);
 		char* buffer = (char*)alloca(sz+1);
 		string_copy_to(str, buffer, sz);
@@ -51,18 +51,18 @@ static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
 }
 
 static VALUE global_import(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* file = snow_value_to_string(it);
+	SnObject* file = value_to_string(it);
 	return snow_import(file);
 }
 
 static VALUE global_import_global(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* file = snow_value_to_string(it);
+	SnObject* file = value_to_string(it);
 	snow_load_in_global_module(file);
 	return SN_TRUE;
 }
 
 static VALUE global_load(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* file = snow_value_to_string(it);
+	SnObject* file = value_to_string(it);
 	return snow_load(file);
 }
 
@@ -95,10 +95,10 @@ static VALUE global_throw(const CallFrame* here, VALUE self, VALUE it) {
 	return NULL; // unreachable
 }
 
-#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow::create_function(FUNCTION, snow_sym(NAME)))
+#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow::set_global(snow_sym(NAME), snow::create_function(FUNCTION, snow_sym(NAME)))
 
 void snow_init_globals() {
-	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
+	set_global(snow_sym("Snow"), snow_get_vm_interface());
 	
 	SN_DEFINE_GLOBAL("puts", global_puts, -1);
 	SN_DEFINE_GLOBAL("import", global_import, 1);
@@ -108,20 +108,20 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("__print_call_stack__", global_print_call_stack, 0);
 	SN_DEFINE_GLOBAL("throw", global_throw, 1);
 	
-	snow_set_global(snow_sym("Integer"), snow_get_integer_class());
-	snow_set_global(snow_sym("Nil"), snow_get_nil_class());
-	snow_set_global(snow_sym("Boolean"), snow_get_boolean_class());
-	snow_set_global(snow_sym("Symbol"), snow_get_symbol_class());
-	snow_set_global(snow_sym("Float"), snow_get_float_class());
-	snow_set_global(snow_sym("Numeric"), snow_get_numeric_class());
-	snow_set_global(snow_sym("Object"), snow_get_object_class());
-	snow_set_global(snow_sym("Class"), get_class_class());
-	snow_set_global(snow_sym("String"), get_string_class());
-	snow_set_global(snow_sym("Array"), get_array_class());
-	snow_set_global(snow_sym("@"), get_array_class());
-	snow_set_global(snow_sym("Map"), snow_get_map_class());
-	snow_set_global(snow_sym("#"), snow_get_map_class());
-	snow_set_global(snow_sym("Function"), get_function_class());
-	snow_set_global(snow_sym("Environment"), get_environment_class());
-	snow_set_global(snow_sym("Fiber"), snow_get_fiber_class());
+	set_global(snow_sym("Integer"), snow_get_integer_class());
+	set_global(snow_sym("Nil"), snow_get_nil_class());
+	set_global(snow_sym("Boolean"), snow_get_boolean_class());
+	set_global(snow_sym("Symbol"), snow_get_symbol_class());
+	set_global(snow_sym("Float"), snow_get_float_class());
+	set_global(snow_sym("Numeric"), snow_get_numeric_class());
+	set_global(snow_sym("Object"), snow_get_object_class());
+	set_global(snow_sym("Class"), get_class_class());
+	set_global(snow_sym("String"), get_string_class());
+	set_global(snow_sym("Array"), get_array_class());
+	set_global(snow_sym("@"), get_array_class());
+	set_global(snow_sym("Map"), snow_get_map_class());
+	set_global(snow_sym("#"), snow_get_map_class());
+	set_global(snow_sym("Function"), get_function_class());
+	set_global(snow_sym("Environment"), get_environment_class());
+	set_global(snow_sym("Fiber"), snow_get_fiber_class());
 }

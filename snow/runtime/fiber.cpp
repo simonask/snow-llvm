@@ -152,7 +152,7 @@ static VALUE fiber_start(SnObject* fiber_, SnObject* caller, VALUE incoming_valu
 	VALUE functor = ObjectPtr<Fiber>(fiber_)->functor;
 	
 	VALUE args[] = { (VALUE)caller, incoming_value };
-	VALUE return_value = snow_call(functor, NULL, 2, args);
+	VALUE return_value = call(functor, NULL, 2, args);
 	
 	return return_value;
 }
@@ -203,7 +203,7 @@ static VALUE fiber_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	VALUE functor = fiber->functor;
 	void* stack = fiber->stack;
 	
-	SnObject* inspected_functor = snow_value_inspect(functor);
+	SnObject* inspected_functor = value_inspect(functor);
 	SnObject* result = string_format("[Fiber@%p stack:%p functor:", (VALUE)fiber, stack);
 	string_append(result, inspected_functor);
 	string_append_cstr(result, "]");
@@ -239,10 +239,10 @@ static VALUE fiber_each(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* f = (SnObject*)self;
 	bool is_started = _fiber_is_started(f);
 	VALUE first_result = snow_fiber_resume(f, NULL);
-	snow_call(it, NULL, 1, &first_result);
+	call(it, NULL, 1, &first_result);
 	while(_fiber_is_started(f)) {
 		VALUE result = snow_fiber_resume(f, NULL);
-		snow_call(it, NULL, 1, &result);
+		call(it, NULL, 1, &result);
 	}
 	return SN_NIL;
 }

@@ -95,9 +95,9 @@ static VALUE map_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
 	snow_map_get_pairs(map, pairs, size);
 	for (size_t i = 0; i < size; ++i) {
-		string_append(result, snow_value_inspect(pairs[i][0]));
+		string_append(result, value_inspect(pairs[i][0]));
 		string_append_cstr(result, " => ");
-		string_append(result, snow_value_inspect(pairs[i][1]));
+		string_append(result, value_inspect(pairs[i][1]));
 		if (i != size-1) string_append_cstr(result, ", ");
 	}
 	string_append_cstr(result, ")");
@@ -121,7 +121,7 @@ static VALUE map_each_pair(const CallFrame* here, VALUE self, VALUE it) {
 	SnKeyValuePair pairs[sz];
 	snow_map_get_pairs(s, pairs, sz);
 	for (size_t i = 0; i < sz; ++i) {
-		snow_call(it, NULL, 2, pairs[i]);
+		call(it, NULL, 2, pairs[i]);
 	}
 	return SN_NIL;
 }

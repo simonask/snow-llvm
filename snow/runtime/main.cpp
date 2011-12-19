@@ -49,7 +49,7 @@ static void interactive_prompt()
 			try {
 				SnObject* str = create_string_from_linkbuffer(input_buffer);
 				VALUE result = snow_eval_in_global_module(str);
-				VALUE inspected = SNOW_CALL_METHOD(result, "inspect", 0, NULL);
+				VALUE inspected = SN_CALL_METHOD(result, "inspect", 0, NULL);
 				if (!is_string(inspected)) {
 					inspected = string_format("[Object@%p]", result);
 				}
@@ -73,7 +73,8 @@ static void interactive_prompt()
 	}
 }
 
-CAPI int snow_main(int argc, char* const* argv) {
+namespace snow {
+int main(int argc, char* const* argv) {
 	static int debug_mode = false;
 	static int verbose_mode = false;
 	static int interactive_mode = false;
@@ -136,7 +137,7 @@ CAPI int snow_main(int argc, char* const* argv) {
 		SnObject* argument = create_string_constant(argv[optind++]);
 		array_push(ARGV, argument);
 	}
-	snow_set_global(snow_sym("ARGV"), ARGV);
+	set_global(snow_sym("ARGV"), ARGV);
 	
 	for (size_t i = 0; i < array_size(require_files); ++i) {
 		VALUE vstr = array_get(require_files, i);
@@ -149,4 +150,5 @@ CAPI int snow_main(int argc, char* const* argv) {
 	}
 	
 	return 0;
+}
 }

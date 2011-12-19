@@ -7,9 +7,9 @@
 
 int main (int argc, char* const* argv) {
 	try {
-		snow_init("lib/prelude.sn");
-		int n = snow_main(argc, argv);
-		snow_finish();
+		snow::init("lib/prelude.sn");
+		int n = snow::main(argc, argv);
+		snow::finish();
 		return n;
 	}
 	catch (const snow::Exception& ex) {

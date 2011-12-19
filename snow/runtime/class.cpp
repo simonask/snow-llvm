@@ -311,7 +311,7 @@ CAPI {
 		// TODO: Consider how to call superclass initializers
 		VALUE initialize = class_get_initialize(cls);
 		if (initialize) {
-			snow_call_with_arguments(initialize, obj, args);
+			call_with_arguments(initialize, obj, args);
 		}
 		return obj;
 	}
