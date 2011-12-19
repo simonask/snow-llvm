@@ -8,6 +8,8 @@
 #include <map>
 #include <string>
 
+using namespace snow;
+
 // TODO: Figure out a way to use google::dense_hash_map with -fno-rtti
 typedef std::map<std::string, SnSymbol> SymbolTable;
 
@@ -70,9 +72,9 @@ CAPI {
 	SnObject* snow_get_symbol_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class(snow_sym("Symbol"), NULL);
-			snow_class_define_method(cls, "inspect", symbol_inspect);
-			snow_class_define_method(cls, "to_string", symbol_to_string);
+			SnObject* cls = create_class(snow_sym("Symbol"), NULL);
+			SN_DEFINE_METHOD(cls, "inspect", symbol_inspect);
+			SN_DEFINE_METHOD(cls, "to_string", symbol_to_string);
 			root = snow_gc_create_root(cls);
 		}
 		return *root;

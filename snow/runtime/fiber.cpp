@@ -257,15 +257,15 @@ static VALUE fiber_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
 CAPI SnObject* snow_get_fiber_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class_for_type(snow_sym("Fiber"), snow::get_type<Fiber>());
-		snow_class_define_method(cls, "initialize", fiber_initialize);
-		snow_class_define_method(cls, "inspect", fiber_inspect);
-		snow_class_define_method(cls, "to_string", fiber_inspect);
-		snow_class_define_method(cls, "resume", fiber_resume);
-		snow_class_define_method(cls, "__call__", fiber_resume);
-		snow_class_define_method(cls, "each", fiber_each);
-		snow_class_define_property(cls, "running?", fiber_is_running, NULL);
-		snow_class_define_property(cls, "started?", fiber_is_started, NULL);
+		SnObject* cls = create_class_for_type(snow_sym("Fiber"), snow::get_type<Fiber>());
+		SN_DEFINE_METHOD(cls, "initialize", fiber_initialize);
+		SN_DEFINE_METHOD(cls, "inspect", fiber_inspect);
+		SN_DEFINE_METHOD(cls, "to_string", fiber_inspect);
+		SN_DEFINE_METHOD(cls, "resume", fiber_resume);
+		SN_DEFINE_METHOD(cls, "__call__", fiber_resume);
+		SN_DEFINE_METHOD(cls, "each", fiber_each);
+		SN_DEFINE_PROPERTY(cls, "running?", fiber_is_running, NULL);
+		SN_DEFINE_PROPERTY(cls, "started?", fiber_is_started, NULL);
 		root = snow_gc_create_root(cls);
 	}
 	return *root;

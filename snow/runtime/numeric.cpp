@@ -9,6 +9,7 @@
 #include "snow/str.hpp"
 #include "snow/value.hpp"
 
+using namespace snow;
 
 static VALUE numeric_add(const SnCallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
@@ -181,17 +182,17 @@ CAPI {
 SnObject* snow_get_numeric_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class(snow_sym("Numeric"), NULL);
-		snow_class_define_method(cls, "+", numeric_add);
-		snow_class_define_method(cls, "-", numeric_subtract);
-		snow_class_define_method(cls, "*", numeric_multiply);
-		snow_class_define_method(cls, "/", numeric_divide);
-		snow_class_define_method(cls, "<", numeric_less_than);
-		snow_class_define_method(cls, "<=", numeric_less_than_or_equal);
-		snow_class_define_method(cls, ">", numeric_greater_than);
-		snow_class_define_method(cls, ">=", numeric_greater_than_or_equal);
-		snow_class_define_method(cls, "inspect", numeric_inspect);
-		snow_class_define_method(cls, "to_string", numeric_inspect);
+		SnObject* cls = create_class(snow_sym("Numeric"), NULL);
+		SN_DEFINE_METHOD(cls, "+", numeric_add);
+		SN_DEFINE_METHOD(cls, "-", numeric_subtract);
+		SN_DEFINE_METHOD(cls, "*", numeric_multiply);
+		SN_DEFINE_METHOD(cls, "/", numeric_divide);
+		SN_DEFINE_METHOD(cls, "<", numeric_less_than);
+		SN_DEFINE_METHOD(cls, "<=", numeric_less_than_or_equal);
+		SN_DEFINE_METHOD(cls, ">", numeric_greater_than);
+		SN_DEFINE_METHOD(cls, ">=", numeric_greater_than_or_equal);
+		SN_DEFINE_METHOD(cls, "inspect", numeric_inspect);
+		SN_DEFINE_METHOD(cls, "to_string", numeric_inspect);
 		root = snow_gc_create_root(cls);
 	}
 	return *root;
@@ -200,7 +201,7 @@ SnObject* snow_get_numeric_class() {
 SnObject* snow_get_float_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class(snow_sym("Float"), snow_get_numeric_class());
+		SnObject* cls = create_class(snow_sym("Float"), snow_get_numeric_class());
 		root = snow_gc_create_root(cls);
 	}
 	return *root;
@@ -209,9 +210,9 @@ SnObject* snow_get_float_class() {
 SnObject* snow_get_integer_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class(snow_sym("Integer"), snow_get_numeric_class());
-		snow_class_define_method(cls, "%", integer_modulo);
-		snow_class_define_method(cls, "~", integer_complement);
+		SnObject* cls = create_class(snow_sym("Integer"), snow_get_numeric_class());
+		SN_DEFINE_METHOD(cls, "%", integer_modulo);
+		SN_DEFINE_METHOD(cls, "~", integer_complement);
 		root = snow_gc_create_root(cls);
 	}
 	return *root;

@@ -173,14 +173,14 @@ static VALUE map_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
 CAPI SnObject* snow_get_map_class() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class_for_type(snow_sym("Map"), get_type<Map>());
-		snow_class_define_method(cls, "initialize", map_initialize);
-		snow_class_define_method(cls, "inspect", map_inspect);
-		snow_class_define_method(cls, "to_string", map_inspect);
-		snow_class_define_method(cls, "get", map_index_get);
-		snow_class_define_method(cls, "set", map_index_set);
-		snow_class_define_method(cls, "each_pair", map_each_pair);
-		snow_class_define_property(cls, "size", map_get_size, NULL);
+		SnObject* cls = create_class_for_type(snow_sym("Map"), get_type<Map>());
+		SN_DEFINE_METHOD(cls, "initialize", map_initialize);
+		SN_DEFINE_METHOD(cls, "inspect", map_inspect);
+		SN_DEFINE_METHOD(cls, "to_string", map_inspect);
+		SN_DEFINE_METHOD(cls, "get", map_index_get);
+		SN_DEFINE_METHOD(cls, "set", map_index_set);
+		SN_DEFINE_METHOD(cls, "each_pair", map_each_pair);
+		SN_DEFINE_PROPERTY(cls, "size", map_get_size, NULL);
 		root = snow_gc_create_root(cls);
 	}
 	return *root;

@@ -29,8 +29,8 @@ static VALUE get_version(const SnCallFrame* here, VALUE self, VALUE it) {
 CAPI SnObject* snow_get_vm_interface() {
 	static SnObject** root = NULL;
 	if (!root) {
-		SnObject* cls = snow_create_class(snow_sym("SnowVMInterface"), NULL);
-		snow_class_define_property(cls, "version", get_version, NULL);
+		SnObject* cls = create_class(snow_sym("SnowVMInterface"), NULL);
+		SN_DEFINE_PROPERTY(cls, "version", get_version, NULL);
 		SnObject* obj = snow_create_object(cls, 0, NULL);
 		root = snow_gc_create_root(obj);
 	}
@@ -115,7 +115,7 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("Float"), snow_get_float_class());
 	snow_set_global(snow_sym("Numeric"), snow_get_numeric_class());
 	snow_set_global(snow_sym("Object"), snow_get_object_class());
-	snow_set_global(snow_sym("Class"), snow_get_class_class());
+	snow_set_global(snow_sym("Class"), get_class_class());
 	snow_set_global(snow_sym("String"), get_string_class());
 	snow_set_global(snow_sym("Array"), get_array_class());
 	snow_set_global(snow_sym("@"), get_array_class());

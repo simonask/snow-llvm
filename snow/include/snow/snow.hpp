@@ -35,7 +35,7 @@ CAPI VALUE snow_get_method(VALUE self, SnSymbol member);
 CAPI struct SnObject* snow_get_nearest_object(VALUE val);
 CAPI VALUE snow_value_freeze(VALUE it);
 
-CAPI struct SnObject* snow_create_class_for_prototype(SnSymbol name, struct SnObject* proto);
+CAPI struct SnObject* create_class_for_prototype(SnSymbol name, struct SnObject* proto);
 
 CAPI struct SnObject* snow_value_to_string(VALUE val);
 CAPI struct SnObject* snow_value_inspect(VALUE val);

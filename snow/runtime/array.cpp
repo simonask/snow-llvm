@@ -179,17 +179,17 @@ namespace snow {
 	SnObject* get_array_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("Array"), get_type<Array>());
-			snow_class_define_method(cls, "initialize", bindings::array_initialize);
-			snow_class_define_method(cls, "inspect", bindings::array_inspect);
-			snow_class_define_method(cls, "to_string", bindings::array_inspect);
-			snow_class_define_method(cls, "get", bindings::array_index_get);
-			snow_class_define_method(cls, "set", bindings::array_index_set);
-			snow_class_define_method(cls, "*", bindings::array_multiply_or_splat);
-			snow_class_define_method(cls, "each", bindings::array_each);
-			snow_class_define_method(cls, "push", bindings::array_push);
-			snow_class_define_method(cls, "<<", bindings::array_push);
-			snow_class_define_property(cls, "size", bindings::array_get_size, NULL);
+			SnObject* cls = create_class_for_type(snow_sym("Array"), get_type<Array>());
+			SN_DEFINE_METHOD(cls, "initialize", bindings::array_initialize);
+			SN_DEFINE_METHOD(cls, "inspect", bindings::array_inspect);
+			SN_DEFINE_METHOD(cls, "to_string", bindings::array_inspect);
+			SN_DEFINE_METHOD(cls, "get", bindings::array_index_get);
+			SN_DEFINE_METHOD(cls, "set", bindings::array_index_set);
+			SN_DEFINE_METHOD(cls, "*", bindings::array_multiply_or_splat);
+			SN_DEFINE_METHOD(cls, "each", bindings::array_each);
+			SN_DEFINE_METHOD(cls, "push", bindings::array_push);
+			SN_DEFINE_METHOD(cls, "<<", bindings::array_push);
+			SN_DEFINE_PROPERTY(cls, "size", bindings::array_get_size, NULL);
 			root = snow_gc_create_root(cls);
 		}
 		return *root;

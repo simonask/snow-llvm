@@ -22,6 +22,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+using namespace snow;
+
 CAPI {
 	
 void snow_lex(const char*);
@@ -104,12 +106,12 @@ VALUE snow_call_with_arguments(VALUE functor, VALUE self, const SnArguments* arg
 
 VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, VALUE* args) {
 	SnObject* cls = snow_get_class(self);
-	struct SnMethod method;
-	snow_class_get_method(cls, method_name, &method);
+	Method method;
+	class_get_method(cls, method_name, &method);
 	VALUE func = NULL;
-	if (method.type == SnMethodTypeFunction) {
+	if (method.type == MethodTypeFunction) {
 		func = method.function;
-	} else if (method.type == SnMethodTypeProperty) {
+	} else if (method.type == MethodTypeProperty) {
 		func = snow_call(method.property->getter, self, 0, NULL);
 	}
 	return snow_call(func, self, num_args, args);

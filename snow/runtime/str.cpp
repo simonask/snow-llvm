@@ -228,12 +228,12 @@ namespace snow {
 	SnObject* get_string_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("String"), get_type<String>());
-			snow_class_define_method(cls, "inspect", bindings::string_inspect);
-			snow_class_define_method(cls, "to_string", bindings::string_to_string);
-			snow_class_define_method(cls, "+", bindings::string_add);
-			snow_class_define_property(cls, "size", bindings::string_get_size, NULL);
-			snow_class_define_property(cls, "length", bindings::string_get_length, NULL);
+			SnObject* cls = create_class_for_type(snow_sym("String"), get_type<String>());
+			SN_DEFINE_METHOD(cls, "inspect", bindings::string_inspect);
+			SN_DEFINE_METHOD(cls, "to_string", bindings::string_to_string);
+			SN_DEFINE_METHOD(cls, "+", bindings::string_add);
+			SN_DEFINE_PROPERTY(cls, "size", bindings::string_get_size, NULL);
+			SN_DEFINE_PROPERTY(cls, "length", bindings::string_get_length, NULL);
 			root = snow_gc_create_root(cls);
 		}
 		return *root;

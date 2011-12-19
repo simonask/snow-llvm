@@ -123,9 +123,9 @@ CAPI {
 	SnObject* snow_get_function_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("Function"), snow::get_type<Function>());
+			SnObject* cls = create_class_for_type(snow_sym("Function"), snow::get_type<Function>());
 			root = snow_gc_create_root(cls);
-			snow_class_define_method(cls, "__call__", function_call);
+			SN_DEFINE_METHOD(cls, "__call__", function_call);
 		}
 		return *root;
 	}
@@ -165,9 +165,9 @@ CAPI {
 	SnObject* snow_get_call_frame_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = snow_create_class_for_type(snow_sym("CallFrame"), get_type<CallFrame>());
-			snow_class_define_property(cls, "self", call_frame_get_self, NULL);
-			snow_class_define_property(cls, "arguments", call_frame_get_arguments, NULL);
+			SnObject* cls = create_class_for_type(snow_sym("CallFrame"), get_type<CallFrame>());
+			SN_DEFINE_PROPERTY(cls, "self", call_frame_get_self, NULL);
+			SN_DEFINE_PROPERTY(cls, "arguments", call_frame_get_arguments, NULL);
 			root = snow_gc_create_root(cls);
 		}
 		return *root;
@@ -177,19 +177,19 @@ CAPI {
 		VALUE functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			SnObject* cls = snow_get_class(functor);
-			SnMethod method;
-			if (snow_class_lookup_method(cls, snow_sym("__call__"), &method)) {
+			Method method;
+			if (class_lookup_method(cls, snow_sym("__call__"), &method)) {
 				*out_new_self = functor;
-				if (method.type == SnMethodTypeFunction) {
+				if (method.type == MethodTypeFunction) {
 					functor = method.function;
 				} else {
 					if (method.property->getter == NULL) {
-						snow_throw_exception_with_description("Property __call__ is read-only on class %s@p.", snow_class_get_name(cls), cls);
+						snow_throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls);
 					}
 					functor = snow_call(method.property->getter, *out_new_self, 0, NULL);
 				}
 			} else {
-				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, snow_class_get_name(cls), cls);
+				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls);
 			}
 		}
 		
