@@ -39,9 +39,9 @@ CAPI int32_t snow_object_get_index_of_instance_variable(const SnObject* obj, SnS
 // Meta-class related
 CAPI bool snow_object_give_meta_class(SnObject* obj);
 CAPI VALUE _snow_object_define_method(SnObject* obj, SnSymbol name, VALUE func);
-#define snow_object_define_method(OBJ, NAME, FUNC) _snow_object_define_method(OBJ, snow_sym(NAME), snow_create_function(FUNC, snow_sym(#FUNC)))
+#define snow_object_define_method(OBJ, NAME, FUNC) _snow_object_define_method(OBJ, snow_sym(NAME), snow::create_function(FUNC, snow_sym(#FUNC)))
 CAPI VALUE _snow_object_define_property(SnObject* obj, SnSymbol name, VALUE getter, VALUE setter);
-#define snow_object_define_property(OBJ, NAME, GETTER, SETTER) _snow_object_define_property(OBJ, snow_sym(NAME), snow_create_function(GETTER, snow_sym(#GETTER)), snow_create_function(SETTER, snow_sym(#SETTER)))
+#define snow_object_define_property(OBJ, NAME, GETTER, SETTER) _snow_object_define_property(OBJ, snow_sym(NAME), snow::create_function(GETTER, snow_sym(#GETTER)), snow::create_function(SETTER, snow_sym(#SETTER)))
 CAPI VALUE snow_object_set_property_or_define_method(SnObject* self, SnSymbol name, VALUE val);
 
 // Object type related

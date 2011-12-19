@@ -18,11 +18,11 @@
 using namespace snow;
 
 
-static VALUE get_load_paths(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE get_load_paths(const CallFrame* here, VALUE self, VALUE it) {
 	return snow_get_load_paths();
 }
 
-static VALUE get_version(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE get_version(const CallFrame* here, VALUE self, VALUE it) {
 	return create_string_constant(snow_version());
 }
 
@@ -37,7 +37,7 @@ CAPI SnObject* snow_get_vm_interface() {
 	return *root;
 }
 
-static VALUE global_puts(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->args->size; ++i) {
 		SnObject* str = snow_value_to_string(here->args->data[i]);
 		size_t sz = string_size(str);
@@ -50,36 +50,36 @@ static VALUE global_puts(const SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE global_import(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_import(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* file = snow_value_to_string(it);
 	return snow_import(file);
 }
 
-static VALUE global_import_global(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_import_global(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* file = snow_value_to_string(it);
 	snow_load_in_global_module(file);
 	return SN_TRUE;
 }
 
-static VALUE global_load(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_load(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* file = snow_value_to_string(it);
 	return snow_load(file);
 }
 
-static VALUE global_resolve_symbol(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_resolve_symbol(const CallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(it)) return NULL;
 	int64_t n = snow_value_to_integer(it);
 	const char* str = snow_sym_to_cstr(n);
 	return str ? create_string_constant(str) : create_string_constant("<invalid symbol>");
 }
 
-static VALUE global_print_call_stack(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_print_call_stack(const CallFrame* here, VALUE self, VALUE it) {
 	SnObject* fiber = snow_get_current_fiber();
 	int level = 0;
 	while (fiber) {
-		SnCallFrame* frame = snow_fiber_get_current_frame(fiber);
+		CallFrame* frame = snow_fiber_get_current_frame(fiber);
 		while (frame) {
-			SnSymbol function_name = snow_function_get_name(frame->function);
+			SnSymbol function_name = function_get_name(frame->function);
 			printf("%d: %s(", level++, snow_sym_to_cstr(function_name));
 			// TODO: Print arguments
 			printf(")\n");
@@ -90,12 +90,12 @@ static VALUE global_print_call_stack(const SnCallFrame* here, VALUE self, VALUE 
 	return SN_NIL;
 }
 
-static VALUE global_throw(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE global_throw(const CallFrame* here, VALUE self, VALUE it) {
 	snow_throw_exception(it);
 	return NULL; // unreachable
 }
 
-#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow_create_function(FUNCTION, snow_sym(NAME)))
+#define SN_DEFINE_GLOBAL(NAME, FUNCTION, NUM_ARGS) snow_set_global(snow_sym(NAME), snow::create_function(FUNCTION, snow_sym(NAME)))
 
 void snow_init_globals() {
 	snow_set_global(snow_sym("Snow"), snow_get_vm_interface());
@@ -121,7 +121,7 @@ void snow_init_globals() {
 	snow_set_global(snow_sym("@"), get_array_class());
 	snow_set_global(snow_sym("Map"), snow_get_map_class());
 	snow_set_global(snow_sym("#"), snow_get_map_class());
-	snow_set_global(snow_sym("Function"), snow_get_function_class());
-	snow_set_global(snow_sym("CallFrame"), snow_get_call_frame_class());
+	snow_set_global(snow_sym("Function"), get_function_class());
+	snow_set_global(snow_sym("Environment"), get_environment_class());
 	snow_set_global(snow_sym("Fiber"), snow_get_fiber_class());
 }

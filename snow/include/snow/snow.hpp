@@ -8,7 +8,9 @@
 
 struct SnArguments;
 struct SnObject;
-struct SnCallFrame;
+namespace snow {
+	struct CallFrame;
+}
 
 CAPI void snow_init(const char* lib_path);
 CAPI void snow_finish();
@@ -21,7 +23,7 @@ CAPI struct SnObject* snow_get_global_object();
 CAPI struct SnObject** _snow_get_global_object_ptr(); // for GC
 CAPI VALUE snow_set_global(SnSymbol sym, VALUE val);
 CAPI VALUE snow_get_global(SnSymbol sym);
-CAPI VALUE snow_local_missing(struct SnCallFrame* frame, SnSymbol name);
+CAPI VALUE snow_local_missing(struct snow::CallFrame* frame, SnSymbol name);
 
 CAPI struct SnObject* snow_get_class(VALUE value);
 CAPI VALUE snow_call(VALUE function, VALUE self, size_t num_args, VALUE* args);

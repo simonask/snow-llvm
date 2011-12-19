@@ -49,8 +49,8 @@ namespace snow {
 	void class_get_method(ClassConstPtr cls, SnSymbol name, Method* out_method); // throws if not found!
 	ClassPtr _class_define_method(ClassPtr cls, SnSymbol name, VALUE function);
 	ClassPtr _class_define_property(ClassPtr cls, SnSymbol name, VALUE getter, VALUE setter);
-	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow_sym(NAME), snow_create_function(FUNCPTR, snow_sym(#FUNCPTR)))
-	#define SN_DEFINE_PROPERTY(CLS, NAME, GETTER, SETTER) snow::_class_define_property(CLS, snow_sym(NAME), snow_create_function(GETTER, snow_sym(#GETTER)), snow_create_function(SETTER, snow_sym(#SETTER)))
+	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow_sym(NAME), snow::create_function(FUNCPTR, snow_sym(#FUNCPTR)))
+	#define SN_DEFINE_PROPERTY(CLS, NAME, GETTER, SETTER) snow::_class_define_property(CLS, snow_sym(NAME), snow::create_function(GETTER, snow_sym(#GETTER)), snow::create_function(SETTER, snow_sym(#SETTER)))
 	VALUE class_get_initialize(ClassConstPtr cls);
 }
 

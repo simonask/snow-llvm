@@ -184,7 +184,7 @@ namespace snow {
 	}
 
 	namespace bindings {
-		static VALUE string_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+		static VALUE string_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			if (!is_string(self)) snow_throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
 			ObjectPtr<String> s = self;
 			size_t size = string_size(s);
@@ -195,12 +195,12 @@ namespace snow {
 			return create_string_with_size(buffer, size + 2);
 		}
 
-		static VALUE string_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
+		static VALUE string_to_string(const CallFrame* here, VALUE self, VALUE it) {
 			if (!is_string(self)) snow_throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
 			return self;
 		}
 
-		static VALUE string_add(const SnCallFrame* here, VALUE self, VALUE it) {
+		static VALUE string_add(const CallFrame* here, VALUE self, VALUE it) {
 			if (!is_string(self)) snow_throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
 
 			if (it) {
@@ -210,14 +210,14 @@ namespace snow {
 			return self;
 		}
 
-		static VALUE string_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
+		static VALUE string_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			if (is_string(self)) {
 				return snow_integer_to_value((int64_t)string_size(self));
 			}
 			return NULL;
 		}
 
-		static VALUE string_get_length(const SnCallFrame* here, VALUE self, VALUE it) {
+		static VALUE string_get_length(const CallFrame* here, VALUE self, VALUE it) {
 			if (is_string(self)) {
 				return snow_integer_to_value((int64_t)string_length(self));
 			}

@@ -75,12 +75,16 @@ namespace snow {
 			return snow::class_get_index_of_instance_variable(cls, name);
 		}
 		
-		VALUE snow_call_frame_as_object(SnCallFrame* call_frame) {
-			return ::snow_call_frame_as_object(call_frame);
+		VALUE call_frame_environment(CallFrame* call_frame) {
+			return snow::call_frame_environment(call_frame);
 		}
 		
 		void array_push(VALUE array, VALUE value) {
 			snow::array_push(array, value);
+		}
+		
+		SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, VALUE definition_environment) {
+			return snow::create_function_for_descriptor(descriptor, definition_environment);
 		}
 	}
 	
@@ -227,13 +231,13 @@ namespace snow {
 				Function* f = compile_function(node);
 				if (!f) return false;
 				movq(REG_CALL_FRAME, RDI);
-				CALL(snow_call_frame_as_object);
+				CALL(ccall::call_frame_environment);
 				movq(RAX, RSI);
 				FunctionDescriptorReference ref;
 				ref.offset = movq(0, RDI);
 				ref.function = f;
 				function_descriptor_references.push_back(ref);
-				CALL(snow::create_function_for_descriptor);
+				CALL(ccall::create_function_for_descriptor);
 				return true;
 			}
 			case SN_AST_RETURN: {
@@ -292,7 +296,7 @@ namespace snow {
 					bind_label(get_method);
 					movq(RDI, RSI);
 					movq(self, RDI);
-					CALL(snow_create_method_proxy);
+					CALL(snow::create_method_proxy);
 					// jmp(after);
 				}
 				
@@ -606,7 +610,7 @@ namespace snow {
 			// local found!
 			movq(REG_CALL_FRAME, RDI);
 			movq(level, RSI);
-			CALL(snow_get_locals_from_higher_lexical_scope);
+			CALL(snow::get_locals_from_higher_lexical_scope);
 			movq(RAX, reg);
 			return address(reg, index * sizeof(VALUE));
 		}
@@ -623,7 +627,7 @@ namespace snow {
 				index = local_names.size();
 				local_names.push_back(name);
 				movq(REG_CALL_FRAME, reg); // 'here'
-				movq(address(reg, offsetof(SnCallFrame, locals)), reg);
+				movq(address(reg, offsetof(CallFrame, locals)), reg);
 				return address(reg, index * sizeof(VALUE));
 			} else {
 				global_idx = codegen.module_globals.size();
@@ -976,7 +980,7 @@ namespace snow {
 			f->materialize_at(destination + offset);
 			f->materialized_code_offset = offset;
 			FunctionDescriptor* descriptor = (FunctionDescriptor*)(destination + f->materialized_descriptor_offset);
-			descriptor->ptr = (SnFunctionPtr)(destination + offset);
+			descriptor->ptr = (FunctionPtr)(destination + offset);
 			
 			// collect descriptor references
 			for (size_t j = 0; j < f->function_descriptor_references.size(); ++j) {

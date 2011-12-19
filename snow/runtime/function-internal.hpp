@@ -15,7 +15,7 @@ namespace snow {
 	};
 	
 	struct FunctionDescriptor {
-		SnFunctionPtr ptr;
+		FunctionPtr ptr;
 		SnSymbol name;
 		SnValueType return_type;
 		size_t num_params;
@@ -27,7 +27,7 @@ namespace snow {
 		VariableReference* variable_references;
 	};
 	
-	SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, SnObject* definition_frame);
+	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, const ObjectPtr<Environment>& definition_frame);
 }
 
 #endif /* end of include guard: FUNCTION_INTERNAL_HPP_U4QUBRPT */

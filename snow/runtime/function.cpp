@@ -12,7 +12,7 @@
 namespace snow {
 	struct Function {
 		const snow::FunctionDescriptor* descriptor;
-		ObjectPtr<CallFrame> definition_scope;
+		ObjectPtr<Environment> definition_scope;
 		VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
 		
 		Function() : descriptor(NULL), variable_references(NULL) {}
@@ -28,21 +28,21 @@ namespace snow {
 	
 	SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
 	
-	struct CallFrame {
+	struct Environment {
 		ObjectPtr<Function> function;
 		VALUE self;
 		VALUE* locals;
 		size_t num_locals;
 		SnArguments args;
 		
-		CallFrame() :
+		Environment() :
 			self(NULL),
 			locals(NULL),
 			num_locals(0)
 		{
 			memset(&args, 0, sizeof(SnArguments));
 		}
-		~CallFrame() {
+		~Environment() {
 			snow::dealloc_range(locals);
 			snow::dealloc_range(args.names);
 			snow::dealloc_range(args.data);
@@ -50,9 +50,9 @@ namespace snow {
 	};
 	
 	
-	void call_frame_gc_each_root(void* data, void(*callback)(VALUE* root)) {
+	void environment_gc_each_root(void* data, void(*callback)(VALUE* root)) {
 		#define CALLBACK(ROOT) callback(reinterpret_cast<VALUE*>(&(ROOT)))
-		CallFrame* priv = (CallFrame*)data;
+		Environment* priv = (Environment*)data;
 		CALLBACK(priv->function);
 		CALLBACK(priv->self);
 		for (size_t i = 0; i < priv->num_locals; ++i) {
@@ -63,12 +63,10 @@ namespace snow {
 		}
 	}
 	
-	SN_REGISTER_CPP_TYPE(CallFrame, call_frame_gc_each_root)
-}
+	SN_REGISTER_CPP_TYPE(Environment, environment_gc_each_root)
 
-namespace snow {
-	SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, SnObject* definition_scope) {
-		ObjectPtr<Function> function = snow_create_object(snow_get_function_class(), 0, NULL);
+	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, const ObjectPtr<Environment>& definition_scope) {
+		ObjectPtr<Function> function = snow_create_object(get_function_class(), 0, NULL);
 		function->descriptor = descriptor;
 		function->definition_scope = definition_scope;
 		if (descriptor->num_variable_references) {
@@ -79,33 +77,30 @@ namespace snow {
 		return function;
 	}
 	
-	static VALUE function_call(const SnCallFrame* here, VALUE self, VALUE it) {
-		SN_CHECK_CLASS(self, Function, __call__);
-		SnCallFrame frame = *here;
-		return snow_function_call((SnObject*)self, &frame);
-	}
+	namespace bindings {
+		static VALUE function_call(const CallFrame* here, VALUE self, VALUE it) {
+			SN_CHECK_CLASS(self, Function, __call__);
+			CallFrame frame = *here;
+			return function_call(self, &frame);
+		}
 
-	static VALUE call_frame_get_self(const SnCallFrame* here, VALUE self, VALUE it) {
-		return ObjectPtr<CallFrame>(self)->self;
-	}
+		static VALUE environment_get_self(const CallFrame* here, VALUE self, VALUE it) {
+			return ObjectPtr<Environment>(self)->self;
+		}
 
-	static VALUE call_frame_get_arguments(const SnCallFrame* here, VALUE self, VALUE it) {
-		ObjectPtr<CallFrame> cf = self;
-		return create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
+		static VALUE environment_get_arguments(const CallFrame* here, VALUE self, VALUE it) {
+			ObjectPtr<Environment> cf = self;
+			return create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
+		}
 	}
-
-	static void call_frame_liberate(SnObject* call_frame) {
-		ObjectPtr<CallFrame> cf = call_frame;
+	
+	static void environment_liberate(const ObjectPtr<Environment>& cf) {
 		cf->locals = snow::duplicate_range(cf->locals, cf->num_locals);
 		cf->args.names = snow::duplicate_range(cf->args.names, cf->args.num_names);
 		cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
 	}
-}
 
-CAPI {
-	using namespace snow;
-	
-	SnObject* snow_create_function(SnFunctionPtr ptr, SnSymbol name) {
+	ObjectPtr<Function> create_function(FunctionPtr ptr, SnSymbol name) {
 		snow::FunctionDescriptor* descriptor = new snow::FunctionDescriptor;
 		descriptor->ptr = ptr;
 		descriptor->name = name;
@@ -120,63 +115,63 @@ CAPI {
 		return create_function_for_descriptor(descriptor, NULL);
 	}
 	
-	SnObject* snow_get_function_class() {
+	ObjectPtr<Class> get_function_class() {
 		static SnObject** root = NULL;
 		if (!root) {
 			SnObject* cls = create_class_for_type(snow_sym("Function"), snow::get_type<Function>());
 			root = snow_gc_create_root(cls);
-			SN_DEFINE_METHOD(cls, "__call__", function_call);
+			SN_DEFINE_METHOD(cls, "__call__", bindings::function_call);
 		}
 		return *root;
 	}
 	
-	SnObject* snow_call_frame_as_object(SnCallFrame* frame) {
-		if (frame->as_object) return frame->as_object;
+	ObjectPtr<Environment> call_frame_environment(CallFrame* frame) {
+		if (frame->environment != NULL) return frame->environment;
 		
-		ObjectPtr<CallFrame> obj = snow_create_object(snow_get_call_frame_class(), 0, NULL);
+		ObjectPtr<Environment> obj = snow_create_object(get_environment_class(), 0, NULL);
 		obj->function = frame->function;
 		obj->self = frame->self;
 		obj->locals = frame->locals; // shared until call_frame_liberate
-		obj->num_locals = snow_function_get_num_locals(obj->function);
+		obj->num_locals = function_get_num_locals(obj->function);
 		obj->args = *frame->args; // shared until call_frame_liberate
-		frame->as_object = obj;
+		frame->environment = obj;
 		return obj;
 	}
 	
-	VALUE* snow_call_frame_get_locals(const SnObject* obj) {
-		return ObjectPtr<const CallFrame>(obj)->locals;
+	VALUE* environment_get_locals(EnvironmentConstPtr obj) {
+		return obj->locals;
 	}
 	
-	SnObject* snow_call_frame_get_function(const SnObject* obj) {
-		return ObjectPtr<const CallFrame>(obj)->function;
+	ObjectPtr<Function> environment_get_function(EnvironmentConstPtr obj) {
+		return obj->function;
 	}
 	
-	VALUE* snow_get_locals_from_higher_lexical_scope(const SnCallFrame* frame, size_t num_levels) {
+	VALUE* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels) {
 		if (num_levels == 0) return frame->locals;
-		SnObject* function = frame->function;
-		SnObject* definition_scope = NULL;
+		ObjectPtr<Function> function = frame->function;
+	 	ObjectPtr<Environment> definition_scope;
 		for (size_t i = 0; i < num_levels; ++i) {
-			definition_scope = snow_function_get_definition_scope(function);
-			function = snow_call_frame_get_function(definition_scope);
+			definition_scope = function_get_definition_scope(function);
+			function = environment_get_function(definition_scope);
 		}
-		return snow_call_frame_get_locals(definition_scope);
+		return environment_get_locals(definition_scope);
 	}
 	
-	SnObject* snow_get_call_frame_class() {
+	ObjectPtr<Class> get_environment_class() {
 		static SnObject** root = NULL;
 		if (!root) {
-			SnObject* cls = create_class_for_type(snow_sym("CallFrame"), get_type<CallFrame>());
-			SN_DEFINE_PROPERTY(cls, "self", call_frame_get_self, NULL);
-			SN_DEFINE_PROPERTY(cls, "arguments", call_frame_get_arguments, NULL);
+			ObjectPtr<Class> cls = create_class_for_type(snow_sym("Environment"), get_type<Environment>());
+			SN_DEFINE_PROPERTY(cls, "self", bindings::environment_get_self, NULL);
+			SN_DEFINE_PROPERTY(cls, "arguments", bindings::environment_get_arguments, NULL);
 			root = snow_gc_create_root(cls);
 		}
 		return *root;
 	}
 	
-	SnObject* snow_value_to_function(VALUE val, VALUE* out_new_self) {
+	ObjectPtr<Function> value_to_function(VALUE val, VALUE* out_new_self) {
 		VALUE functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
-			SnObject* cls = snow_get_class(functor);
+			ObjectPtr<Class> cls = snow_get_class(functor);
 			Method method;
 			if (class_lookup_method(cls, snow_sym("__call__"), &method)) {
 				*out_new_self = functor;
@@ -184,12 +179,12 @@ CAPI {
 					functor = method.function;
 				} else {
 					if (method.property->getter == NULL) {
-						snow_throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls);
+						snow_throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls.value());
 					}
 					functor = snow_call(method.property->getter, *out_new_self, 0, NULL);
 				}
 			} else {
-				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls);
+				snow_throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls.value());
 			}
 		}
 		
@@ -207,23 +202,20 @@ CAPI {
 	
 	namespace {
 		struct CallFramePusher {
-			CallFramePusher(SnCallFrame* frame) : frame(frame) {
+			CallFramePusher(CallFrame* frame) : frame(frame) {
 				snow_push_call_frame(frame);
 			}
 			~CallFramePusher() {
-				if (frame->as_object)
-					call_frame_liberate(frame->as_object);
+				if (frame->environment != NULL)
+					environment_liberate(frame->environment);
 				snow_pop_call_frame(frame);
 			}
 
-			SnCallFrame* frame;
+			CallFrame* frame;
 		};
 	}
 	
-	VALUE snow_function_call(SnObject* func, SnCallFrame* frame) {
-		ObjectPtr<Function> function = func;
-		ASSERT(function != NULL); // function is not a Function
-		
+	VALUE function_call(const ObjectPtr<Function>& function, CallFrame* frame) {
 		// Allocate locals
 		size_t num_locals = function->descriptor->num_locals;
 		VALUE locals[num_locals];
@@ -265,19 +257,19 @@ CAPI {
 		return function->descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
-	SnSymbol snow_function_get_name(const SnObject* function) {
-		return ObjectPtr<const Function>(function)->descriptor->name;
+	SnSymbol function_get_name(const ObjectPtr<const Function>& function) {
+		return function->descriptor->name;
 	}
 	
-	size_t snow_function_get_num_locals(const SnObject* function) {
-		return ObjectPtr<const Function>(function)->descriptor->num_locals;
+	size_t function_get_num_locals(const ObjectPtr<const Function>& function) {
+		return function->descriptor->num_locals;
 	}
 	
-	SnObject* snow_function_get_definition_scope(const SnObject* function) {
-		return ObjectPtr<const Function>(function)->definition_scope;
+	ObjectPtr<Environment> function_get_definition_scope(const ObjectPtr<const Function>& function) {
+		return function->definition_scope;
 	}
 	
-	static VALUE method_proxy_call(const SnCallFrame* here, VALUE self, VALUE it) {
+	static VALUE method_proxy_call(const CallFrame* here, VALUE self, VALUE it) {
 		ASSERT(snow_is_object(self));
 		SnObject* s = (SnObject*)self;
 		VALUE obj = snow_object_get_instance_variable(s, snow_sym("object"));
@@ -285,7 +277,7 @@ CAPI {
 		return snow_call_with_arguments(method, obj, here->args);
 	}
 
-	SnObject* snow_create_method_proxy(VALUE self, VALUE method) {
+	SnObject* create_method_proxy(VALUE self, VALUE method) {
 		// TODO: Use a real class for proxy methods
 		SnObject* obj = snow_create_object(snow_get_object_class(), 0, NULL);
 		snow_object_define_method(obj, "__call__", method_proxy_call);
@@ -293,5 +285,4 @@ CAPI {
 		snow_object_set_instance_variable(obj, snow_sym("method"), method);
 		return obj;
 	}
-	
 }

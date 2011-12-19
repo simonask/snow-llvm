@@ -6,11 +6,11 @@
 
 using namespace snow;
 
-static VALUE nil_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE nil_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	return snow::create_string_constant("nil");
 }
 
-static VALUE nil_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE nil_to_string(const CallFrame* here, VALUE self, VALUE it) {
 	return snow::create_string_constant("");
 }
 

@@ -11,7 +11,7 @@
 
 using namespace snow;
 
-static VALUE numeric_add(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_add(const CallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
 	const bool is_self_int = snow_is_integer(self);
 	const bool is_it_int = snow_is_integer(it);
@@ -24,7 +24,7 @@ static VALUE numeric_add(const SnCallFrame* here, VALUE self, VALUE it) {
 	}
 }
 
-static VALUE numeric_subtract(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_subtract(const CallFrame* here, VALUE self, VALUE it) {
 	const bool is_self_int = snow_is_integer(self);
 	if (!it) {
 		// unary
@@ -43,7 +43,7 @@ static VALUE numeric_subtract(const SnCallFrame* here, VALUE self, VALUE it) {
 	}
 }
 
-static VALUE numeric_multiply(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_multiply(const CallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
 	const SnValueType self_type = snow_type_of(self);
 	const SnValueType it_type = snow_type_of(it);
@@ -61,7 +61,7 @@ static VALUE numeric_multiply(const SnCallFrame* here, VALUE self, VALUE it) {
 	}
 }
 
-static VALUE numeric_divide(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_divide(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const SnValueType self_type = snow_type_of(self);
 	const SnValueType it_type = snow_type_of(it);
@@ -79,7 +79,7 @@ static VALUE numeric_divide(const SnCallFrame* here, VALUE self, VALUE it) {
 	}
 }
 
-static VALUE numeric_less_than(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_less_than(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const SnValueType self_type = snow_type_of(self);
 	const SnValueType it_type = snow_type_of(it);
@@ -97,7 +97,7 @@ static VALUE numeric_less_than(const SnCallFrame* here, VALUE self, VALUE it) {
 	}
 }
 
-static VALUE numeric_less_than_or_equal(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_less_than_or_equal(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const SnValueType self_type = snow_type_of(self);
 	const SnValueType it_type = snow_type_of(it);
@@ -115,7 +115,7 @@ static VALUE numeric_less_than_or_equal(const SnCallFrame* here, VALUE self, VAL
 	}
 }
 
-static VALUE numeric_greater_than(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_greater_than(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const SnValueType self_type = snow_type_of(self);
 	const SnValueType it_type = snow_type_of(it);
@@ -133,7 +133,7 @@ static VALUE numeric_greater_than(const SnCallFrame* here, VALUE self, VALUE it)
 	}
 }
 
-static VALUE numeric_greater_than_or_equal(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_greater_than_or_equal(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const SnValueType self_type = snow_type_of(self);
 	const SnValueType it_type = snow_type_of(it);
@@ -151,12 +151,12 @@ static VALUE numeric_greater_than_or_equal(const SnCallFrame* here, VALUE self, 
 	}
 }
 
-static VALUE integer_complement(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE integer_complement(const CallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(self)) return NULL;
 	return snow_integer_to_value(~snow_value_to_integer(self));
 }
 
-static VALUE integer_modulo(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE integer_modulo(const CallFrame* here, VALUE self, VALUE it) {
 	if (!snow_is_integer(self)) return NULL;
 	if (!snow_is_integer(it)) {
 		snow_throw_exception_with_description("Error in modulo operation: %p is not an integer.", it);
@@ -165,7 +165,7 @@ static VALUE integer_modulo(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow_integer_to_value(snow_value_to_integer(self) % snow_value_to_integer(it));
 }
 
-static VALUE numeric_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE numeric_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	if (snow_is_integer(self)) {
 		char buffer[100];
 		snprintf(buffer, 100, "%d", snow_value_to_integer(self));

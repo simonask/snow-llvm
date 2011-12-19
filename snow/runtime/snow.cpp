@@ -58,7 +58,7 @@ VALUE snow_set_global(SnSymbol name, VALUE val) {
 	return snow_object_set_instance_variable(go, name, val);
 }
 
-VALUE snow_local_missing(SnCallFrame* frame, SnSymbol name) {
+VALUE snow_local_missing(CallFrame* frame, SnSymbol name) {
 	// XXX: TODO!!
 	return snow_get_global(name);
 	//fprintf(stderr, "LOCAL MISSING: %s\n", snow_sym_to_cstr(name));
@@ -96,12 +96,12 @@ VALUE snow_call(VALUE functor, VALUE self, size_t num_args, VALUE* args) {
 
 VALUE snow_call_with_arguments(VALUE functor, VALUE self, const SnArguments* args) {
 	VALUE new_self = self;
-	SnObject* function = snow_value_to_function(functor, &new_self);
-	SnCallFrame frame = {
+	SnObject* function = value_to_function(functor, &new_self);
+	CallFrame frame = {
 		.self = new_self,
 		.args = args,
 	};
-	return snow_function_call(function, &frame);
+	return function_call(function, &frame);
 }
 
 VALUE snow_call_method(VALUE self, SnSymbol method_name, size_t num_args, VALUE* args) {

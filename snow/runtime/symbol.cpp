@@ -23,7 +23,7 @@ static SymbolTable& symbol_table() {
 	return *t;
 }
 
-static VALUE symbol_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE symbol_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	const char* symstr = snow_sym_to_cstr(snow_value_to_symbol(self));
 
@@ -40,7 +40,7 @@ static VALUE symbol_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	return snow::create_string(str);
 }
 
-static VALUE symbol_to_string(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE symbol_to_string(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(snow_is_symbol(self));
 	return snow::create_string_constant(snow_sym_to_cstr(snow_value_to_symbol(self)));
 }

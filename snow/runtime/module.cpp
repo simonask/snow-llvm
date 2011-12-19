@@ -166,14 +166,14 @@ namespace {
 				
 				// Call module entry
 				static SnArguments args = {}; // zero arguments
-				SnCallFrame frame = {
+				CallFrame frame = {
 					.function = m->entry,
 					.self = NULL,
 					.locals = NULL,
 					.args = &args,
-					.as_object = NULL
+					.environment = NULL
 				};
-				VALUE result = snow_function_call(m->entry, &frame);
+				VALUE result = function_call(m->entry, &frame);
 				snow_object_set_instance_variable(mod, snow_sym("__module_value__"), result);
 				// Import module globals
 				for (size_t i = 0; i < code->num_globals; ++i) {

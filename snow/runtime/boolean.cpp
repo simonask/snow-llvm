@@ -6,11 +6,11 @@
 
 using namespace snow;
 
-static VALUE boolean_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE boolean_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	return snow::create_string_constant(snow_value_to_boolean(self) ? "true" : "false");
 }
 
-static VALUE boolean_complement(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE boolean_complement(const CallFrame* here, VALUE self, VALUE it) {
 	return snow_boolean_to_value(!snow_value_to_boolean(self));
 }
 

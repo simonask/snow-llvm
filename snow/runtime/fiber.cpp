@@ -26,7 +26,7 @@ namespace snow {
 		byte* stack;
 		byte* suspended_stack_boundary;
 		snow::ObjectPtr<Fiber> link;
-		SnCallFrame* current_frame;
+		CallFrame* current_frame;
 		jmp_buf context;
 		unsigned flags;
 		
@@ -165,7 +165,7 @@ static void fiber_return(SnObject* return_from_, VALUE returned_value) {
 	ASSERT(false);
 }
 
-CAPI SnCallFrame* snow_fiber_get_current_frame(const SnObject* fiber) {
+CAPI CallFrame* snow_fiber_get_current_frame(const SnObject* fiber) {
 	return ObjectPtr<const Fiber>(fiber)->current_frame;
 }
 
@@ -181,13 +181,13 @@ CAPI void snow_fiber_suspend_for_garbage_collection(SnObject* fiber) {
 
 //----------------------------------------------------------------------------
 
-CAPI void snow_push_call_frame(SnCallFrame* frame) {
+CAPI void snow_push_call_frame(CallFrame* frame) {
 	ObjectPtr<Fiber> fiber = snow_get_current_fiber();
 	frame->caller = fiber->current_frame;
 	fiber->current_frame = frame;
 }
 
-CAPI void snow_pop_call_frame(SnCallFrame* frame) {
+CAPI void snow_pop_call_frame(CallFrame* frame) {
 	ObjectPtr<Fiber> fiber = snow_get_current_fiber();
 	ASSERT(fiber->current_frame == frame);
 	fiber->current_frame = fiber->current_frame->caller;
@@ -196,7 +196,7 @@ CAPI void snow_pop_call_frame(SnCallFrame* frame) {
 
 //----------------------------------------------------------------------------
 
-static VALUE fiber_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Fiber, inspect);
 	ObjectPtr<Fiber> fiber = self;
 	
@@ -210,13 +210,13 @@ static VALUE fiber_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	return result;
 }
 
-static VALUE fiber_resume(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_resume(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Fiber, resume);
 	SnObject* c = (SnObject*)self;
 	return snow_fiber_resume(c, it);
 }
 
-static VALUE fiber_is_running(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_is_running(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Fiber, running);
 	ObjectPtr<Fiber> fiber = self;
 	bool is_running = (fiber->flags & SnFiberIsRunning) != 0;
@@ -228,13 +228,13 @@ static bool _fiber_is_started(const ObjectPtr<const Fiber>& fiber) {
 	return is_started;
 }
 
-static VALUE fiber_is_started(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_is_started(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Fiber, is_started);
 	return snow_boolean_to_value(_fiber_is_started(self));
 }
 
 
-static VALUE fiber_each(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_each(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Fiber, each);
 	SnObject* f = (SnObject*)self;
 	bool is_started = _fiber_is_started(f);
@@ -247,7 +247,7 @@ static VALUE fiber_each(const SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE fiber_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE fiber_initialize(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Fiber, initialize);
 	ObjectPtr<Fiber> fiber = self;
 	fiber->functor = it;

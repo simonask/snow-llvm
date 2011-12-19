@@ -62,7 +62,7 @@ namespace snow {
 	SN_REGISTER_CPP_TYPE(Class, class_gc_each_root)
 
 	namespace bindings {
-		VALUE class_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE class_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Class> cls = self;
 			ASSERT(cls != NULL);
 			cls->initialize = NULL;
@@ -77,7 +77,7 @@ namespace snow {
 			return self;
 		}
 
-		VALUE class_define_method(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE class_define_method(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
@@ -93,7 +93,7 @@ namespace snow {
 			return NULL; // unreachable
 		}
 
-		VALUE class_define_property(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE class_define_property(const CallFrame* here, VALUE self, VALUE it) {
 			// TODO: Use named arguments
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
@@ -111,16 +111,16 @@ namespace snow {
 			return NULL; // unreachable
 		}
 
-		VALUE class_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE class_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			if (!is_class(self)) snow_throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self);
 			return string_format("[Class@%p name:%s]", self, class_get_name((SnObject*)self));
 		}
 
-		VALUE class_get_instance_methods(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE class_get_instance_methods(const CallFrame* here, VALUE self, VALUE it) {
 			return NULL;
 		}
 
-		static VALUE class_call(const SnCallFrame* here, VALUE self, VALUE it) {
+		static VALUE class_call(const CallFrame* here, VALUE self, VALUE it) {
 			SN_CHECK_CLASS(self, Class, __call__);
 			return snow_create_object_with_arguments((SnObject*)self, here->args);
 		}

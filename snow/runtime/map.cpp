@@ -87,7 +87,7 @@ CAPI {
 }
 
 
-static VALUE map_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Map, inspect);
 	SnObject* map = (SnObject*)self;
 	const size_t size = snow_map_size(map);
@@ -104,17 +104,17 @@ static VALUE map_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
 	return result;
 }
 
-static VALUE map_index_get(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_index_get(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Map, get);
 	return snow_map_get((SnObject*)self, it);
 }
 
-static VALUE map_index_set(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_index_set(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Map, set);
 	return snow_map_set((SnObject*)self, it, here->locals[1]);
 }
 
-static VALUE map_each_pair(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_each_pair(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Map, each_pair);
 	const SnObject* s = (const SnObject*)self;
 	size_t sz = snow_map_size(s);
@@ -126,7 +126,7 @@ static VALUE map_each_pair(const SnCallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE map_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_initialize(const CallFrame* here, VALUE self, VALUE it) {
 	const SnArguments* args = here->args;
 	if ((args->size - args->num_names) % 2) {
 		snow_throw_exception_with_description("Cannot create map with odd number (%u) of arguments.", (uint32_t)(args->size - args->num_names));
@@ -165,7 +165,7 @@ static VALUE map_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
 	return self;
 }
 
-static VALUE map_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
+static VALUE map_get_size(const CallFrame* here, VALUE self, VALUE it) {
 	SN_CHECK_CLASS(self, Map, each_pair);
 	return snow_integer_to_value(snow_map_size((SnObject*)self));
 }

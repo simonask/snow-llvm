@@ -14,24 +14,24 @@
 namespace {
 	using namespace snow;
 	
-	VALUE object_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+	VALUE object_inspect(const CallFrame* here, VALUE self, VALUE it) {
 		return snow::string_format("[%s@%p]", class_get_name(snow_get_class(self)), self);
 	}
 
-	VALUE object_instance_eval(const SnCallFrame* here, VALUE self, VALUE it) {
+	VALUE object_instance_eval(const CallFrame* here, VALUE self, VALUE it) {
 		VALUE functor = it;
 		return snow_call(functor, self, 0, NULL);
 	}
 
-	VALUE object_equals(const SnCallFrame* here, VALUE self, VALUE it) {
+	VALUE object_equals(const CallFrame* here, VALUE self, VALUE it) {
 		return snow_boolean_to_value(self == it);
 	}
 
-	VALUE object_not_equals(const SnCallFrame* here, VALUE self, VALUE it) {
+	VALUE object_not_equals(const CallFrame* here, VALUE self, VALUE it) {
 		return snow_boolean_to_value(self != it);
 	}
 
- 	VALUE object_compare(const SnCallFrame* here, VALUE self, VALUE it) {
+ 	VALUE object_compare(const CallFrame* here, VALUE self, VALUE it) {
 		// XXX: TODO: With accurate GC, this is unsafe.
 		return snow_integer_to_value((ssize_t)self - (ssize_t)it);
 	}

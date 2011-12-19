@@ -2,6 +2,10 @@
 #ifndef FIBER_INTERNAL_H_J24Y85C2
 #define FIBER_INTERNAL_H_J24Y85C2
 
+namespace snow {
+	struct CallFrame;
+}
+
 struct SnObject;
 
 // XXX: Really big for now, because LLVM lazy compilation requires a *lot* of stack space.
@@ -25,7 +29,7 @@ typedef enum SnFiberFlags {
 CAPI void snow_fiber_begin_thread();
 CAPI void snow_fiber_end_thread();
 CAPI void snow_fiber_suspend_for_garbage_collection(SnObject* fiber);
-CAPI void snow_push_call_frame(struct SnCallFrame* frame);
-CAPI void snow_pop_call_frame(struct SnCallFrame* frame);
+CAPI void snow_push_call_frame(struct snow::CallFrame* frame);
+CAPI void snow_pop_call_frame(struct snow::CallFrame* frame);
 
 #endif /* end of include guard: FIBER_INTERNAL_H_J24Y85C2 */

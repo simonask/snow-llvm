@@ -6,44 +6,46 @@
 #include "snow/symbol.hpp"
 #include "snow/value.hpp"
 #include "snow/object.hpp"
+#include "snow/objectptr.hpp"
 #include "snow/arguments.h"
 
 namespace snow {
+	struct Class;
 	struct Function;
-	struct CallFrame;
+	struct Environment;
+	typedef const ObjectPtr<const Environment>& EnvironmentConstPtr;
+	
+	struct CallFrame {
+		// These members must be PODs, because codegen interfaces directly with this structure.
+		SnObject* function;
+		CallFrame* caller;
+		VALUE self;
+		VALUE* locals; // size: function->descriptor.num_locals
+		const SnArguments* args;
+		SnObject* environment;
+	};
+	
+	typedef VALUE(*FunctionPtr)(const struct CallFrame* here, VALUE self, VALUE it);
+	
+	ObjectPtr<Class> get_function_class();
+	ObjectPtr<Class> get_environment_class();
+	
+	ObjectPtr<Function> create_function(FunctionPtr ptr, SnSymbol name);
+	ObjectPtr<Environment> call_frame_environment(CallFrame* frame);
+	VALUE* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels);
+	ObjectPtr<Function> environment_get_function(const ObjectPtr<const Environment>& env);
+	VALUE* environment_get_locals(const ObjectPtr<const Environment>& env);
+	
+	void merge_splat_arguments(CallFrame* callee_context, VALUE mergee);
+	ObjectPtr<Function> value_to_function(VALUE val, VALUE* out_new_self);
+	
+	VALUE function_call(const ObjectPtr<Function>& function, CallFrame* frame);
+	SnSymbol function_get_name(const ObjectPtr<const Function>& function);
+	size_t function_get_num_locals(const ObjectPtr<const Function>& function);
+	ObjectPtr<Environment> function_get_definition_scope(const ObjectPtr<const Function>& function);
+	
+	// Convenience for currying `self`.
+	SnObject* create_method_proxy(VALUE self, VALUE method);
 }
-
-struct SnCallFrame;
-
-typedef VALUE(*SnFunctionPtr)(const struct SnCallFrame* here, VALUE self, VALUE it);
-
-typedef struct SnCallFrame {
-	SnObject* function;
-	struct SnCallFrame* caller;
-	VALUE self;
-	VALUE* locals; // size: function->descriptor.num_locals
-	const SnArguments* args;
-	SnObject* as_object;
-} SnCallFrame;
-
-CAPI struct SnObject* snow_get_function_class();
-CAPI struct SnObject* snow_get_call_frame_class();
-
-CAPI SnObject* snow_create_function(SnFunctionPtr ptr, SnSymbol name); // TODO: Type inference info
-CAPI SnObject* snow_call_frame_as_object(SnCallFrame* frame);
-CAPI VALUE* snow_get_locals_from_higher_lexical_scope(const SnCallFrame* frame, size_t num_levels);
-CAPI SnObject* snow_call_frame_get_function(const SnObject* obj);
-CAPI VALUE* snow_call_frame_get_locals(const SnObject* obj);
-
-CAPI void snow_merge_splat_arguments(SnCallFrame* callee_context, VALUE mergee);
-CAPI SnObject* snow_value_to_function(VALUE val, VALUE* out_new_self);
-
-CAPI VALUE snow_function_call(SnObject* function, SnCallFrame* frame);
-CAPI SnSymbol snow_function_get_name(const SnObject* obj);
-CAPI size_t snow_function_get_num_locals(const SnObject* obj);
-CAPI SnObject* snow_function_get_definition_scope(const SnObject* obj);
-
-// Convenience for C bindings
-CAPI SnObject* snow_create_method_proxy(VALUE self, VALUE method);
 
 #endif /* end of include guard: FUNCTION_H_X576C5TP */

@@ -96,7 +96,7 @@ namespace snow {
 	}
 
 	namespace bindings {
-		VALUE array_initialize(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) {
 				snow_throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
@@ -107,7 +107,7 @@ namespace snow {
 			return self;
 		}
 
-		VALUE array_inspect(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) {
 				snow_throw_exception_with_description("Array#inspect called for object that doesn't derive from Array.");
@@ -128,7 +128,7 @@ namespace snow {
 			return result;
 		}
 
-		VALUE array_index_get(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_index_get(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			if (snow_type_of(it) != SnIntegerType) {
@@ -137,7 +137,7 @@ namespace snow {
 			return array_get(array, snow_value_to_integer(it));
 		}
 
-		VALUE array_index_set(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_index_set(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			if (snow_type_of(it) != SnIntegerType) {
@@ -147,12 +147,12 @@ namespace snow {
 			return array_set(array, snow_value_to_integer(it), val);
 		}
 
-		VALUE array_multiply_or_splat(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_multiply_or_splat(const CallFrame* here, VALUE self, VALUE it) {
 			if (!it) return self;
 			return self; // TODO: Something useful?
 		}
 
-		VALUE array_each(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_each(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			for (size_t i = 0; i < array->size(); ++i) {
@@ -162,7 +162,7 @@ namespace snow {
 			return SN_NIL;
 		}
 
-		VALUE array_push(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_push(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 		// TODO: Check for recursion?
@@ -170,7 +170,7 @@ namespace snow {
 			return self;
 		}
 
-		VALUE array_get_size(const SnCallFrame* here, VALUE self, VALUE it) {
+		VALUE array_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			if (!snow::value_is_of_type(self, get_type<Array>())) return NULL;
 			return snow_integer_to_value(array_size(self));
 		}
