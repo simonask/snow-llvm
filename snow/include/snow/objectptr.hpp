@@ -18,6 +18,7 @@ namespace snow {
 		ObjectPtr(Ptr obj) { assign(obj); }
 		ObjectPtr(long) : object_(NULL), priv_(NULL) {}
 		ObjectPtr(const ObjectPtr<T>& other) : object_(other.object_), priv_(other.priv_) {}
+		template <typename U> ObjectPtr(const ObjectPtr<U>& other) = delete;
 		ObjectPtr<T>& operator=(const ObjectPtr<T>& other) { object_ = other.object_; priv_ = other.priv_; return *this; }
 		ObjectPtr<T>& operator=(VALUE val) { assign(val); return *this; }
 		ObjectPtr<T>& operator=(Ptr obj) { assign(obj); return *this; }
