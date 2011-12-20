@@ -13,7 +13,7 @@
 #include <setjmp.h>
 
 #include <vector>
-#include <bits/stl_pair.h>
+#include <utility>
 
 #define GET_TOKEN_SZ(SZ, TOKEN) char* SZ = (char*)alloca((TOKEN)->length+1); memcpy(SZ, (TOKEN)->begin, (TOKEN)->length); (SZ)[(TOKEN)->length] = '\0'
 
