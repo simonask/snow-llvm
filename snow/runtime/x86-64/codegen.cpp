@@ -583,6 +583,7 @@ namespace snow {
 	Codegen::Function* Codegen::Function::compile_function(const ASTNode* function) {
 		ASSERT(function->type == ASTNodeTypeClosure);
 		Function* f = new Function(codegen);
+		f->parent = this;
 		if (function->closure.parameters) {
 			f->param_names.reserve(function->closure.parameters->sequence.length);
 			for (const ASTNode* x = function->closure.parameters->sequence.head; x; x = x->next) {
