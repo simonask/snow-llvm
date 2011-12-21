@@ -17,21 +17,11 @@ Class.define_method(#<<) [module] {
 
 Enumerable: #(
 	all?: [condition] {
-		condition: condition or { it }
-		fiber: Fiber [yield] {
-			.each { yield(false) unless condition(it) }
-			true
-		}
-		fiber()
+		.select(condition or {it}).count() = .count()
 	},
 	
 	any?: [condition] {
-		condition: condition or { it }
-		fiber: Fiber [yield] {
-			.each { yield(true) if condition(it) }
-			false
-		}
-		fiber()
+		.select(condition or {it}).count() > 0
 	},
 	
 	count: [condition] {
