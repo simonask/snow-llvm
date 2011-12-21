@@ -998,10 +998,10 @@ namespace snow {
 				MATCH(postloop);
 			});
 			if (result) {
-				if (result->type == SN_AST_IF_ELSE) {
+				if (result->type == ASTNodeTypeIfElse) {
 					result->if_else.body = expr;
 					expr = result;
-				} else if (result->type == SN_AST_LOOP) {
+				} else if (result->type == ASTNodeTypeLoop) {
 					result->loop.body = expr;
 					expr = result;
 				} else {

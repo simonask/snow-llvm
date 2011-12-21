@@ -220,18 +220,18 @@ namespace snow {
 	
 	bool Codegen::Function::compile_ast_node(const ASTNode* node) {
 		switch (node->type) {
-			case SN_AST_SEQUENCE: {
+			case ASTNodeTypeSequence: {
 				for (const ASTNode* x = node->sequence.head; x; x = x->next) {
 					if (!compile_ast_node(x)) return false;
 				}
 				return true;
 			}
-			case SN_AST_LITERAL: {
+			case ASTNodeTypeLiteral: {
 				uint64_t imm = (uint64_t)node->literal.value;
 				movq(imm, RAX);
 				return true;
 			}
-			case SN_AST_CLOSURE: {
+			case ASTNodeTypeClosure: {
 				Function* f = compile_function(node);
 				if (!f) return false;
 				movq(REG_CALL_FRAME, RDI);
@@ -244,14 +244,14 @@ namespace snow {
 				CALL(ccall::create_function_for_descriptor);
 				return true;
 			}
-			case SN_AST_RETURN: {
+			case ASTNodeTypeReturn: {
 				if (node->return_expr.value) {
 					if (!compile_ast_node(node->return_expr.value)) return false;
 				}
 				jmp(return_label);
 				return true;
 			}
-			case SN_AST_IDENTIFIER: {
+			case ASTNodeTypeIdentifier: {
 				Operand local_addr = compile_get_address_for_local(RDX, node->identifier.name, false);
 				if (local_addr.is_valid()) {
 					movq(local_addr, RAX);
@@ -262,22 +262,22 @@ namespace snow {
 				}
 				return true;
 			}
-			case SN_AST_SELF: {
+			case ASTNodeTypeSelf: {
 				movq(REG_SELF, RAX);
 				return true;
 			}
-			case SN_AST_HERE: {
+			case ASTNodeTypeHere: {
 				movq(REG_CALL_FRAME, RAX);
 				return true;
 			}
-			case SN_AST_IT: {
+			case ASTNodeTypeIt: {
 				movq(REG_IT, RAX);
 				return true;
 			}
-			case SN_AST_ASSIGN: {
+			case ASTNodeTypeAssign: {
 				return compile_assignment(node);
 			}
-			case SN_AST_METHOD: {
+			case ASTNodeTypeMethod: {
 				if (!compile_ast_node(node->method.object)) return false;
 				Temporary self(*this);
 				movq(RAX, self);
@@ -307,7 +307,7 @@ namespace snow {
 				bind_label(after);
 				return true;
 			}
-			case SN_AST_INSTANCE_VARIABLE: {
+			case ASTNodeTypeInstanceVariable: {
 				if (!compile_ast_node(node->method.object)) return false;
 				Temporary self(*this);
 				movq(RAX, self);
@@ -316,10 +316,10 @@ namespace snow {
 				CALL(object_get_instance_variable_by_index);
 				return true;
 			}
-			case SN_AST_CALL: {
+			case ASTNodeTypeCall: {
 				return compile_call(node);
 			}
-			case SN_AST_ASSOCIATION: {
+			case ASTNodeTypeAssociation: {
 				if (!compile_ast_node(node->association.object)) return false;
 				Temporary self(*this);
 				movq(RAX, self);
@@ -337,7 +337,7 @@ namespace snow {
 				compile_method_call(self, snow::sym("get"), num_args, args_ptr);
 				return true;
 			}
-			case SN_AST_AND: {
+			case ASTNodeTypeAnd: {
 				Label* left_true = label();
 				Label* after = label();
 				
@@ -356,7 +356,7 @@ namespace snow {
 				bind_label(after);
 				return true;
 			}
-			case SN_AST_OR: {
+			case ASTNodeTypeOr: {
 				Label* left_false = label();
 				Label* after = label();
 				
@@ -375,7 +375,7 @@ namespace snow {
 				bind_label(after);
 				return true;
 			}
-			case SN_AST_XOR: {
+			case ASTNodeTypeXor: {
 				Label* equal_truth = label();
 				Label* after = label();
 				Label* left_is_true = label();
@@ -409,7 +409,7 @@ namespace snow {
 				bind_label(after);
 				return true;
 			}
-			case SN_AST_NOT: {
+			case ASTNodeTypeNot: {
 				Label* truth = label();
 				Label* after = label();
 				
@@ -425,7 +425,7 @@ namespace snow {
 				bind_label(after);
 				return true;
 			}
-			case SN_AST_LOOP: {
+			case ASTNodeTypeLoop: {
 				Label* cond = label();
 				Label* after = label();
 				
@@ -442,15 +442,15 @@ namespace snow {
 				bind_label(after);
 				return true;
 			}
-			case SN_AST_BREAK: {
+			case ASTNodeTypeBreak: {
 				// TODO!
 				return true;
 			}
-			case SN_AST_CONTINUE: {
+			case ASTNodeTypeContinue: {
 				// TODO!
 				return true;
 			}
-			case SN_AST_IF_ELSE: {
+			case ASTNodeTypeIfElse: {
 				Label* else_body = label();
 				Label* after = label();
 				
@@ -479,8 +479,8 @@ namespace snow {
 	}
 	
 	bool Codegen::Function::compile_assignment(const ASTNode* node) {
-		ASSERT(node->assign.value->type == SN_AST_SEQUENCE);
-		ASSERT(node->assign.target->type == SN_AST_SEQUENCE);
+		ASSERT(node->assign.value->type == ASTNodeTypeSequence);
+		ASSERT(node->assign.target->type == ASTNodeTypeSequence);
 		
 		// gather assign targets
 		const size_t num_targets = node->assign.target->sequence.length;
@@ -520,7 +520,7 @@ namespace snow {
 			
 			ASTNode* target = targets[i];
 			switch (target->type) {
-				case SN_AST_ASSOCIATION: {
+				case ASTNodeTypeAssociation: {
 					size_t num_args = target->association.args->sequence.length + 1;
 					Temporary args_ptr(*this);
 					Alloca _1(*this, args_ptr, sizeof(VALUE) * num_args);
@@ -542,7 +542,7 @@ namespace snow {
 					compile_method_call(RAX, snow::sym("set"), num_args, args_ptr);
 					break;
 				}
-				case SN_AST_INSTANCE_VARIABLE: {
+				case ASTNodeTypeInstanceVariable: {
 					if (!compile_ast_node(target->instance_variable.object)) return false;
 					Temporary obj(*this);
 					movq(RAX, obj);
@@ -555,14 +555,14 @@ namespace snow {
 					CALL(object_set_instance_variable_by_index);
 					break;
 				}
-				case SN_AST_IDENTIFIER: {
+				case ASTNodeTypeIdentifier: {
 					Operand local_addr = compile_get_address_for_local(RDX, target->identifier.name, true);
 					ASSERT(local_addr.is_valid());
 					movq(values[i], RAX);
 					movq(RAX, local_addr);
 					break;
 				}
-				case SN_AST_METHOD: {
+				case ASTNodeTypeMethod: {
 					if (!compile_ast_node(target->method.object)) return false;
 					movq(RAX, RDI);
 					movq(target->method.name, RSI);
@@ -581,12 +581,12 @@ namespace snow {
 	}
 	
 	Codegen::Function* Codegen::Function::compile_function(const ASTNode* function) {
-		ASSERT(function->type == SN_AST_CLOSURE);
+		ASSERT(function->type == ASTNodeTypeClosure);
 		Function* f = new Function(codegen);
 		if (function->closure.parameters) {
 			f->param_names.reserve(function->closure.parameters->sequence.length);
 			for (const ASTNode* x = function->closure.parameters->sequence.head; x; x = x->next) {
-				ASSERT(x->type == SN_AST_PARAMETER);
+				ASSERT(x->type == ASTNodeTypeParameter);
 				f->param_names.push_back(x->parameter.name);
 				f->local_names.push_back(x->parameter.name);
 			}
@@ -658,7 +658,7 @@ namespace snow {
 
 			size_t num_names = 0;
 			for (const ASTNode* x = node->call.args->sequence.head; x; x = x->next) {
-				if (x->type == SN_AST_NAMED_ARGUMENT) {
+				if (x->type == ASTNodeTypeNamedArgument) {
 					++num_names;
 				}
 			}
@@ -667,7 +667,7 @@ namespace snow {
 			size_t unnamed_i = num_names;
 			names.reserve(num_names);
 			for (const ASTNode* x = node->call.args->sequence.head; x; x = x->next) {
-				if (x->type == SN_AST_NAMED_ARGUMENT) {
+				if (x->type == ASTNodeTypeNamedArgument) {
 					args.push_back(std::pair<const ASTNode*,int>(x->named_argument.expr, named_i++));
 					names.push_back(x->named_argument.name);
 				} else {
@@ -701,7 +701,7 @@ namespace snow {
 			movq(RAX, address(RDX, sizeof(Symbol) * i));
 		}
 		
-		if (node->call.object->type == SN_AST_METHOD) {
+		if (node->call.object->type == ASTNodeTypeMethod) {
 			if (!compile_ast_node(node->call.object->method.object)) return false;
 			compile_method_call(RAX, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
 		} else {

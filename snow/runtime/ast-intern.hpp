@@ -21,11 +21,11 @@ namespace snow {
 		ASTNode* parameter(Symbol name, ASTNode* id_type, ASTNode* default_value);
 		ASTNode* return_(ASTNode* value = NULL);
 		ASTNode* identifier(Symbol sym);
-		ASTNode* break_() { return create(SN_AST_BREAK); }
-		ASTNode* continue_() { return create(SN_AST_CONTINUE); }
-		ASTNode* self() { return create(SN_AST_SELF); }
-		ASTNode* here() { return create(SN_AST_HERE); }
-		ASTNode* it() { return create(SN_AST_IT); }
+		ASTNode* break_() { return create(ASTNodeTypeBreak); }
+		ASTNode* continue_() { return create(ASTNodeTypeContinue); }
+		ASTNode* self() { return create(ASTNodeTypeSelf); }
+		ASTNode* here() { return create(ASTNodeTypeHere); }
+		ASTNode* it() { return create(ASTNodeTypeIt); }
 		ASTNode* assign(ASTNode* target, ASTNode* value);
 		ASTNode* method(ASTNode* object, Symbol sym);
 		ASTNode* instance_variable(ASTNode* object, Symbol sym);
@@ -46,7 +46,7 @@ namespace snow {
 	};
 
 	inline ASTNode* AST::sequence(unsigned int n, ...) {
-		ASTNode* seq = create(SN_AST_SEQUENCE);
+		ASTNode* seq = create(ASTNodeTypeSequence);
 		seq->sequence.length = 0;
 		seq->sequence.head = seq->sequence.tail = NULL;
 		
@@ -61,26 +61,26 @@ namespace snow {
 	}
 	
 	inline void AST::sequence_push(ASTNode* seq, ASTNode* n) {
-		ASSERT(seq->type == SN_AST_SEQUENCE);
+		ASSERT(seq->type == ASTNodeTypeSequence);
 		++seq->sequence.length;
 		if (!seq->sequence.head) { seq->sequence.head = seq->sequence.tail = n; }
 		else { seq->sequence.tail->next = n; seq->sequence.tail = n; }
 	}
 	
 	inline ASTNode* AST::literal(VALUE val) {
-		ASTNode* n = create(SN_AST_LITERAL);
+		ASTNode* n = create(ASTNodeTypeLiteral);
 		n->literal.value = val;
 		return n;
 	}
 	
 	inline ASTNode* AST::closure(ASTNode* parameters, ASTNode* body) {
-		ASTNode* n = create(SN_AST_CLOSURE);
+		ASTNode* n = create(ASTNodeTypeClosure);
 		n->closure.parameters = parameters; n->closure.body = body;
 		return n;
 	}
 	
 	inline ASTNode* AST::parameter(Symbol name, ASTNode* id_type, ASTNode* default_value) {
-		ASTNode* n = create(SN_AST_PARAMETER);
+		ASTNode* n = create(ASTNodeTypeParameter);
 		n->parameter.name = name;
 		n->parameter.id_type = id_type;
 		n->parameter.default_value = default_value;
@@ -88,91 +88,91 @@ namespace snow {
 	}
 	
 	inline ASTNode* AST::return_(ASTNode* value) {
-		ASTNode* n = create(SN_AST_RETURN);
+		ASTNode* n = create(ASTNodeTypeReturn);
 		n->return_expr.value = value;
 		return n;
 	}
 	
 	inline ASTNode* AST::identifier(Symbol sym) {
-		ASTNode* n = create(SN_AST_IDENTIFIER);
+		ASTNode* n = create(ASTNodeTypeIdentifier);
 		n->identifier.name = sym;
 		return n;
 	}
 	
 	inline ASTNode* AST::assign(ASTNode* target, ASTNode* value) {
-		ASTNode* n = create(SN_AST_ASSIGN);
+		ASTNode* n = create(ASTNodeTypeAssign);
 		n->assign.target = target;
 		n->assign.value = value;
 		return n;
 	}
 	
 	inline ASTNode* AST::method(ASTNode* object, Symbol sym) {
-		ASTNode* n = create(SN_AST_METHOD);
+		ASTNode* n = create(ASTNodeTypeMethod);
 		n->method.object = object;
 		n->method.name = sym;
 		return n;
 	}
 	
 	inline ASTNode* AST::instance_variable(ASTNode* object, Symbol sym) {
-		ASTNode* n = create(SN_AST_INSTANCE_VARIABLE);
+		ASTNode* n = create(ASTNodeTypeInstanceVariable);
 		n->instance_variable.object = object;
 		n->instance_variable.name = sym;
 		return n;
 	}
 	
 	inline ASTNode* AST::call(ASTNode* object, ASTNode* arguments) {
-		ASTNode* n = create(SN_AST_CALL);
+		ASTNode* n = create(ASTNodeTypeCall);
 		n->call.object = object;
 		n->call.args = arguments;
 		return n;
 	}
 	
 	inline ASTNode* AST::association(ASTNode* object, ASTNode* arguments) {
-		ASTNode* n = create(SN_AST_ASSOCIATION);
+		ASTNode* n = create(ASTNodeTypeAssociation);
 		n->association.object = object;
 		n->association.args = arguments;
 		return n;
 	}
 	
 	inline ASTNode* AST::named_argument(Symbol name, ASTNode* expr) {
-		ASTNode* n = create(SN_AST_NAMED_ARGUMENT);
+		ASTNode* n = create(ASTNodeTypeNamedArgument);
 		n->named_argument.name = name;
 		n->named_argument.expr = expr;
 		return n;
 	}
 	
 	inline ASTNode* AST::logic_and(ASTNode* left, ASTNode* right) {
-		ASTNode* n = create(SN_AST_AND);
+		ASTNode* n = create(ASTNodeTypeAnd);
 		n->logic_and.left = left;
 		n->logic_and.right = right;
 		return n;
 	}
 	
 	inline ASTNode* AST::logic_or(ASTNode* left, ASTNode* right) {
-		ASTNode* n = logic_and(left, right); n->type = SN_AST_OR;
+		ASTNode* n = logic_and(left, right); n->type = ASTNodeTypeOr;
 		return n;
 	}
 	
 	inline ASTNode* AST::logic_xor(ASTNode* left, ASTNode* right) {
-		ASTNode* n = logic_and(left, right); n->type = SN_AST_XOR;
+		ASTNode* n = logic_and(left, right); n->type = ASTNodeTypeXor;
 		return n;
 	}
 	
 	inline ASTNode* AST::logic_not(ASTNode* expr) {
-		ASTNode* n = create(SN_AST_NOT);
+		ASTNode* n = create(ASTNodeTypeNot);
 		n->logic_not.expr = expr;
 		return n;
 	}
 	
 	inline ASTNode* AST::loop(ASTNode* cond, ASTNode* body) {
-		ASTNode* n = create(SN_AST_LOOP);
+		ASTNode* n = create(ASTNodeTypeLoop);
 		n->loop.cond = cond;
 		n->loop.body = body;
 		return n;
 	}
 	
 	inline ASTNode* AST::if_else(ASTNode* cond, ASTNode* body, ASTNode* else_body) {
-		ASTNode* n = create(SN_AST_IF_ELSE);
+		ASTNode* n = create(ASTNodeTypeIfElse);
 		n->if_else.cond = cond;
 		n->if_else.body = body;
 		n->if_else.else_body = else_body;

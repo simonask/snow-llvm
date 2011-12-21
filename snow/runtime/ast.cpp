@@ -18,7 +18,7 @@ namespace snow {
 	void AST::free(ASTNode* node, bool recursive) {
 		if (node && recursive) {
 			switch (node->type) {
-				case SN_AST_SEQUENCE: {
+				case ASTNodeTypeSequence: {
 					ASTNode* x = node->sequence.head;
 					while (x) {
 						ASTNode* next = x->next;
@@ -27,64 +27,64 @@ namespace snow {
 					}
 					break;
 				}
-				case SN_AST_CLOSURE: {
+				case ASTNodeTypeClosure: {
 					this->free(node->closure.parameters);
 					this->free(node->closure.body);
 					break;
 				}
-				case SN_AST_PARAMETER: {
+				case ASTNodeTypeParameter: {
 					this->free(node->parameter.id_type);
 					this->free(node->parameter.default_value);
 					break;
 				}
-				case SN_AST_RETURN: {
+				case ASTNodeTypeReturn: {
 					this->free(node->return_expr.value);
 					break;
 				}
-				case SN_AST_ASSIGN: {
+				case ASTNodeTypeAssign: {
 					this->free(node->assign.target);
 					this->free(node->assign.value);
 					break;
 				}
-				case SN_AST_METHOD: {
+				case ASTNodeTypeMethod: {
 					this->free(node->method.object);
 					break;
 				}
-				case SN_AST_INSTANCE_VARIABLE: {
+				case ASTNodeTypeInstanceVariable: {
 					this->free(node->instance_variable.object);
 					break;
 				}
-				case SN_AST_CALL: {
+				case ASTNodeTypeCall: {
 					this->free(node->call.object);
 					this->free(node->call.args);
 					break;
 				}
-				case SN_AST_ASSOCIATION: {
+				case ASTNodeTypeAssociation: {
 					this->free(node->association.object);
 					this->free(node->association.args);
 					break;
 				}
-				case SN_AST_NAMED_ARGUMENT: {
+				case ASTNodeTypeNamedArgument: {
 					this->free(node->named_argument.expr);
 					break;
 				}
-				case SN_AST_AND: 
-				case SN_AST_OR:
-				case SN_AST_XOR: {
+				case ASTNodeTypeAnd: 
+				case ASTNodeTypeOr:
+				case ASTNodeTypeXor: {
 					this->free(node->logic_and.left);
 					this->free(node->logic_and.right);
 					break;
 				}
-				case SN_AST_NOT: {
+				case ASTNodeTypeNot: {
 					this->free(node->logic_not.expr);
 					break;
 				}
-				case SN_AST_LOOP: {
+				case ASTNodeTypeLoop: {
 					this->free(node->loop.cond);
 					this->free(node->loop.body);
 					break;
 				}
-				case SN_AST_IF_ELSE: {
+				case ASTNodeTypeIfElse: {
 					this->free(node->if_else.cond);
 					this->free(node->if_else.body);
 					this->free(node->if_else.else_body);
@@ -104,7 +104,7 @@ namespace snow {
 		if (!n) inprintf(indent, "<NULL>\n");
 		
 		switch (n->type) {
-			case SN_AST_SEQUENCE: {
+			case ASTNodeTypeSequence: {
 				inprintf(indent, "SEQUENCE: ");
 				ASTNode* x = n->sequence.head;
 				if (x) printf("\n");
@@ -115,16 +115,16 @@ namespace snow {
 				}
 				break;
 			}
-			case SN_AST_LITERAL: {
+			case ASTNodeTypeLiteral: {
 				inprintf(indent, "LITERAL: %p\n", n->literal.value);
 				break;
 			}
-			case SN_AST_CLOSURE: {
+			case ASTNodeTypeClosure: {
 				inprintf(indent, "CLOSURE: (");
 				ASTNode* params = n->closure.parameters;
 				if (params) {
 					for (ASTNode* x = params->sequence.head; x; x = x->next) {
-						ASSERT(x->type == SN_AST_PARAMETER);
+						ASSERT(x->type == ASTNodeTypeParameter);
 						printf("%s%s", snow::sym_to_cstr(x->parameter.name), x->next == NULL ? "" : ", ");
 					}
 				}
@@ -132,11 +132,11 @@ namespace snow {
 				print_r(n->closure.body, indent+1);
 				break;
 			}
-			case SN_AST_PARAMETER: {
+			case ASTNodeTypeParameter: {
 				ASSERT(false); // Should never be reached.
 				break;
 			}
-			case SN_AST_RETURN: {
+			case ASTNodeTypeReturn: {
 				inprintf(indent, "RETURN");
 				if (n->return_expr.value == NULL) printf("\n");
 				else {
@@ -145,13 +145,13 @@ namespace snow {
 				}
 				break;
 			}
-			case SN_AST_IDENTIFIER: { inprintf(indent, "IDENTIFIER: %s\n", snow::sym_to_cstr(n->identifier.name)); break; }
-			case SN_AST_BREAK: { inprintf(indent, "BREAK\n"); break; }
-			case SN_AST_CONTINUE: { inprintf(indent, "CONTINUE\n"); break; }
-			case SN_AST_SELF: { inprintf(indent, "SELF\n"); break; }
-			case SN_AST_HERE: { inprintf(indent, "HERE\n"); break; }
-			case SN_AST_IT: { inprintf(indent, "IT\n"); break; }
-			case SN_AST_ASSIGN: {
+			case ASTNodeTypeIdentifier: { inprintf(indent, "IDENTIFIER: %s\n", snow::sym_to_cstr(n->identifier.name)); break; }
+			case ASTNodeTypeBreak: { inprintf(indent, "BREAK\n"); break; }
+			case ASTNodeTypeContinue: { inprintf(indent, "CONTINUE\n"); break; }
+			case ASTNodeTypeSelf: { inprintf(indent, "SELF\n"); break; }
+			case ASTNodeTypeHere: { inprintf(indent, "HERE\n"); break; }
+			case ASTNodeTypeIt: { inprintf(indent, "IT\n"); break; }
+			case ASTNodeTypeAssign: {
 				inprintf(indent, "ASSIGN:\n");
 				inprintf(indent+1, "TARGET:\n");
 				print_r(n->assign.target, indent+2);
@@ -159,21 +159,21 @@ namespace snow {
 				print_r(n->assign.value, indent+2);
 				break;
 			}
-			case SN_AST_METHOD: {
+			case ASTNodeTypeMethod: {
 				inprintf(indent, "METHOD:\n");
 				inprintf(indent+1, "NAME: %s\n", snow::sym_to_cstr(n->method.name));
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->method.object, indent+2);
 				break;
 			}
-			case SN_AST_INSTANCE_VARIABLE: {
+			case ASTNodeTypeInstanceVariable: {
 				inprintf(indent, "INSTANCE VARIABLE:\n");
 				inprintf(indent+1, "NAME: %s\n", snow::sym_to_cstr(n->instance_variable.name));
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->instance_variable.object, indent+2);
 				break;
 			}
-			case SN_AST_CALL: {
+			case ASTNodeTypeCall: {
 				inprintf(indent, "CALL:\n");
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->call.object, indent+2);
@@ -190,7 +190,7 @@ namespace snow {
 				}
 				break;
 			}
-			case SN_AST_ASSOCIATION: {
+			case ASTNodeTypeAssociation: {
 				inprintf(indent, "ASSOCIATION:\n");
 				inprintf(indent+1, "OBJECT:\n");
 				print_r(n->association.object, indent+2);
@@ -204,18 +204,18 @@ namespace snow {
 				}
 				break;
 			}
-			case SN_AST_NAMED_ARGUMENT: {
+			case ASTNodeTypeNamedArgument: {
 				inprintf(indent, "NAMED ARGUMENT:\n");
 				inprintf(indent+1, "NAME: %s\n", snow::sym_to_cstr(n->named_argument.name));
 				inprintf(indent+1, "VALUE:\n");
 				print_r(n->named_argument.expr, indent+2);
 				break;
 			}
-			case SN_AST_AND:
-			case SN_AST_OR:
-			case SN_AST_XOR:
+			case ASTNodeTypeAnd:
+			case ASTNodeTypeOr:
+			case ASTNodeTypeXor:
 			{
-				const char* operation = n->type == SN_AST_AND ? "AND" : (n->type == SN_AST_OR ? "OR" : "XOR");
+				const char* operation = n->type == ASTNodeTypeAnd ? "AND" : (n->type == ASTNodeTypeOr ? "OR" : "XOR");
 				inprintf(indent, "LOGIC %s:\n", operation);
 				inprintf(indent+1, "LEFT:\n");
 				print_r(n->logic_and.left, indent+2);
@@ -223,12 +223,12 @@ namespace snow {
 				print_r(n->logic_and.right, indent+2);
 				break;
 			}
-			case SN_AST_NOT: {
+			case ASTNodeTypeNot: {
 				inprintf(indent, "NOT:\n");
 				print_r(n->logic_not.expr, indent+1);
 				break;
 			}
-			case SN_AST_LOOP: {
+			case ASTNodeTypeLoop: {
 				inprintf(indent, "LOOP:\n");
 				inprintf(indent+1, "CONDITION:\n");
 				print_r(n->loop.cond, indent+2);
@@ -236,7 +236,7 @@ namespace snow {
 				print_r(n->loop.body, indent+2);
 				break;
 			}
-			case SN_AST_IF_ELSE: {
+			case ASTNodeTypeIfElse: {
 				inprintf(indent, "IF:\n");
 				inprintf(indent+1, "CONDITION:\n");
 				print_r(n->if_else.cond, indent+2);
