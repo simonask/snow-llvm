@@ -414,13 +414,15 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->logic_not.expr)) return false;
+				movq(RAX, RDI);
+				CALL(is_truthy);
 				cmpq(0, RAX);
 				j(CC_NOT_EQUAL, truth);
-				movq((uint64_t)SN_FALSE, RAX);
+				movq((uint64_t)SN_TRUE, RAX);
 				jmp(after);
 				
 				bind_label(truth);
-				movq((uint64_t)SN_TRUE, RAX);
+				movq((uint64_t)SN_FALSE, RAX);
 				
 				bind_label(after);
 				return true;
