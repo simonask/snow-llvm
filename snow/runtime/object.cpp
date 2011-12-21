@@ -62,8 +62,7 @@ namespace snow {
 	}
 	
 	VALUE object_get_instance_variable_by_index(const SnObject* obj, int32_t idx) {
-		ASSERT(idx >= 0);
-		if (idx > obj->num_alloc_members) return NULL;
+		if (idx < 0 || idx > obj->num_alloc_members) return NULL;
 		return obj->members[idx];
 	}
 	
@@ -81,8 +80,18 @@ namespace snow {
 	}
 	
 	int32_t object_get_index_of_instance_variable(const SnObject* obj, Symbol name) {
-		SnObject* cls = object_get_class(obj);
+		ObjectPtr<Class> cls = object_get_class(obj);
 		return class_get_index_of_instance_variable(cls, name);
+	}
+	
+	int32_t object_get_or_create_index_of_instance_variable(const SnObject* object, Symbol name) {
+		ObjectPtr<Class> cls = object_get_class(object);
+		int32_t idx = class_get_index_of_instance_variable(cls, name);
+		if (idx < 0) {
+			idx = class_define_instance_variable(cls, name);
+		}
+		ASSERT(idx >= 0);
+		return idx;
 	}
 	
 	bool object_give_meta_class(SnObject* obj) {

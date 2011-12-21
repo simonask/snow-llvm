@@ -144,7 +144,7 @@ namespace snow {
 		void compile_call(const Operand& functor, const Operand& self, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
 		void compile_method_call(const Operand& self, Symbol method_name, size_t num_args, const Operand& args_ptr, size_t num_names = 0, const Operand& names_ptr = Operand());
 		void compile_get_method_inline_cache(const Operand& self, Symbol name, const Register& out_type, const Register& out_method);
-		void compile_get_index_of_field_inline_cache(const Operand& self, Symbol name, const Register& target);
+		void compile_get_index_of_field_inline_cache(const Operand& self, Symbol name, const Register& target, bool can_define = false);
 		Operand compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
 		Function* compile_function(const ASTNode* function);
 		void call_direct(void(*callee)(void));
@@ -548,7 +548,7 @@ namespace snow {
 					if (!compile_ast_node(target->instance_variable.object)) return false;
 					Temporary obj(*this);
 					movq(RAX, obj);
-					compile_get_index_of_field_inline_cache(RAX, target->instance_variable.name, RSI);
+					compile_get_index_of_field_inline_cache(RAX, target->instance_variable.name, RSI, true);
 					movq(obj, RDI);
 					if (i <= num_values)
 						movq(values[i], RDX);
@@ -841,7 +841,7 @@ namespace snow {
 		}
 	}
 	
-	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target) {
+	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target, bool can_define) {
 		if (settings.use_inline_cache) {
 			Label* uninitialized = label();
 			Label* monomorphic = label();
@@ -897,10 +897,11 @@ namespace snow {
 			bind_label(after);
 		} else {
 			movq(object, RDI);
-			CALL(ccall::get_class);
-			movq(RAX, RDI);
 			movq(name, RSI);
-			CALL(ccall::class_get_index_of_instance_variable);
+			if (can_define)
+				CALL(snow::object_get_or_create_index_of_instance_variable);
+			else
+				CALL(snow::object_get_index_of_instance_variable);
 			movq(RAX, target);
 		}
 	}

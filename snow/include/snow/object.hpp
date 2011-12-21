@@ -36,6 +36,7 @@ namespace snow {
 	VALUE object_get_instance_variable_by_index(const SnObject* obj, int32_t idx);
 	VALUE object_set_instance_variable_by_index(SnObject* obj, int32_t idx, VALUE val);
 	int32_t object_get_index_of_instance_variable(const SnObject* obj, Symbol name); // -1 if not found
+	int32_t object_get_or_create_index_of_instance_variable(const SnObject* object, Symbol name);
 
 	// Meta-class related
 	bool object_give_meta_class(SnObject* obj);
