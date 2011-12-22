@@ -18,13 +18,13 @@ namespace snow {
 		static LinkHeap<Value> external_roots;
 		static size_t num_objects = 0;
 
-		SnObject* allocate_object(const Type* type) {
-			ASSERT(sizeof(SnObject) <= SN_CACHE_LINE_SIZE - sizeof(void*));
-			SnObject* obj = allocator.allocate();
+		Object* allocate_object(const Type* type) {
+			ASSERT(sizeof(Object) <= SN_CACHE_LINE_SIZE - sizeof(void*));
+			Object* obj = allocator.allocate();
 			obj->type = type;
 			void* data = obj + 1;
 			if (type) {
-				if (type->data_size + sizeof(SnObject) > SN_CACHE_LINE_SIZE) {
+				if (type->data_size + sizeof(Object) > SN_CACHE_LINE_SIZE) {
 					void* heap_data = new byte[type->data_size];
 					*(void**)data = heap_data;
 					data = heap_data;
@@ -35,11 +35,11 @@ namespace snow {
 			return obj;
 		}
 
-		void free_object(SnObject* obj) {
+		void free_object(Object* obj) {
 			const Type* type = obj->type;
 			if (type) {
 				type->finalize(object_get_private(obj, type));
-				if (type->data_size + sizeof(SnObject) > SN_CACHE_LINE_SIZE) {
+				if (type->data_size + sizeof(Object) > SN_CACHE_LINE_SIZE) {
 					void* heap_data = *(void**)(obj + 1);
 					type->finalize(heap_data);
 					delete[] reinterpret_cast<byte*>(heap_data);
@@ -72,8 +72,8 @@ namespace snow {
 		return v;
 	}
 	
-	SnObject* gc_allocate_object(const Type* type) {
-		SnObject* obj = gc_internal::allocate_object(type);
+	Object* gc_allocate_object(const Type* type) {
+		Object* obj = gc_internal::allocate_object(type);
 		ASSERT(((intptr_t)obj & 0xf) == 0); // unaligned object allocation!
 		return obj;
 	}

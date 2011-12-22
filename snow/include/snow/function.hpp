@@ -36,7 +36,7 @@ namespace snow {
 	Value* environment_get_locals(const ObjectPtr<const Environment>& env);
 	
 	void merge_splat_arguments(CallFrame* callee_context, Value mergee);
-	ObjectPtr<Function> value_to_function(Value val, Value* out_new_self);
+	ObjectPtr<Function> value_to_function(const Value& val, Value* out_new_self);
 	
 	Value function_call(const ObjectPtr<Function>& function, CallFrame* frame);
 	Symbol function_get_name(const ObjectPtr<const Function>& function);

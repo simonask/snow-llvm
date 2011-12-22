@@ -94,7 +94,7 @@ namespace snow {
 		return str;
 	}
 	
-	bool is_string(VALUE val) {
+	bool is_string(const Value& val) {
 		return snow::value_is_of_type(val, get_type<String>());
 	}
 
@@ -184,8 +184,8 @@ namespace snow {
 	}
 
 	namespace bindings {
-		static VALUE string_inspect(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
+		static Value string_inspect(const CallFrame* here, const Value& self, const Value& it) {
+			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %p.", self.value());
 			ObjectPtr<String> s = self;
 			size_t size = string_size(s);
 			char buffer[size + 2];
@@ -195,13 +195,13 @@ namespace snow {
 			return create_string_with_size(buffer, size + 2);
 		}
 
-		static VALUE string_to_string(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
+		static Value string_to_string(const CallFrame* here, const Value& self, const Value& it) {
+			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %p.", self.value());
 			return self;
 		}
 
-		static VALUE string_add(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
+		static Value string_add(const CallFrame* here, const Value& self, const Value& it) {
+			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %p.", self.value());
 
 			if (it) {
 				ObjectPtr<String> other = value_to_string(it);
@@ -210,14 +210,14 @@ namespace snow {
 			return self;
 		}
 
-		static VALUE string_get_size(const CallFrame* here, const Value& self, const Value& it) {
+		static Value string_get_size(const CallFrame* here, const Value& self, const Value& it) {
 			if (is_string(self)) {
 				return integer_to_value((int64_t)string_size(self));
 			}
 			return NULL;
 		}
 
-		static VALUE string_get_length(const CallFrame* here, const Value& self, const Value& it) {
+		static Value string_get_length(const CallFrame* here, const Value& self, const Value& it) {
 			if (is_string(self)) {
 				return integer_to_value((int64_t)string_length(self));
 			}
@@ -225,10 +225,10 @@ namespace snow {
 		}
 	}
 
-	SnObject* get_string_class() {
-		static SnObject** root = NULL;
+	ObjectPtr<Class> get_string_class() {
+		static Value* root = NULL;
 		if (!root) {
-			SnObject* cls = create_class_for_type(snow::sym("String"), get_type<String>());
+			ObjectPtr<Class> cls = create_class_for_type(snow::sym("String"), get_type<String>());
 			SN_DEFINE_METHOD(cls, "inspect", bindings::string_inspect);
 			SN_DEFINE_METHOD(cls, "to_string", bindings::string_to_string);
 			SN_DEFINE_METHOD(cls, "+", bindings::string_add);

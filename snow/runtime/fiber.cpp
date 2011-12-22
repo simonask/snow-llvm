@@ -80,7 +80,7 @@ namespace snow {
 	}
 
 	static void set_current_fiber(FiberPtr fiber) {
-		*_current_fiber = fiber;
+		*_current_fiber = (const Value&)fiber;
 	}
 	
 	static NO_INLINE byte* get_sp() {

@@ -23,8 +23,8 @@ namespace snow {
 	ValueType get_type(const Value& v);
 	SnObject* get_global_object();
 	SnObject** _get_global_object_ptr(); // for GC
-	Value& set_global(Symbol sym, const Value& val);
-	const Value& get_global(Symbol sym);
+	Value set_global(Symbol sym, const Value& val);
+	Value get_global(Symbol sym);
 	Value local_missing(CallFrame* frame, Symbol name);
 	
 	ObjectPtr<Class> get_class(const Value& value);

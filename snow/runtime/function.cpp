@@ -144,7 +144,7 @@ namespace snow {
 		return *root;
 	}
 	
-	ObjectPtr<Function> value_to_function(Value val, Value* out_new_self) {
+	ObjectPtr<Function> value_to_function(const Value& val, Value* out_new_self) {
 		Value functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			ObjectPtr<Class> cls = get_class(functor);

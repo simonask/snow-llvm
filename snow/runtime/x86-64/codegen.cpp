@@ -67,11 +67,11 @@ namespace {
 
 namespace snow {
 	namespace ccall {
-		void class_get_method(const VALUE cls, Symbol name, Method* out_method) {
+		void class_get_method(VALUE cls, Symbol name, Method* out_method) {
 			snow::class_get_method(cls, name, out_method);
 		}
 		
-		int32_t class_get_index_of_instance_variable(const VALUE cls, Symbol name) {
+		int32_t class_get_index_of_instance_variable(VALUE cls, Symbol name) {
 			return snow::class_get_index_of_instance_variable(cls, name);
 		}
 		

@@ -24,12 +24,12 @@ namespace snow {
 	}
 
 	namespace bindings {
-		static VALUE symbol_inspect(const CallFrame* here, const Value& self, const Value& it) {
+		static Value symbol_inspect(const CallFrame* here, const Value& self, const Value& it) {
 			ASSERT(is_symbol(self));
 			const char* symstr = snow::sym_to_cstr(value_to_symbol(self));
 
 			if (!symstr) {
-				throw_exception_with_description("'%p' is not in the symbol table.", self);
+				throw_exception_with_description("'%p' is not in the symbol table.", self.value());
 				return NULL;
 			}
 
@@ -41,7 +41,7 @@ namespace snow {
 			return snow::create_string(str);
 		}
 
-		static VALUE symbol_to_string(const CallFrame* here, const Value& self, const Value& it) {
+		static Value symbol_to_string(const CallFrame* here, const Value& self, const Value& it) {
 			ASSERT(is_symbol(self));
 			return snow::create_string_constant(snow::sym_to_cstr(value_to_symbol(self)));
 		}
@@ -71,7 +71,7 @@ namespace snow {
 	}
 
 	ObjectPtr<Class> get_symbol_class() {
-		static SnObject** root = NULL;
+		static Value* root = NULL;
 		if (!root) {
 			ObjectPtr<Class> cls = create_class(snow::sym("Symbol"), NULL);
 			SN_DEFINE_METHOD(cls, "inspect", bindings::symbol_inspect);

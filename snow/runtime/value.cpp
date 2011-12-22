@@ -5,7 +5,7 @@
 namespace snow {
 	void Value::assign(VALUE val) {
 		if (is_object()) {
-			SnObject* obj = (SnObject*)value_;
+			Object* obj = (Object*)value_;
 			--obj->refcount;
 			if (obj->refcount == 0) {
 				snow::gc_free_object(obj);
@@ -13,7 +13,7 @@ namespace snow {
 		}
 		value_ = val;
 		if (is_object()) {
-			SnObject* obj = (SnObject*)value_;
+			Object* obj = (Object*)value_;
 			++obj->refcount;
 		}
 	}

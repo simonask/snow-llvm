@@ -11,6 +11,7 @@ struct SnLinkBuffer;
 namespace snow {
 	struct String;
 	struct Array;
+	struct Class;
 	typedef const ObjectPtr<const String>& StringConstPtr;
 	typedef const ObjectPtr<String>& StringPtr;
 	
@@ -34,7 +35,7 @@ namespace snow {
 	size_t string_size(StringConstPtr str);
 	size_t string_length(StringConstPtr str);
 	
-	SnObject* get_string_class();
+	ObjectPtr<Class> get_string_class();
 }
 
 #endif /* end of include guard: STRING_H_OYTL2E1P */
