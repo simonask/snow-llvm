@@ -14,7 +14,7 @@ namespace std {
 	template <>
 	struct hash<snow::Immediate> {
 		int operator()(snow::Immediate imm) const {
-			return std::hash<snow::VALUE>()(imm);
+			return std::hash<snow::VALUE>()(imm.value());
 		};
 	};
 }
