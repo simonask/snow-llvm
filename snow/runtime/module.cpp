@@ -17,7 +17,7 @@
 namespace snow {
 	namespace {
 		struct Module {
-			SnObject* module;
+			Value module;
 			ObjectPtr<Function> entry;
 			std::string path;
 			std::string source;
@@ -149,7 +149,7 @@ namespace snow {
 			return module_name;
 		}
 
-		inline Module* compile_module(const std::string& path, const std::string& source, SnObject* mod) {
+		inline Module* compile_module(const std::string& path, const std::string& source, const Value& mod) {
 			Module* m = new Module;
 			m->path = path;
 			m->source = source;
@@ -171,7 +171,7 @@ namespace snow {
 						.args = &args,
 						.environment = NULL
 					};
-					VALUE result = function_call(m->entry, &frame);
+					Value result = function_call(m->entry, &frame);
 					object_set_instance_variable(mod, snow::sym("__module_value__"), result);
 					// Import module globals
 					for (size_t i = 0; i < code->num_globals; ++i) {
@@ -190,7 +190,7 @@ namespace snow {
 			Module* module = NULL;
 			switch (get_module_type(path)) {
 				case ModuleTypeSource: {
-					SnObject* mod = create_object(get_object_class(), 0, NULL);
+					Value mod = create_object(get_object_class(), 0, NULL);
 					object_give_meta_class(mod);
 					module = compile_module(path, load_source(path), mod);
 					break;
@@ -207,7 +207,7 @@ namespace snow {
 	}
 	
 	ObjectPtr<Array> get_load_paths() {
-		static SnObject** root = NULL;
+		static Value* root = NULL;
 		if (!root) {
 			ObjectPtr<Array> load_paths = create_array_with_size(10);
 			array_push(load_paths, create_string_constant("./"));
@@ -216,17 +216,17 @@ namespace snow {
 		return *root;
 	}
 	
-	SnObject* get_global_module() {
-		static SnObject** root = NULL;
+	Value get_global_module() {
+		static Value* root = NULL;
 		if (!root) {
-			SnObject* global_module = create_object(get_object_class(), 0, NULL);
+			Value global_module = create_object(get_object_class(), 0, NULL);
 			object_give_meta_class(global_module);
 			root = gc_create_root(global_module);
 		}
 		return *root;
 	}
 	
-	SnObject* import(StringConstPtr _file) {
+	Value import(StringConstPtr _file) {
 		std::string file;
 		string_to_std_string(_file, file);
 		std::string path;
@@ -243,7 +243,7 @@ namespace snow {
 		return NULL;
 	}
 	
-	SnObject* load(StringConstPtr _file) {
+	Value load(StringConstPtr _file) {
 		std::string file;
 		string_to_std_string(_file, file);
 		std::string path;
@@ -254,13 +254,13 @@ namespace snow {
 		return NULL;
 	}
 	
-	VALUE load_in_global_module(StringConstPtr _file) {
+	Value load_in_global_module(StringConstPtr _file) {
 		std::string file;
 		string_to_std_string(_file, file);
 		std::string path;
 		if (expand_load_path(file, path)) {
 			ASSERT(get_module_type(path) == ModuleTypeSource); // only source modules are supported in load_in_global_module
-			SnObject* mod = get_global_module();
+			Value mod = get_global_module();
 			if (compile_module(path, load_source(file), mod)) {
 				return object_get_instance_variable(mod, snow::sym("__module_value__"));
 			} else {
@@ -273,11 +273,11 @@ namespace snow {
 		}
 	}
 	
-	VALUE eval_in_global_module(StringConstPtr _source) {
+	Value eval_in_global_module(StringConstPtr _source) {
 		std::string source;
 		string_to_std_string(_source, source);
 		if (!source.size()) return NULL;
-		SnObject* mod = get_global_module();
+		Value mod = get_global_module();
 		Module* module = compile_module("<eval>", source, mod);
 		if (module) {
 			return object_get_instance_variable(mod, snow::sym("__module_value__"));
@@ -286,7 +286,7 @@ namespace snow {
 		}
 	}
 	
-	void _module_finished(SnObject* module) {
+	void _module_finished(Value module) {
 		ModuleList& list = *get_module_list();
 		for (ModuleList::iterator it = list.begin(); it != list.end(); ++it) {
 			if ((*it)->module == module) {

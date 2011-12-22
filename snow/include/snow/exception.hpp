@@ -6,12 +6,12 @@
 
 namespace snow {
 	struct Exception {
-		VALUE value;
-		Exception(VALUE v) : value(v) {}
+		Value value;
+		Exception(const Value& v) : value(v) {}
 	};
 	
-	VALUE try_catch_ensure(VALUE try_f, VALUE catch_f, VALUE ensure_f);
-	void throw_exception(VALUE ex);
+	Value try_catch_ensure(const Value& try_f, const Value& catch_f, const Value& ensure_f);
+	void throw_exception(const Value& ex);
 	void throw_exception_with_description(const char* fmt, ...);
 }
 

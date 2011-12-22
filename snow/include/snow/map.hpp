@@ -18,13 +18,13 @@ namespace snow {
 	ObjectPtr<Map> create_map_with_immediate_keys_and_insertion_order();
 
 	size_t map_size(MapConstPtr);
-	VALUE map_get(MapConstPtr, VALUE key);
-	VALUE map_set(MapPtr, VALUE key, VALUE value);
-	VALUE map_erase(MapPtr, VALUE key);
+	Value map_get(MapConstPtr, const Value& key);
+	Value& map_set(MapPtr, const Value& key, const Value& value);
+	Value map_erase(MapPtr, const Value& key);
 	void map_reserve(MapPtr, size_t num_items);
 	void map_clear(MapPtr, bool free_allocated_memory);
-	typedef VALUE SnKeyValuePair[2];
-	size_t map_get_pairs(MapConstPtr, SnKeyValuePair* tuples, size_t max);
+	struct KeyValuePair { Value pair[2]; };
+	size_t map_get_pairs(MapConstPtr, KeyValuePair* tuples, size_t max);
 
 	ObjectPtr<Class> get_map_class();
 }

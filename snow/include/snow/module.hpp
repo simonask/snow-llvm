@@ -11,21 +11,21 @@ struct SnObject;
 namespace snow {
 	struct Array;
 	
-	typedef VALUE(*ModuleInitFunc)();
+	typedef Value(*ModuleInitFunc)();
 	typedef int(*TestSuiteFunc)();
 	
 	ObjectPtr<Array> get_load_paths();
-	SnObject* get_global_module();
+	Value get_global_module();
 	
-	SnObject* import(StringConstPtr str);
-	SnObject* load(StringConstPtr str);
-	VALUE load_in_global_module(StringConstPtr path);
-	SnObject* load_module_from_source(StringConstPtr source);
-	SnObject* load_module(StringConstPtr path, const char* entry_point);
+	Value import(StringConstPtr str);
+	Value load(StringConstPtr str);
+	Value load_in_global_module(StringConstPtr path);
+	Value load_module_from_source(StringConstPtr source);
+	Value load_module(StringConstPtr path, const char* entry_point);
 	
-	VALUE eval_in_global_module(StringConstPtr source);
+	Value eval_in_global_module(StringConstPtr source);
 	
-	void _module_finished(SnObject* module);
+	void _module_finished(Value module);
 }
 
 #endif /* end of include guard: MODULE_H_BW7OGHRV */

@@ -17,21 +17,19 @@ namespace snow {
 	};
 	
 	struct Property {
-		VALUE getter;
-		VALUE setter;
+		Value getter;
+		Value setter;
 	};
 	
 	struct Method {
 		MethodType type;
 		Symbol name;
-		union {
-			VALUE function;
-			Property* property;
-		};
+		Value function;
+		Property* property;
 	};
 	
 	ObjectPtr<Class> get_class_class();
-	bool is_class(VALUE val);
+	bool is_class(const Value& val);
 	
 	ObjectPtr<Class> create_class(Symbol name, ClassPtr super);
 	ObjectPtr<Class> create_class_for_type(Symbol name, const Type* type);
@@ -47,13 +45,11 @@ namespace snow {
 	// Methods and Properties API
 	bool class_lookup_method(ClassConstPtr cls, Symbol name, Method* out_method);
 	void class_get_method(ClassConstPtr cls, Symbol name, Method* out_method); // throws if not found!
-	ClassPtr _class_define_method(ClassPtr cls, Symbol name, VALUE function);
-	ClassPtr _class_define_property(ClassPtr cls, Symbol name, VALUE getter, VALUE setter);
+	ClassPtr _class_define_method(ClassPtr cls, Symbol name, const Value& function);
+	ClassPtr _class_define_property(ClassPtr cls, Symbol name, const Value& getter, const Value& setter);
 	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow::sym(NAME), snow::create_function(FUNCPTR, snow::sym(#FUNCPTR)))
 	#define SN_DEFINE_PROPERTY(CLS, NAME, GETTER, SETTER) snow::_class_define_property(CLS, snow::sym(NAME), snow::create_function(GETTER, snow::sym(#GETTER)), snow::create_function(SETTER, snow::sym(#SETTER)))
-	VALUE class_get_initialize(ClassConstPtr cls);
-	
-	
+	const Value& class_get_initialize(ClassConstPtr cls);
 	
 	ObjectPtr<Class> get_symbol_class();
 }

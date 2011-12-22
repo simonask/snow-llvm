@@ -13,25 +13,17 @@ namespace snow {
 	struct Function {
 		const snow::FunctionDescriptor* descriptor;
 		ObjectPtr<Environment> definition_scope;
-		VALUE** variable_references; // size: descriptor->num_variable_references. TODO: Consider garbage collection?
+		Value** variable_references;
 		
 		Function() : descriptor(NULL), variable_references(NULL) {}
 	};
 	
-	void function_gc_each_root(void* data, void(*callback)(VALUE* root)) {
-		Function* priv = (Function*)data;
-		callback((VALUE*)&priv->definition_scope);
-		for (size_t i = 0; i < priv->descriptor->num_variable_references; ++i) {
-			callback(priv->variable_references[i]);
-		}
-	}
-	
-	SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
+	SN_REGISTER_CPP_TYPE(Function, NULL)
 	
 	struct Environment {
 		ObjectPtr<Function> function;
-		VALUE self;
-		VALUE* locals;
+		Value self;
+		Value* locals;
 		size_t num_locals;
 		SnArguments args;
 		
@@ -49,46 +41,30 @@ namespace snow {
 		}
 	};
 	
-	
-	void environment_gc_each_root(void* data, void(*callback)(VALUE* root)) {
-		#define CALLBACK(ROOT) callback(reinterpret_cast<VALUE*>(&(ROOT)))
-		Environment* priv = (Environment*)data;
-		CALLBACK(priv->function);
-		CALLBACK(priv->self);
-		for (size_t i = 0; i < priv->num_locals; ++i) {
-			CALLBACK(priv->locals[i]);
-		}
-		for (size_t i = 0; i < priv->args.size; ++i) {
-			CALLBACK(priv->args.data[i]);
-		}
-	}
-	
-	SN_REGISTER_CPP_TYPE(Environment, environment_gc_each_root)
+	SN_REGISTER_CPP_TYPE(Environment, NULL)
 
 	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, const ObjectPtr<Environment>& definition_scope) {
 		ObjectPtr<Function> function = create_object(get_function_class(), 0, NULL);
 		function->descriptor = descriptor;
 		function->definition_scope = definition_scope;
 		if (descriptor->num_variable_references) {
-			function->variable_references = new VALUE*[descriptor->num_variable_references];
+			function->variable_references = new Value*[descriptor->num_variable_references];
 			// TODO: Set up references
-			memset(function->variable_references, NULL, sizeof(VALUE) * descriptor->num_variable_references);
 		}
 		return function;
 	}
 	
 	namespace bindings {
-		static VALUE function_call(const CallFrame* here, VALUE self, VALUE it) {
-			SN_CHECK_CLASS(self, Function, __call__);
+		static Value function_call(const CallFrame* here, const Value& self, const Value& it) {
 			CallFrame frame = *here;
 			return function_call(self, &frame);
 		}
 
-		static VALUE environment_get_self(const CallFrame* here, VALUE self, VALUE it) {
+		static Value environment_get_self(const CallFrame* here, const Value& self, const Value& it) {
 			return ObjectPtr<Environment>(self)->self;
 		}
 
-		static VALUE environment_get_arguments(const CallFrame* here, VALUE self, VALUE it) {
+		static Value environment_get_arguments(const CallFrame* here, const Value& self, const Value& it) {
 			ObjectPtr<Environment> cf = self;
 			return create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
 		}
@@ -116,9 +92,9 @@ namespace snow {
 	}
 	
 	ObjectPtr<Class> get_function_class() {
-		static SnObject** root = NULL;
+		static Value* root = NULL;
 		if (!root) {
-			SnObject* cls = create_class_for_type(snow::sym("Function"), snow::get_type<Function>());
+			ObjectPtr<Class> cls = create_class_for_type(snow::sym("Function"), snow::get_type<Function>());
 			root = gc_create_root(cls);
 			SN_DEFINE_METHOD(cls, "__call__", bindings::function_call);
 		}
@@ -138,7 +114,7 @@ namespace snow {
 		return obj;
 	}
 	
-	VALUE* environment_get_locals(EnvironmentConstPtr obj) {
+	Value* environment_get_locals(EnvironmentConstPtr obj) {
 		return obj->locals;
 	}
 	
@@ -146,7 +122,7 @@ namespace snow {
 		return obj->function;
 	}
 	
-	VALUE* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels) {
+	Value* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels) {
 		if (num_levels == 0) return frame->locals;
 		ObjectPtr<Function> function = frame->function;
 	 	ObjectPtr<Environment> definition_scope;
@@ -158,7 +134,7 @@ namespace snow {
 	}
 	
 	ObjectPtr<Class> get_environment_class() {
-		static SnObject** root = NULL;
+		static Value* root = NULL;
 		if (!root) {
 			ObjectPtr<Class> cls = create_class_for_type(snow::sym("Environment"), get_type<Environment>());
 			SN_DEFINE_PROPERTY(cls, "self", bindings::environment_get_self, NULL);
@@ -168,8 +144,8 @@ namespace snow {
 		return *root;
 	}
 	
-	ObjectPtr<Function> value_to_function(VALUE val, VALUE* out_new_self) {
-		VALUE functor = val;
+	ObjectPtr<Function> value_to_function(Value val, Value* out_new_self) {
+		Value functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			ObjectPtr<Class> cls = get_class(functor);
 			Method method;
@@ -184,7 +160,7 @@ namespace snow {
 					functor = call(method.property->getter, *out_new_self, 0, NULL);
 				}
 			} else {
-				throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor, class_get_name(cls), cls.value());
+				throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor.value(), class_get_name(cls), cls.value());
 			}
 		}
 		
@@ -215,20 +191,19 @@ namespace snow {
 		};
 	}
 	
-	VALUE function_call(const ObjectPtr<Function>& function, CallFrame* frame) {
+	Value function_call(const ObjectPtr<Function>& function, CallFrame* frame) {
 		const SnArguments* args = frame->args;
 		// Allocate locals
 		size_t num_locals = function->descriptor->num_locals;
-		VALUE locals[num_locals];
+		SN_STACK_ARRAY(Value, locals, num_locals);
 		// initialize call frame for use with this function
 		frame->function = function;
 		frame->locals = locals;
 		
 		// Copy arguments to locals
 		// TODO: Named args
-		snow::assign_range<VALUE>(locals, NULL, num_locals);
 		if (frame->args)
-			snow::copy_range(locals, args->data, args->size);
+			snow::copy_range<Value>(locals, args->data, args->size);
 
 		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
@@ -248,17 +223,16 @@ namespace snow {
 		return function->definition_scope;
 	}
 	
-	static VALUE method_proxy_call(const CallFrame* here, VALUE self, VALUE it) {
-		ASSERT(is_object(self));
-		SnObject* s = (SnObject*)self;
-		VALUE obj = object_get_instance_variable(s, snow::sym("object"));
-		VALUE method = object_get_instance_variable(s, snow::sym("method"));
+	static Value method_proxy_call(const CallFrame* here, const Value& self, const Value& it) {
+		ASSERT(self.is_object());
+		auto obj = object_get_instance_variable(self, snow::sym("object"));
+		auto method = object_get_instance_variable(self, snow::sym("method"));
 		return call_with_arguments(method, obj, here->args);
 	}
 
-	SnObject* create_method_proxy(VALUE self, VALUE method) {
+	Value create_method_proxy(const Value& self, const Value& method) {
 		// TODO: Use a real class for proxy methods
-		SnObject* obj = create_object(get_object_class(), 0, NULL);
+		Value obj = create_object(get_object_class(), 0, NULL);
 		object_define_method(obj, "__call__", method_proxy_call);
 		object_set_instance_variable(obj, snow::sym("object"), self);
 		object_set_instance_variable(obj, snow::sym("method"), method);

@@ -8,7 +8,7 @@
 
 namespace snow {
 	INLINE bool value_to_boolean(VALUE val) { return is_truthy(val); }
-	INLINE VALUE boolean_to_value(bool b) { return b ? SN_TRUE : SN_FALSE; }
+	INLINE Value boolean_to_value(bool b) { return b ? SN_TRUE : SN_FALSE; }
 
 	struct Class;
 	ObjectPtr<Class> get_boolean_class();

@@ -48,10 +48,10 @@ static void interactive_prompt()
 		if (!unfinished_expr) {
 			try {
 				ObjectPtr<String> str = create_string_from_linkbuffer(input_buffer);
-				VALUE result = eval_in_global_module(str);
+				Value result = eval_in_global_module(str);
 				ObjectPtr<String> inspected = value_inspect(result);
 				if (inspected == NULL) {
-					inspected = string_format("[Object@%p]", result);
+					inspected = string_format("[Object@%p]", result.value());
 				}
 				
 				size_t sz = string_size(inspected);
@@ -61,7 +61,7 @@ static void interactive_prompt()
 				printf("=> %s\n", buffer);
 			}
 			catch (const snow::Exception& ex) {
-				fprintf(stderr, "ERROR: Unhandled exception: %p\n", ex.value);
+				fprintf(stderr, "ERROR: Unhandled exception: %p\n", ex.value.value());
 			}
 			catch (...) {
 				fprintf(stderr, "ERROR: Unhandled C++ exception, rethrowing!\n");

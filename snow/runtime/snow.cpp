@@ -10,7 +10,7 @@
 #include "snow/gc.hpp"
 #include "snow/map.hpp"
 #include "snow/module.hpp"
-#include "snow/nil.h"
+#include "snow/nil.hpp"
 #include "snow/numeric.hpp"
 #include "snow/object.hpp"
 #include "snow/parser.hpp"

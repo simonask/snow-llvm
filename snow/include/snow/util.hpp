@@ -4,12 +4,19 @@
 
 #include "snow/basic.h"
 #include "snow/value.hpp"
-#include "snow/object.hpp"
 #include <new>
 
 namespace snow {
 	template <typename T>
 	struct Placeholder { byte _[sizeof(T)]; };
+	
+	template <typename A, typename B> struct ReplicateConstPtr;
+	template <typename A, typename B> struct ReplicateConstPtr<const A, B> { typedef const B* Result; };
+	template <typename A, typename B> struct ReplicateConstPtr { typedef B* Result; };
+	
+	template <typename A> struct RemoveConst;
+	template <typename A> struct RemoveConst<const A> { typedef A Result; };
+	template <typename A> struct RemoveConst { typedef A Result; };
 	
 	template <typename A, typename B>
 	inline ssize_t compare(const A& a, const B& b) {
@@ -78,10 +85,11 @@ namespace snow {
 	
 	template <typename T>
 	inline void dealloc_range(T*& range, size_t num_constructed = 0) {
+		typedef typename ReplicateConstPtr<T, Placeholder<T> >::Result PlaceholderPtr;
 		for (size_t i = 0; i < num_constructed; ++i) {
 			range[i].~T();
 		}
-		delete[] reinterpret_cast<Placeholder<T>*>(range);
+		delete[] reinterpret_cast<PlaceholderPtr>(range);
 		range = NULL;
 	}
 	
@@ -108,6 +116,19 @@ namespace snow {
 	}
 	
 	template <typename T>
+	inline void move_range(T* dst, T* src, size_t num) {
+		if (dst < src) {
+			for (size_t i = 0; i < num; ++i) {
+				dst[i] = std::move(src[i]);
+			}
+		} else if (dst > src) {
+			for (size_t i = 0; i < num; ++i) {
+				dst[num-i-1] = std::move(src[num-i-1]);
+			}
+		}
+	}
+	
+	template <typename T>
 	inline T* duplicate_range(const T* src, size_t num) {
 		if (num == 0) return NULL;
 		T* p = alloc_range<T>(num);
@@ -125,6 +146,19 @@ namespace snow {
 		return -1;
 	}
 	
+	template <typename T>
+	class StackArray {
+		T* data_;
+		size_t size_;
+	public:
+		StackArray(byte* data, size_t size) : data_(reinterpret_cast<T*>(data)), size_(size) { construct_range(data_, size_); }
+		~StackArray() { destruct_range(data_, size_); }
+		T& operator[](size_t idx) const { ASSERT(idx < size_); return data_[idx]; }
+		size_t size() const { return data_; }
+		operator T*() const { return data_; }
+	};
+	#define SN_STACK_ARRAY(T, NAME, SIZE) byte stack_array_data__ ## __LINE__[SIZE * sizeof(T)]; snow::StackArray<T> NAME(stack_array_data__ ## __LINE__, SIZE)
+	
 	struct NonNewable {
 	private:
 		void* operator new(size_t sz);
@@ -136,10 +170,6 @@ namespace snow {
 	template <bool COND> struct StaticAssertion;
 	template <> struct StaticAssertion<true> {};
 	#define SN_STATIC_ASSERT(COND) enum { dummy = snow::StaticAssertion<(bool)(COND)> }
-	
-	template <typename A, typename B> struct ReplicateConstPtr;
-	template <typename A, typename B> struct ReplicateConstPtr<const A, B> { typedef const B* Result; };
-	template <typename A, typename B> struct ReplicateConstPtr { typedef B* Result; };
 }
 
 #endif /* end of include guard: UTIL_HPP_A83WWPWN */

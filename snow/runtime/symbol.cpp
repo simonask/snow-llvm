@@ -24,7 +24,7 @@ namespace snow {
 	}
 
 	namespace bindings {
-		static VALUE symbol_inspect(const CallFrame* here, VALUE self, VALUE it) {
+		static VALUE symbol_inspect(const CallFrame* here, const Value& self, const Value& it) {
 			ASSERT(is_symbol(self));
 			const char* symstr = snow::sym_to_cstr(value_to_symbol(self));
 
@@ -41,7 +41,7 @@ namespace snow {
 			return snow::create_string(str);
 		}
 
-		static VALUE symbol_to_string(const CallFrame* here, VALUE self, VALUE it) {
+		static VALUE symbol_to_string(const CallFrame* here, const Value& self, const Value& it) {
 			ASSERT(is_symbol(self));
 			return snow::create_string_constant(snow::sym_to_cstr(value_to_symbol(self)));
 		}

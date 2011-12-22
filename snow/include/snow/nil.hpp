@@ -3,7 +3,12 @@
 #define NIL_H_4M7SI64W
 
 #include "snow/basic.h"
+#include "snow/objectptr.hpp"
 
-CAPI struct SnObject* snow_get_nil_class();
+namespace snow {
+	struct Class;
+	
+	ObjectPtr<Class> get_nil_class();
+}
 
 #endif /* end of include guard: NIL_H_4M7SI64W */

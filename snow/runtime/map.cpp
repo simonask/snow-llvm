@@ -10,19 +10,13 @@
 #include "snow/snow.hpp"
 #include "snow/str.hpp"
 
-#include "lock.hpp"
 #include "snow/objectptr.hpp"
 #include "adapting_map.hpp"
 
 namespace snow {
 	struct Map : AdaptingMap {};
 	
-	void map_gc_each_root(void* data, void(*callback)(VALUE* root)) {
-		snow::AdaptingMap* map = (snow::AdaptingMap*)data;
-		map->gc_each_root(callback);
-	}
-	
-	SN_REGISTER_CPP_TYPE(Map, map_gc_each_root)
+	SN_REGISTER_CPP_TYPE(Map, NULL)
 	
 	ObjectPtr<Map> create_map_with_flags(uint32_t flags) {
 		ObjectPtr<Map> map = create_object(get_map_class(), 0, NULL);
@@ -50,15 +44,15 @@ namespace snow {
 		return map->size();
 	}
 	
-	VALUE map_get(MapConstPtr map, VALUE key) {
+	Value map_get(MapConstPtr map, const Value& key) {
 		return map->get(key);
 	}
 		
-	VALUE map_set(MapPtr map, VALUE key, VALUE value) {
+	Value& map_set(MapPtr map, const Value& key, const Value& value) {
 		return map->set(key, value);
 	}
 	
-	VALUE map_erase(MapPtr map, VALUE key) {
+	Value map_erase(MapPtr map, const Value& key) {
 		return map->erase(key);
 	}
 	
@@ -66,7 +60,7 @@ namespace snow {
 		map->reserve(size);
 	}
 
-	size_t map_get_pairs(MapConstPtr map, SnKeyValuePair* pairs, size_t max) {
+	size_t map_get_pairs(MapConstPtr map, KeyValuePair* pairs, size_t max) {
 		return map->get_pairs(pairs, max);
 	}
 	
@@ -75,46 +69,42 @@ namespace snow {
 	}
 	
 	namespace bindings {
-		static VALUE map_inspect(const CallFrame* here, VALUE self, VALUE it) {
-			SN_CHECK_CLASS(self, Map, inspect);
+		static Value map_inspect(const CallFrame* here, const Value& self, const Value& it) {
 			ObjectPtr<const Map> map = self;
 			const size_t size = map_size(map);
-			SnObject* result = create_string_constant("#(");
-			SnKeyValuePair* pairs = (SnKeyValuePair*)alloca(sizeof(SnKeyValuePair)*size);
+			ObjectPtr<String> result = create_string_constant("#(");
+			SN_STACK_ARRAY(KeyValuePair, pairs, size);
 			map_get_pairs(map, pairs, size);
 			for (size_t i = 0; i < size; ++i) {
-				string_append(result, value_inspect(pairs[i][0]));
+				string_append(result, value_inspect(pairs[i].pair[0]));
 				string_append_cstr(result, " => ");
-				string_append(result, value_inspect(pairs[i][1]));
+				string_append(result, value_inspect(pairs[i].pair[1]));
 				if (i != size-1) string_append_cstr(result, ", ");
 			}
 			string_append_cstr(result, ")");
 			return result;
 		}
 
-		static VALUE map_index_get(const CallFrame* here, VALUE self, VALUE it) {
-			SN_CHECK_CLASS(self, Map, get);
+		static Value map_index_get(const CallFrame* here, const Value& self, const Value& it) {
 			return map_get(self, it);
 		}
 
-		static VALUE map_index_set(const CallFrame* here, VALUE self, VALUE it) {
-			SN_CHECK_CLASS(self, Map, set);
+		static Value map_index_set(const CallFrame* here, const Value& self, const Value& it) {
 			return map_set(self, it, here->locals[1]);
 		}
 
-		static VALUE map_each_pair(const CallFrame* here, VALUE self, VALUE it) {
-			SN_CHECK_CLASS(self, Map, each_pair);
+		static Value map_each_pair(const CallFrame* here, const Value& self, const Value& it) {
 			ObjectPtr<const Map> s = self;
 			size_t sz = map_size(s);
-			SnKeyValuePair pairs[sz];
-			map_get_pairs(s, pairs, sz);
+			SN_STACK_ARRAY(KeyValuePair, pairs, sz);
+			snow::map_get_pairs(s, pairs, sz);
 			for (size_t i = 0; i < sz; ++i) {
-				call(it, NULL, 2, pairs[i]);
+				call(it, NULL, 2, pairs[i].pair);
 			}
 			return SN_NIL;
 		}
 
-		static VALUE map_initialize(const CallFrame* here, VALUE self, VALUE it) {
+		static Value map_initialize(const CallFrame* here, const Value& self, const Value& it) {
 			const SnArguments* args = here->args;
 			if ((args->size - args->num_names) % 2) {
 				throw_exception_with_description("Cannot create map with odd number (%u) of arguments.", (uint32_t)(args->size - args->num_names));
@@ -130,7 +120,7 @@ namespace snow {
 			}
 
 			ObjectPtr<Map> map = self;
-			if (map == NULL) throw_exception_with_description("Map#initialized with non-map as self: %p.", self);
+			if (map == NULL) throw_exception_with_description("Map#initialized with non-map as self: %p.", self.value());
 
 			// Slightly hack-ish, needed because we can't yet convert from immediate to non-immediate map.
 			ASSERT(map->size() == 0);
@@ -153,14 +143,13 @@ namespace snow {
 			return self;
 		}
 
-		static VALUE map_get_size(const CallFrame* here, VALUE self, VALUE it) {
-			SN_CHECK_CLASS(self, Map, each_pair);
-			return integer_to_value(map_size((SnObject*)self));
+		static Value map_get_size(const CallFrame* here, const Value& self, const Value& it) {
+			return integer_to_value(map_size(self));
 		}
 	}
 	
 	ObjectPtr<Class> get_map_class() {
-		static SnObject** root = NULL;
+		static Value* root = NULL;
 		if (!root) {
 			ObjectPtr<Class> cls = create_class_for_type(snow::sym("Map"), get_type<Map>());
 			SN_DEFINE_METHOD(cls, "initialize", bindings::map_initialize);

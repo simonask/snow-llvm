@@ -10,20 +10,29 @@
 #include <algorithm>
 #include <string.h>
 
+namespace std {
+	template <>
+	struct hash<snow::Immediate> {
+		int operator()(snow::Immediate imm) const {
+			return std::hash<snow::VALUE>()(imm);
+		};
+	};
+}
+
 namespace snow {
 	/*
 		Snow Maps are adaptive. Below a certain threshold, they are a flat, associative list.
 		Above the threshold, they turn into full-blown hash maps.
 	*/
 	// TODO: Benchmark this to find a better threshold.
-	static const size_t FULL_HASH_THRESHOLD = 4 * SN_CACHE_LINE_SIZE / sizeof(VALUE);
+	static const size_t FULL_HASH_THRESHOLD = 4 * SN_CACHE_LINE_SIZE / sizeof(Value);
 	
 	struct CallValueHash;
 	struct CallNonImmediateValueEquals;
 
 	
-	typedef google::dense_hash_map<VALUE, VALUE> ImmediateHashMap;
-	typedef google::dense_hash_map<VALUE, VALUE, CallValueHash, CallNonImmediateValueEquals> HashMap;
+	typedef google::dense_hash_map<Immediate, Value> ImmediateHashMap;
+	typedef google::dense_hash_map<Value, Value, CallValueHash, CallNonImmediateValueEquals> HashMap;
 	
 	enum MapFlags {
 		MAP_FLAT                      = 1, // currently flat, but might become non-flat as it grows
@@ -35,8 +44,8 @@ namespace snow {
 	struct AdaptingMap {
 		union {
 			struct {
-				VALUE* keys;
-				VALUE* values;
+				Value* keys;
+				Value* values;
 				uint32_t size;
 				uint32_t alloc_size;
 			} flat;
@@ -63,13 +72,11 @@ namespace snow {
 		
 		inline void reserve(uint32_t new_alloc_size);
 		inline size_t size() const;
-		inline VALUE get(VALUE key) const;
-		inline VALUE set(VALUE key, VALUE value);
-		inline VALUE erase(VALUE key);
-		inline size_t get_pairs(SnKeyValuePair* pairs, size_t max) const;
+		inline Value get(const Value& key) const;
+		inline Value& set(const Value& key, const Value& value);
+		inline Value erase(const Value& key);
+		inline size_t get_pairs(KeyValuePair* pairs, size_t max) const;
 		inline void clear(bool free_allocated_memory);
-		
-		inline void gc_each_root(void(*callback)(VALUE* root));
 	private:
 		HashMap* as_hash_map() { return reinterpret_cast<HashMap*>(hash_map); }
 		const HashMap* as_hash_map() const { return reinterpret_cast<const HashMap*>(hash_map); }
@@ -78,14 +85,13 @@ namespace snow {
 		
 		inline void convert_from_flat_to_full();
 		template <typename T> inline void convert_flat_to_full();
-		int32_t flat_find_index(VALUE key) const;
+		int32_t flat_find_index(const Value& key) const;
 	};
 	
 	struct CallValueHash {
-		size_t operator()(const VALUE _v) const {
-			VALUE v = const_cast<VALUE>(_v);
-			VALUE hash = SN_CALL_METHOD(v, "hash", 0, NULL);
-			if (!is_integer(hash)) throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v, hash);
+		size_t operator()(const Value& v) const {
+			Value hash = SN_CALL_METHOD(v, "hash", 0, NULL);
+			if (!hash.is_integer()) throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v.value(), hash.value());
 			return (size_t)value_to_integer(hash);
 		}
 	};
@@ -93,24 +99,20 @@ namespace snow {
 	struct CallValueCompare {
 		const AdaptingMap* map;
 		explicit CallValueCompare(const AdaptingMap& map) : map(&map) {}
-		int64_t operator()(const VALUE _a, const VALUE _b) const {
-			VALUE a = const_cast<VALUE>(_a);
-			VALUE b = const_cast<VALUE>(_b);
+		int64_t operator()(const Value& a, const Value& b) const {
 			if (map->has_immediate_keys()) {
-				return (int64_t)((intptr_t)a - (intptr_t)b);
+				return (int64_t)((intptr_t)a.value() - (intptr_t)b.value());
 			} else {
-				VALUE diff = SN_CALL_METHOD(a, "<=>", 1, &b);
-				if (!is_integer(diff)) throw_exception_with_description("A comparison method (<=>) for object %p returned a non-integer (%p).", a, diff);
+				Value diff = SN_CALL_METHOD(a, "<=>", 1, &b);
+				if (!diff.is_integer()) throw_exception_with_description("A comparison method (<=>) for object %p returned a non-integer (%p).", a.value(), diff.value());
 				return value_to_integer(diff);
 			}
 		}
 	};
 	
 	struct CallNonImmediateValueEquals {
-		bool operator()(const VALUE _a, const VALUE _b) const {
-			VALUE a = const_cast<VALUE>(_a);
-			VALUE b = const_cast<VALUE>(_b);
-			VALUE truth = SN_CALL_METHOD(a, "=", 1, &b);
+		bool operator()(const Value& a, const Value& b) const {
+			Value truth = SN_CALL_METHOD(a, "=", 1, &b);
 			return is_truthy(truth);
 		}
 	};
@@ -118,7 +120,7 @@ namespace snow {
 	struct CallValueEquals {
 		CallValueCompare cmp;
 		explicit CallValueEquals(const AdaptingMap& map) : cmp(map) {}
-		bool operator()(const VALUE _a, const VALUE _b) const {
+		bool operator()(const Value& _a, const Value& _b) const {
 			return cmp(_a, _b) == 0;
 		}
 	};
@@ -126,7 +128,7 @@ namespace snow {
 	struct CallValueLessThan {
 		CallValueCompare cmp;
 		explicit CallValueLessThan(const AdaptingMap& map) : cmp(map) {}
-		bool operator()(const VALUE _a, const VALUE _b) const {
+		bool operator()(const Value& _a, const Value& _b) const {
 			return cmp(_a, _b) < 0;
 		}
 	};
@@ -150,9 +152,9 @@ namespace snow {
 			if (new_alloc_size > flat.alloc_size) {
 				size_t n = new_alloc_size - flat.alloc_size;
 				flat.keys = snow::realloc_range(flat.keys, flat.alloc_size, new_alloc_size);
-				snow::assign_range<VALUE>(flat.keys + flat.alloc_size, NULL, n);
+				snow::assign_range<Value>(flat.keys + flat.alloc_size, NULL, n);
 				flat.values = snow::realloc_range(flat.values, flat.alloc_size, new_alloc_size);
-				snow::assign_range<VALUE>(flat.values + flat.alloc_size, NULL, n);
+				snow::assign_range<Value>(flat.values + flat.alloc_size, NULL, n);
 				flat.alloc_size = new_alloc_size;
 			}
 		} else if (has_immediate_keys()) {
@@ -162,7 +164,7 @@ namespace snow {
 		}
 	}
 	
-	inline int32_t AdaptingMap::flat_find_index(VALUE key) const {
+	inline int32_t AdaptingMap::flat_find_index(const Value& key) const {
 		ASSERT(is_flat());
 		if (maintains_insertion_order()) {
 			// linear search
@@ -174,14 +176,14 @@ namespace snow {
 		} else {
 			// binary search
 			if (has_immediate_keys() && !is_immediate(key)) return -1;
-			VALUE* end = flat.keys + flat.size;
-			VALUE* result = std::lower_bound(flat.keys, end, key, CallValueLessThan(*this));
+			Value* end = flat.keys + flat.size;
+			Value* result = std::lower_bound(flat.keys, end, key, CallValueLessThan(*this));
 			if (result == end || !CallValueEquals(*this)(key, *result)) return -1;
 			return (int32_t)(result - flat.keys);
 		}
 	}
 	
-	inline VALUE AdaptingMap::get(VALUE key) const {
+	inline Value AdaptingMap::get(const Value& key) const {
 		if (is_flat()) {
 			int32_t i = flat_find_index(key);
 			if (i >= 0) return flat.values[i];
@@ -199,7 +201,7 @@ namespace snow {
 		}
 	}
 	
-	inline VALUE AdaptingMap::set(VALUE key, VALUE value) {
+	inline Value& AdaptingMap::set(const Value& key, const Value& value) {
 		if (has_immediate_keys() && is_object(key)) {
 			// TODO: Convert from immediate-only to regular map?
 			throw_exception_with_description("Attempted to use an object as key in an immediates-only hash map.");
@@ -209,7 +211,7 @@ namespace snow {
 				for (size_t i = 0; i < flat.size; ++i) {
 					if (CallValueEquals(*this)(key, flat.keys[i])) {
 						flat.values[i] = value;
-						return value;
+						return flat.values[i];
 					}
 				}
 				
@@ -223,51 +225,53 @@ namespace snow {
 				uint32_t idx = flat.size++;
 				flat.keys[idx] = key;
 				flat.values[idx] = value;
-				return value;
+				return flat.values[idx];
 			} else {
 				// Insert or change by binary search.
-				VALUE* end = flat.keys + flat.size;
-				VALUE* found = std::lower_bound(flat.keys, end, key, CallValueLessThan(*this));
+				Value* end = flat.keys + flat.size;
+				Value* found = std::lower_bound(flat.keys, end, key, CallValueLessThan(*this));
 				uint32_t insertion_point = found - flat.keys;
 				if (found != end && CallValueEquals(*this)(*found, key)) {
 					flat.values[insertion_point] = value;
-					return value;
+					return flat.values[insertion_point];
 				}
 				
 				reserve(flat.size + 1);
 				size_t to_move = flat.size - insertion_point;
 				if (to_move) {
-					memmove(flat.keys + insertion_point + 1, flat.keys + insertion_point, to_move * sizeof(VALUE));
-					memmove(flat.values + insertion_point + 1, flat.values + insertion_point, to_move * sizeof(VALUE));
+					snow::move_range(flat.keys   + insertion_point + 1, flat.keys   + insertion_point, to_move);
+					snow::move_range(flat.values + insertion_point + 1, flat.values + insertion_point, to_move);
 				}
 				++flat.size;
 				flat.keys[insertion_point] = key;
 				flat.values[insertion_point] = value;
-				return value;
+				return flat.values[insertion_point];
 			}
 		} else if (has_immediate_keys()) {
-			(*as_immediate_hash_map())[key] = value;
-			return value;
+			Value& place = (*as_immediate_hash_map())[key];
+			place = value;
+			return place;
 		} else {
-			(*as_hash_map())[key] = value;
-			return value;
+			Value& place = (*as_hash_map())[key];
+			place = value;
+			return place;
 		}
 	}
 	
-	inline size_t AdaptingMap::get_pairs(SnKeyValuePair* pairs, size_t max) const {
+	inline size_t AdaptingMap::get_pairs(KeyValuePair* pairs, size_t max) const {
 		if (is_flat()) {
 			size_t i;
 			for (i = 0; i < flat.size && i < max; ++i) {
-				pairs[i][0] = flat.keys[i];
-				pairs[i][1] = flat.values[i];
+				pairs[i].pair[0] = flat.keys[i];
+				pairs[i].pair[1] = flat.values[i];
 			}
 			return i;
 		} else if (has_immediate_keys()) {
 			const ImmediateHashMap* hmap = as_immediate_hash_map();
 			size_t i = 0;
 			for (ImmediateHashMap::const_iterator it = hmap->begin(); it != hmap->end() && i < max; ++it) {
-				pairs[i][0] = it->first;
-				pairs[i][1] = it->second;
+				pairs[i].pair[0] = it->first;
+				pairs[i].pair[1] = it->second;
 				++i;
 			}
 			return i;
@@ -275,27 +279,24 @@ namespace snow {
 			const HashMap* hmap = as_hash_map();
 			size_t i = 0;
 			for (HashMap::const_iterator it = hmap->begin(); it != hmap->end() && i < max; ++it) {
-				pairs[i][0] = it->first;
-				pairs[i][1] = it->second;
+				pairs[i].pair[0] = it->first;
+				pairs[i].pair[1] = it->second;
 				++i;
 			}
 			return i;
 		}
 	}
 
-	inline VALUE AdaptingMap::erase(VALUE key) {
+	inline Value AdaptingMap::erase(const Value& key) {
 		// TODO: Consider if the map should be converted back into a flat map below the threshold?
 		if (is_flat()) {
 			int32_t found_idx = flat_find_index(key);
 
 			if (found_idx >= 0) {
 				// shift tail
-				VALUE v = flat.values[found_idx];
-				// TODO: Use snow::move_range
-				for (int32_t i = found_idx+1; i < flat.size; ++i) {
-					flat.keys[i-1] = flat.keys[i];
-					flat.values[i-1] = flat.values[i];
-				}
+				Value v = flat.values[found_idx];
+				snow::move_range(flat.keys   + found_idx, flat.keys   + found_idx + 1, flat.size - found_idx - 1);
+				snow::move_range(flat.values + found_idx, flat.values + found_idx + 1, flat.size - found_idx - 1);
 				--flat.size;
 				return v;
 			}
@@ -304,7 +305,7 @@ namespace snow {
 			ImmediateHashMap* hmap = as_immediate_hash_map();
 			ImmediateHashMap::iterator it = hmap->find(key);
 			if (it != hmap->end()) {
-				VALUE v = it->second;
+				Value v = it->second;
 				hmap->erase(it);
 				return v;
 			}
@@ -313,7 +314,7 @@ namespace snow {
 			HashMap* hmap = as_hash_map();
 			HashMap::iterator it = hmap->find(key);
 			if (it != hmap->end()) {
-				VALUE v = it->second;
+				Value v = it->second;
 				hmap->erase(it);
 				return v;
 			}
@@ -369,32 +370,6 @@ namespace snow {
 		snow::dealloc_range(flat.values);
 		flags &= ~MAP_FLAT;
 		hash_map = hmap;
-	}
-	
-	inline void AdaptingMap::gc_each_root(void(*callback)(VALUE*)) {
-		if (is_flat()) {
-			if (!has_immediate_keys()) {
-				for (size_t i = 0; i < flat.size; ++i) {
-					callback(flat.keys + i);
-					callback(flat.values + i);
-				}
-			} else {
-				for (size_t i = 0; i < flat.size; ++i) {
-					callback(flat.values + i);
-				}
-			}
-		} else if (has_immediate_keys()) {
-			ImmediateHashMap* hmap = as_immediate_hash_map();
-			for (ImmediateHashMap::iterator it = hmap->begin(); it != hmap->end(); ++it) {
-				callback(&it->second);
-			}
-		} else {
-			HashMap* hmap = as_hash_map();
-			for (HashMap::iterator it = hmap->begin(); it != hmap->end(); ++it) {
-				callback(const_cast<VALUE*>(&it->first));
-				callback(&it->second);
-			}
-		}
 	}
 }
 

@@ -8,7 +8,7 @@
 #include "snow/function.hpp"
 #include "snow/map.hpp"
 #include "snow/module.hpp"
-#include "snow/nil.h"
+#include "snow/nil.hpp"
 #include "snow/numeric.hpp"
 #include "snow/snow.hpp"
 #include "snow/str.hpp"
@@ -17,28 +17,28 @@
 using namespace snow;
 
 
-static VALUE get_load_paths(const CallFrame* here, VALUE self, VALUE it) {
+static Value get_load_paths(const CallFrame* here, const Value& self, const Value& it) {
 	return get_load_paths();
 }
 
-static VALUE get_version(const CallFrame* here, VALUE self, VALUE it) {
+static Value get_version(const CallFrame* here, const Value& self, const Value& it) {
 	return create_string_constant(snow::version());
 }
 
-CAPI SnObject* snow_get_vm_interface() {
-	static SnObject** root = NULL;
+Value snow_get_vm_interface() {
+	static Value* root = NULL;
 	if (!root) {
-		SnObject* cls = create_class(snow::sym("SnowVMInterface"), NULL);
+		ObjectPtr<Class> cls = create_class(snow::sym("SnowVMInterface"), NULL);
 		SN_DEFINE_PROPERTY(cls, "version", get_version, NULL);
-		SnObject* obj = create_object(cls, 0, NULL);
+		Value obj = create_object(cls, 0, NULL);
 		root = gc_create_root(obj);
 	}
 	return *root;
 }
 
-static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
+static Value global_puts(const CallFrame* here, const Value& self, const Value& it) {
 	for (size_t i = 0; i < here->args->size; ++i) {
-		SnObject* str = value_to_string(here->args->data[i]);
+		ObjectPtr<String> str = value_to_string(here->args->data[i]);
 		size_t sz = string_size(str);
 		char* buffer = (char*)alloca(sz+1);
 		string_copy_to(str, buffer, sz);
@@ -49,31 +49,31 @@ static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
 	return SN_NIL;
 }
 
-static VALUE global_import(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* file = value_to_string(it);
+static Value global_import(const CallFrame* here, const Value& self, const Value& it) {
+	ObjectPtr<String> file = value_to_string(it);
 	return import(file);
 }
 
-static VALUE global_import_global(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* file = value_to_string(it);
+static Value global_import_global(const CallFrame* here, const Value& self, const Value& it) {
+	ObjectPtr<String> file = value_to_string(it);
 	load_in_global_module(file);
 	return SN_TRUE;
 }
 
-static VALUE global_load(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* file = value_to_string(it);
+static Value global_load(const CallFrame* here, const Value& self, const Value& it) {
+	ObjectPtr<String> file = value_to_string(it);
 	return load(file);
 }
 
-static VALUE global_resolve_symbol(const CallFrame* here, VALUE self, VALUE it) {
+static Value global_resolve_symbol(const CallFrame* here, const Value& self, const Value& it) {
 	if (!is_integer(it)) return NULL;
 	int64_t n = value_to_integer(it);
 	const char* str = snow::sym_to_cstr(n);
 	return str ? create_string_constant(str) : create_string_constant("<invalid symbol>");
 }
 
-static VALUE global_print_call_stack(const CallFrame* here, VALUE self, VALUE it) {
-	SnObject* fiber = get_current_fiber();
+static Value global_print_call_stack(const CallFrame* here, const Value& self, const Value& it) {
+	ObjectPtr<Fiber> fiber = get_current_fiber();
 	int level = 0;
 	while (fiber) {
 		CallFrame* frame = fiber_get_current_frame(fiber);
@@ -89,7 +89,7 @@ static VALUE global_print_call_stack(const CallFrame* here, VALUE self, VALUE it
 	return SN_NIL;
 }
 
-static VALUE global_throw(const CallFrame* here, VALUE self, VALUE it) {
+static Value global_throw(const CallFrame* here, const Value& self, const Value& it) {
 	throw_exception(it);
 	return NULL; // unreachable
 }
@@ -108,7 +108,7 @@ void snow_init_globals() {
 	SN_DEFINE_GLOBAL("throw", global_throw, 1);
 	
 	set_global(snow::sym("Integer"), get_integer_class());
-	set_global(snow::sym("Nil"), snow_get_nil_class());
+	set_global(snow::sym("Nil"), get_nil_class());
 	set_global(snow::sym("Boolean"), get_boolean_class());
 	set_global(snow::sym("Symbol"), get_symbol_class());
 	set_global(snow::sym("Float"), get_float_class());

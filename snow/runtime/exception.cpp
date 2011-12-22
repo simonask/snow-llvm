@@ -7,18 +7,18 @@
 namespace snow {
 	namespace {
 		struct Ensure {
-			Ensure(VALUE ensure_f) : ensure_f(ensure_f) {}
+			Ensure(const Value& ensure_f) : ensure_f(ensure_f) {}
 			~Ensure() {
 				if (is_truthy(ensure_f))
 					snow::call(ensure_f, NULL, 0, NULL);
 			}
-			VALUE ensure_f;
+			Value ensure_f;
 		};
 	}
 	
-	VALUE try_catch_ensure(VALUE try_f, VALUE catch_f, VALUE ensure_f) {
+	Value try_catch_ensure(const Value& try_f, const Value& catch_f, const Value& ensure_f) {
 		Ensure ensure(ensure_f);
-		VALUE result = NULL;
+		Value result = NULL;
 		try {
 			result = call(try_f, NULL, 0, NULL);
 		}
@@ -30,10 +30,10 @@ namespace snow {
 		return result;
 	}
 
-	CAPI void throw_exception(VALUE ex) {
+	void throw_exception(const Value& ex) {
 		// TODO: Backtrace and all that jazz
 		
-		SnObject* str = value_to_string(ex);
+		ObjectPtr<String> str = value_to_string(ex);
 		size_t sz = snow::string_size(str);
 		char buffer[sz+1];
 		snow::string_copy_to(str, buffer, sz);
@@ -49,7 +49,7 @@ namespace snow {
 	void throw_exception_with_description(const char* fmt, ...) {
 		va_list ap;
 		va_start(ap, fmt);
-		VALUE ex = snow::string_format_va(fmt, ap);
+		ObjectPtr<String> ex = snow::string_format_va(fmt, ap);
 		va_end(ap);
 		throw_exception(ex);
 	}
