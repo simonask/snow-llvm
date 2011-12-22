@@ -18,6 +18,10 @@ namespace snow {
 	void AST::free(ASTNode* node, bool recursive) {
 		if (node && recursive) {
 			switch (node->type) {
+				case ASTNodeTypeLiteral: {
+					delete node->literal.value;
+					break;
+				}
 				case ASTNodeTypeSequence: {
 					ASTNode* x = node->sequence.head;
 					while (x) {
@@ -116,7 +120,7 @@ namespace snow {
 				break;
 			}
 			case ASTNodeTypeLiteral: {
-				inprintf(indent, "LITERAL: %p\n", n->literal.value);
+				inprintf(indent, "LITERAL: %p\n", n->literal.value->value());
 				break;
 			}
 			case ASTNodeTypeClosure: {

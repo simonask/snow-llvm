@@ -47,7 +47,7 @@ namespace snow {
 		ASTNode* next; // implicit linked list for sequences -- NULL otherwise
 		union {
 			struct { ASTNode *head, *tail; size_t length; } sequence;
-			struct { VALUE value; }                         literal;
+			struct { Immediate* value; }                    literal;
 			struct { ASTNode *parameters, *body; }          closure;
 			struct { Symbol name; ASTNode *id_type, *default_value; } parameter;
 			struct { ASTNode *value; }                   return_expr;
