@@ -29,11 +29,11 @@ namespace snow {
 			if (UNLIKELY(check_type->data_size + sizeof(Object) > SN_CACHE_LINE_SIZE)) {
 				// if the object size is big, the private data is allocated separately,
 				// with a pointer to it immediately following the object.
-				return *(void**)(obj.object() + 1);
+				return *(void**)(obj.value() + 1);
 			}
 			// if the object size is small (most often the case), the private data is
 			// allocated immediately following the object.
-			return (void*)(obj.object() + 1);
+			return (void*)(obj.value() + 1);
 		}
 		return NULL;
 	}

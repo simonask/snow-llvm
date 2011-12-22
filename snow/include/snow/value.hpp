@@ -85,7 +85,6 @@ namespace snow {
 		Immediate(); // NULL (nil) by default
 		Immediate(VALUE value) { ASSERT(is_immediate(value)); value_ = value; }
 		Immediate(const Value& value) { ASSERT(value.is_immediate()); value_ = value.value(); }
-		operator VALUE() const { return value_; }
 		operator Value() const { return value_; }
 		VALUE value() const { return value_; }
 		
