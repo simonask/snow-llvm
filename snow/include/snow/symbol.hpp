@@ -11,7 +11,7 @@ namespace snow {
 	Symbol sym(const char* str);
 	const char* sym_to_cstr(Symbol sym);
 
-	INLINE bool is_symbol(const Immediate& val) {
+	INLINE bool is_symbol(Value val) {
 		return ((uintptr_t)val.value() & ValueTypeMask) == SymbolType;
 	}
 
@@ -19,7 +19,7 @@ namespace snow {
 		return Immediate((VALUE)(sym << 4 | SymbolType));
 	}
 
-	INLINE Symbol value_to_symbol(const Immediate& val) {
+	INLINE Symbol value_to_symbol(Immediate val) {
 		ASSERT(is_symbol(val));
 		return (Symbol)((uintptr_t)val.value() >> 4);
 	}

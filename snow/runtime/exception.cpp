@@ -7,7 +7,7 @@
 namespace snow {
 	namespace {
 		struct Ensure {
-			Ensure(const Value& ensure_f) : ensure_f(ensure_f) {}
+			Ensure(Value ensure_f) : ensure_f(ensure_f) {}
 			~Ensure() {
 				if (is_truthy(ensure_f))
 					snow::call(ensure_f, NULL, 0, NULL);
@@ -16,7 +16,7 @@ namespace snow {
 		};
 	}
 	
-	Value try_catch_ensure(const Value& try_f, const Value& catch_f, const Value& ensure_f) {
+	Value try_catch_ensure(Value try_f, Value catch_f, Value ensure_f) {
 		Ensure ensure(ensure_f);
 		Value result = NULL;
 		try {
@@ -30,7 +30,7 @@ namespace snow {
 		return result;
 	}
 
-	void throw_exception(const Value& ex) {
+	void throw_exception(Value ex) {
 		// TODO: Backtrace and all that jazz
 		
 		ObjectPtr<String> str = value_to_string(ex);

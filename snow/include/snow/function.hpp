@@ -13,7 +13,7 @@ namespace snow {
 	struct Class;
 	struct Function;
 	struct Environment;
-	typedef const ObjectPtr<const Environment>& EnvironmentConstPtr;
+	typedef ObjectPtr<const Environment> EnvironmentConstPtr;
 	
 	struct CallFrame {
 		ObjectPtr<Function> function;
@@ -24,7 +24,7 @@ namespace snow {
 		ObjectPtr<Environment> environment;
 	};
 	
-	typedef Value(*FunctionPtr)(const CallFrame* here, const Value& self, const Value& it);
+	typedef VALUE(*FunctionPtr)(const CallFrame* here, VALUE self, VALUE it);
 	
 	ObjectPtr<Class> get_function_class();
 	ObjectPtr<Class> get_environment_class();
@@ -32,19 +32,19 @@ namespace snow {
 	ObjectPtr<Function> create_function(FunctionPtr ptr, Symbol name);
 	ObjectPtr<Environment> call_frame_environment(CallFrame* frame);
 	Value* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels);
-	ObjectPtr<Function> environment_get_function(const ObjectPtr<const Environment>& env);
-	Value* environment_get_locals(const ObjectPtr<const Environment>& env);
+	ObjectPtr<Function> environment_get_function(ObjectPtr<const Environment> env);
+	Value* environment_get_locals(ObjectPtr<const Environment> env);
 	
 	void merge_splat_arguments(CallFrame* callee_context, Value mergee);
-	ObjectPtr<Function> value_to_function(const Value& val, Value* out_new_self);
+	ObjectPtr<Function> value_to_function(Value val, Value* out_new_self);
 	
-	Value function_call(const ObjectPtr<Function>& function, CallFrame* frame);
-	Symbol function_get_name(const ObjectPtr<const Function>& function);
-	size_t function_get_num_locals(const ObjectPtr<const Function>& function);
-	ObjectPtr<Environment> function_get_definition_scope(const ObjectPtr<const Function>& function);
+	Value function_call(ObjectPtr<Function> function, CallFrame* frame);
+	Symbol function_get_name(ObjectPtr<const Function> function);
+	size_t function_get_num_locals(ObjectPtr<const Function> function);
+	ObjectPtr<Environment> function_get_definition_scope(ObjectPtr<const Function> function);
 	
 	// Convenience for currying `self`.
-	Value create_method_proxy(const Value& self, const Value& method);
+	AnyObjectPtr create_method_proxy(Value self, Value method);
 }
 
 #endif /* end of include guard: FUNCTION_H_X576C5TP */

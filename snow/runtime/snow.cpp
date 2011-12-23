@@ -50,7 +50,7 @@ namespace snow {
 		return object_get_instance_variable(go, name);
 	}
 
-	Value set_global(Symbol name, const Value& val) {
+	Value set_global(Symbol name, Value val) {
 		AnyObjectPtr go = get_global_module();
 		return object_set_instance_variable(go, name, val);
 	}
@@ -74,16 +74,16 @@ namespace snow {
 		}
 	}
 
-	ObjectPtr<Class> get_class(const Value& value) {
+	ObjectPtr<Class> get_class(Value value) {
 		if (is_object(value)) {
 			AnyObjectPtr object = value;
-			return object->cls ? object->cls : get_object_class();
+			return object->cls != NULL ? object->cls : get_object_class();
 		} else {
 			return get_immediate_class(type_of(value));
 		}
 	}
 
-	Value call(const Value& functor, const Value& self, size_t num_args, const Value* args) {
+	Value call(Value functor, Value self, size_t num_args, const Value* args) {
 		SnArguments arguments = {
 			.size = num_args,
 			.data = args,
@@ -91,7 +91,7 @@ namespace snow {
 		return call_with_arguments(functor, self, &arguments);
 	}
 
-	Value call_with_arguments(const Value& functor, const Value& self, const SnArguments* args) {
+	Value call_with_arguments(Value functor, Value self, const SnArguments* args) {
 		Value new_self = self;
 		ObjectPtr<Function> function = value_to_function(functor, &new_self);
 		CallFrame frame = {
@@ -101,7 +101,7 @@ namespace snow {
 		return function_call(function, &frame);
 	}
 
-	Value call_method(const Value& self, Symbol method_name, size_t num_args, const Value* args) {
+	Value call_method(Value self, Symbol method_name, size_t num_args, const Value* args) {
 		ObjectPtr<Class> cls = get_class(self);
 		Method method;
 		class_get_method(cls, method_name, &method);
@@ -114,7 +114,7 @@ namespace snow {
 		return call(func, self, num_args, args);
 	}
 
-	Value call_with_named_arguments(const Value& functor, const Value& self, size_t num_names, Symbol* names, size_t num_args, const Value* args) {
+	Value call_with_named_arguments(Value functor, Value self, size_t num_names, const Symbol* names, size_t num_args, const Value* args) {
 		ASSERT(num_names <= num_args);
 		SnArguments arguments = {
 			.num_names = num_names,
@@ -125,12 +125,12 @@ namespace snow {
 		return call_with_arguments(functor, self, &arguments);
 	}
 
-	const Value& value_freeze(const Value& it) {
+	Value value_freeze(Value it) {
 		// TODO!!
 		return it;
 	}
 
-	Value get_module_value(const AnyObjectPtr& module, Symbol member) {
+	Value get_module_value(AnyObjectPtr module, Symbol member) {
 		Value v = object_get_instance_variable(module, member);
 		if (v) return v;
 		throw_exception_with_description("Variable '%s' not found in module %p.", snow::sym_to_cstr(member), module.value());
@@ -138,13 +138,13 @@ namespace snow {
 	}
 
 
-	ObjectPtr<String> value_to_string(const Value& it) {
+	ObjectPtr<String> value_to_string(Value it) {
 		ObjectPtr<String> str = SN_CALL_METHOD(it, "to_string", 0, NULL);
 		ASSERT(str != NULL); // .to_string returned non-String
 		return str;
 	}
 
-	ObjectPtr<String> value_inspect(const Value& it) {
+	ObjectPtr<String> value_inspect(Value it) {
 	 	ObjectPtr<String> str = SN_CALL_METHOD(it, "inspect", 0, NULL);
 		ASSERT(str != NULL); // .inspect returned non-String
 		return str;

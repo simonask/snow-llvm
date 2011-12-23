@@ -72,9 +72,9 @@ namespace snow {
 		
 		inline void reserve(uint32_t new_alloc_size);
 		inline size_t size() const;
-		inline Value get(const Value& key) const;
-		inline Value& set(const Value& key, const Value& value);
-		inline Value erase(const Value& key);
+		inline Value get(Value key) const;
+		inline Value& set(Value key, Value value);
+		inline Value erase(Value key);
 		inline size_t get_pairs(KeyValuePair* pairs, size_t max) const;
 		inline void clear(bool free_allocated_memory);
 	private:
@@ -85,11 +85,11 @@ namespace snow {
 		
 		inline void convert_from_flat_to_full();
 		template <typename T> inline void convert_flat_to_full();
-		int32_t flat_find_index(const Value& key) const;
+		int32_t flat_find_index(Value key) const;
 	};
 	
 	struct CallValueHash {
-		size_t operator()(const Value& v) const {
+		size_t operator()(Value v) const {
 			Value hash = SN_CALL_METHOD(v, "hash", 0, NULL);
 			if (!hash.is_integer()) throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v.value(), hash.value());
 			return (size_t)value_to_integer(hash);
@@ -99,7 +99,7 @@ namespace snow {
 	struct CallValueCompare {
 		const AdaptingMap* map;
 		explicit CallValueCompare(const AdaptingMap& map) : map(&map) {}
-		int64_t operator()(const Value& a, const Value& b) const {
+		int64_t operator()(Value a, Value b) const {
 			if (map->has_immediate_keys()) {
 				return (int64_t)((intptr_t)a.value() - (intptr_t)b.value());
 			} else {
@@ -111,7 +111,7 @@ namespace snow {
 	};
 	
 	struct CallNonImmediateValueEquals {
-		bool operator()(const Value& a, const Value& b) const {
+		bool operator()(Value a, Value b) const {
 			Value truth = SN_CALL_METHOD(a, "=", 1, &b);
 			return is_truthy(truth);
 		}
@@ -120,7 +120,7 @@ namespace snow {
 	struct CallValueEquals {
 		CallValueCompare cmp;
 		explicit CallValueEquals(const AdaptingMap& map) : cmp(map) {}
-		bool operator()(const Value& _a, const Value& _b) const {
+		bool operator()(Value _a, Value _b) const {
 			return cmp(_a, _b) == 0;
 		}
 	};
@@ -128,7 +128,7 @@ namespace snow {
 	struct CallValueLessThan {
 		CallValueCompare cmp;
 		explicit CallValueLessThan(const AdaptingMap& map) : cmp(map) {}
-		bool operator()(const Value& _a, const Value& _b) const {
+		bool operator()(Value _a, Value _b) const {
 			return cmp(_a, _b) < 0;
 		}
 	};
@@ -164,7 +164,7 @@ namespace snow {
 		}
 	}
 	
-	inline int32_t AdaptingMap::flat_find_index(const Value& key) const {
+	inline int32_t AdaptingMap::flat_find_index(Value key) const {
 		ASSERT(is_flat());
 		if (maintains_insertion_order()) {
 			// linear search
@@ -183,7 +183,7 @@ namespace snow {
 		}
 	}
 	
-	inline Value AdaptingMap::get(const Value& key) const {
+	inline Value AdaptingMap::get(Value key) const {
 		if (is_flat()) {
 			int32_t i = flat_find_index(key);
 			if (i >= 0) return flat.values[i];
@@ -201,7 +201,7 @@ namespace snow {
 		}
 	}
 	
-	inline Value& AdaptingMap::set(const Value& key, const Value& value) {
+	inline Value& AdaptingMap::set(Value key, Value value) {
 		if (has_immediate_keys() && is_object(key)) {
 			// TODO: Convert from immediate-only to regular map?
 			throw_exception_with_description("Attempted to use an object as key in an immediates-only hash map.");
@@ -287,7 +287,7 @@ namespace snow {
 		}
 	}
 
-	inline Value AdaptingMap::erase(const Value& key) {
+	inline Value AdaptingMap::erase(Value key) {
 		// TODO: Consider if the map should be converted back into a flat map below the threshold?
 		if (is_flat()) {
 			int32_t found_idx = flat_find_index(key);

@@ -40,7 +40,7 @@ namespace snow {
 	SN_REGISTER_CPP_TYPE(Class, NULL)
 
 	namespace bindings {
-		Value class_initialize(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE class_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Class> cls = self;
 			ASSERT(cls != NULL);
 			cls->initialize = NULL;
@@ -50,59 +50,59 @@ namespace snow {
 				cls->instance_type = super->instance_type;
 				cls->instance_variables = super->instance_variables;
 			} else if (is_truthy(it)) {
-				throw_exception_with_description("Cannot use %p as superclass.", it.value());
+				throw_exception_with_description("Cannot use %p as superclass.", it);
 			}
 			return self;
 		}
 
-		Value class_define_method(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE class_define_method(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
 					throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args->size);
 				}
-				const Value& vmethod = here->args->data[1];
-				if (!it.is_symbol()) throw_exception_with_description("Expected method name as argument 1 of Class#define_method.");
+				Value vmethod = here->args->data[1];
+				if (!is_symbol(it)) throw_exception_with_description("Expected method name as argument 1 of Class#define_method.");
 				_class_define_method(cls, value_to_symbol(it), vmethod);
 				return self;
 			}
-			throw_exception_with_description("Class#define_method called on an object that isn't a class: %p.", self.value());
+			throw_exception_with_description("Class#define_method called on an object that isn't a class: %p.", self);
 			return NULL; // unreachable
 		}
 
-		Value class_define_property(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE class_define_property(const CallFrame* here, VALUE self, VALUE it) {
 			// TODO: Use named arguments
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
 					throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args->size);
 				}
-				const Value& vgetter = here->args->data[1];
-				const Value& vsetter = here->args->size >= 3 ? here->args->data[2] : NULL;
-				if (!it.is_symbol()) throw_exception_with_description("Class#define_property expects a property name as a symbol for the first argument.");
+				Value vgetter = here->args->data[1];
+				Value vsetter = here->args->size >= 3 ? here->args->data[2] : NULL;
+				if (!is_symbol(it)) throw_exception_with_description("Class#define_property expects a property name as a symbol for the first argument.");
 				_class_define_property(cls, value_to_symbol(it), vgetter, vsetter);
 				return self;
 			}
-			throw_exception_with_description("Class#define_property called on an object that isn't a class: %p.", self.value());
+			throw_exception_with_description("Class#define_property called on an object that isn't a class: %p.", self);
 			return NULL; // unreachable
 		}
 
-		Value class_inspect(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_class(self)) throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self.value());
-			return string_format("[Class@%p name:%s]", self.value(), class_get_name(self));
+		VALUE class_inspect(const CallFrame* here, VALUE self, VALUE it) {
+			if (!is_class(self)) throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self);
+			return string_format("[Class@%p name:%s]", self, class_get_name(self));
 		}
 
-		Value class_get_instance_methods(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE class_get_instance_methods(const CallFrame* here, VALUE self, VALUE it) {
 			return NULL;
 		}
 
-		static Value class_call(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE class_call(const CallFrame* here, VALUE self, VALUE it) {
 			return create_object_with_arguments(self, here->args);
 		}
 	}
 
 	
-	bool is_class(const Value& val) {
+	bool is_class(Value val) {
 		return value_is_of_type(val, get_type<Class>());
 	}
 	
@@ -172,7 +172,7 @@ namespace snow {
 		}
 	}
 	
-	const Value& class_get_initialize(ClassConstPtr cls) {
+	Value class_get_initialize(ClassConstPtr cls) {
 		return cls->initialize;
 	}
 	
@@ -192,7 +192,7 @@ namespace snow {
 		return false;
 	}
 	
-	ClassPtr _class_define_method(ClassPtr cls, Symbol name, const Value& function) {
+	ClassPtr _class_define_method(ClassPtr cls, Symbol name, Value function) {
 		ASSERT(!snow::is_symbol(function));
 		Method key = { .name = name, .type = MethodTypeFunction, .function = function };
 		if (!class_define_method_or_property(cls, key)) {
@@ -201,7 +201,7 @@ namespace snow {
 		return cls;
 	}
 	
-	ClassPtr _class_define_property(ClassPtr cls, Symbol name, const Value& getter, const Value& setter) {
+	ClassPtr _class_define_property(ClassPtr cls, Symbol name, Value getter, Value setter) {
 		Property* property = new Property;
 		property->getter = getter;
 		property->setter = setter;
@@ -284,7 +284,7 @@ namespace snow {
 	AnyObjectPtr create_object_with_arguments(ClassPtr cls, const SnArguments* args) {
 		AnyObjectPtr obj = create_object_without_initialize(cls);
 		// TODO: Consider how to call superclass initializers
-		const Value& initialize = class_get_initialize(cls);
+		Value initialize = class_get_initialize(cls);
 		if (initialize != NULL) {
 			call_with_arguments(initialize, obj, args);
 		}

@@ -48,7 +48,7 @@ namespace snow {
 	
 	Allocator::GCObject* Allocator::allocate_from_block(Allocator::Block* p) {
 		ASSERT(p->num_available());
-		ASSERT(p->end < p->begin + OBJECTS_PER_BLOCK);
+		ASSERT(p->current <= p->end);
 		GCObject* object = (GCObject*)p->current;
 		p->current += SN_OBJECT_SIZE;
 		new(object) GCObject;

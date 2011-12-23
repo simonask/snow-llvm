@@ -59,7 +59,7 @@ namespace snow {
 	void gc() {
 	}
 	
-	Value* gc_create_root(const Value& initial_value) {
+	Value* gc_create_root(Value initial_value) {
 		Value* root = gc_internal::external_roots.alloc();
 		*root = initial_value;
 		return root;

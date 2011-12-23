@@ -59,7 +59,7 @@ namespace snow {
 		return i;
 	}
 
-	Value& array_set(ArrayPtr array, int idx, const Value& val) {
+	Value& array_set(ArrayPtr array, int idx, Value val) {
 		if (idx >= array->size())
 			array->resize(idx+1, NULL);
 		if (idx < 0)
@@ -76,20 +76,20 @@ namespace snow {
 		array->reserve(new_size);
 	}
 
-	void array_push(ArrayPtr array, const Value& val) {
+	void array_push(ArrayPtr array, Value val) {
 		array->push_back(val);
 	}
 
-	bool array_contains(ArrayConstPtr array, const Value& val) {
+	bool array_contains(ArrayConstPtr array, Value val) {
 		return array_index_of(array, val) >= 0;
 	}
 	
-	int32_t array_index_of(ArrayConstPtr array, const Value& val) {
+	int32_t array_index_of(ArrayConstPtr array, Value val) {
 		return snow::index_of(*array, val);
 	}
 
 	namespace bindings {
-		Value array_initialize(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) {
 				throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
@@ -100,7 +100,7 @@ namespace snow {
 			return self;
 		}
 
-		Value array_inspect(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) {
 				throw_exception_with_description("Array#inspect called for object that doesn't derive from Array.");
@@ -109,7 +109,7 @@ namespace snow {
 			ObjectPtr<String> result = create_string_constant("@(");
 
 			for (size_t i = 0; i < array->size(); ++i) {
-				const Value& val = (*array)[i];
+				Value val = (*array)[i];
 				string_append(result, value_inspect(val));
 				if (i != array->size() - 1) {
 					string_append_cstr(result, ", ");
@@ -121,31 +121,31 @@ namespace snow {
 			return result;
 		}
 
-		Value array_index_get(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_index_get(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			if (type_of(it) != IntegerType) {
-				throw_exception_with_description("Array#get called with a non-integer index %p.", it.value());
+				throw_exception_with_description("Array#get called with a non-integer index %p.", it);
 			}
 			return array_get(array, value_to_integer(it));
 		}
 
-		Value array_index_set(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_index_set(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			if (type_of(it) != IntegerType) {
-				throw_exception_with_description("Array#set called with a non-integer index %p.", it.value());
+				throw_exception_with_description("Array#set called with a non-integer index %p.", it);
 			}
 			Value val = here->args->size > 1 ? here->args->data[1] : Value(SN_NIL);
 			return array_set(array, value_to_integer(it), val);
 		}
 
-		Value array_multiply_or_splat(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_multiply_or_splat(const CallFrame* here, VALUE self, VALUE it) {
 			if (!it) return self;
 			return self; // TODO: Something useful?
 		}
 
-		Value array_each(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_each(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			for (size_t i = 0; i < array->size(); ++i) {
@@ -155,7 +155,7 @@ namespace snow {
 			return SN_NIL;
 		}
 
-		Value array_push(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_push(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 		// TODO: Check for recursion?
@@ -163,7 +163,7 @@ namespace snow {
 			return self;
 		}
 
-		Value array_get_size(const CallFrame* here, const Value& self, const Value& it) {
+		VALUE array_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			if (!snow::value_is_of_type(self, get_type<Array>())) return NULL;
 			return integer_to_value(array_size(self));
 		}

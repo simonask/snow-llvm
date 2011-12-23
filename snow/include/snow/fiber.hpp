@@ -8,12 +8,12 @@
 namespace snow {
 	struct Fiber;
 	struct Class;
-	typedef const ObjectPtr<Fiber>& FiberPtr;
-	typedef const ObjectPtr<const Fiber>& FiberConstPtr;
+	typedef ObjectPtr<Fiber> FiberPtr;
+	typedef ObjectPtr<const Fiber> FiberConstPtr;
 	struct CallFrame;
 	
-	ObjectPtr<Fiber> create_fiber(const Value& functor); // functor is called with arguments calling_fiber, incoming_value
-	Value fiber_resume(FiberPtr fiber, const Value& incoming_value);
+	ObjectPtr<Fiber> create_fiber(Value functor); // functor is called with arguments calling_fiber, incoming_value
+	Value fiber_resume(FiberPtr fiber, Value incoming_value);
 	ObjectPtr<Fiber> get_current_fiber();
 	ObjectPtr<Fiber> fiber_get_link(FiberConstPtr fiber);
 	CallFrame* fiber_get_current_frame(FiberConstPtr fiber);

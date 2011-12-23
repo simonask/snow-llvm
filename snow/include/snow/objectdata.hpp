@@ -19,11 +19,11 @@ namespace snow {
 		~Object() { dealloc_range(members, num_alloc_members); }
 	};
 	
-	INLINE bool object_is_of_type(const AnyObjectPtr& object, const Type* check_type) {
+	INLINE bool object_is_of_type(AnyObjectPtr object, const Type* check_type) {
 		return object->type == check_type;
 	}
 	
-	INLINE void* object_get_private(const AnyObjectPtr& obj, const Type* check_type) {
+	INLINE void* object_get_private(AnyObjectPtr obj, const Type* check_type) {
 		ASSERT(check_type);
 		if (object_is_of_type(obj, check_type)) {
 			if (UNLIKELY(check_type->data_size + sizeof(Object) > SN_CACHE_LINE_SIZE)) {
@@ -38,7 +38,7 @@ namespace snow {
 		return NULL;
 	}
 	
-	INLINE bool value_is_of_type(const Value& val, const Type* check_type) {
+	INLINE bool value_is_of_type(Value val, const Type* check_type) {
 		if (val.is_object()) {
 			return object_is_of_type(val, check_type);
 		}
@@ -46,12 +46,12 @@ namespace snow {
 	}
 	
 	template <typename T>
-	T* object_get_private(const AnyObjectPtr& obj) {
+	T* object_get_private(AnyObjectPtr obj) {
 		return reinterpret_cast<T*>(object_get_private(obj, get_type<T>()));
 	}
 	
 	template <typename T>
-	T* value_get_private(const Value& val) {
+	T* value_get_private(Value val) {
 		if (val.is_object()) {
 			return object_get_private<T>((Object*)val.value(), get_type<T>());
 		}

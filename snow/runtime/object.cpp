@@ -14,30 +14,30 @@
 namespace {
 	using namespace snow;
 	
-	Value object_inspect(const CallFrame* here, const Value& self, const Value& it) {
-		return snow::string_format("[%s@%p]", class_get_name(get_class(self)), self.value());
+	VALUE object_inspect(const CallFrame* here, VALUE self, VALUE it) {
+		return snow::string_format("[%s@%p]", class_get_name(get_class(self)), self);
 	}
 
-	Value object_instance_eval(const CallFrame* here, const Value& self, const Value& it) {
+	VALUE object_instance_eval(const CallFrame* here, VALUE self, VALUE it) {
 		return call(it, self, 0, NULL);
 	}
 
-	Value object_equals(const CallFrame* here, const Value& self, const Value& it) {
+	VALUE object_equals(const CallFrame* here, VALUE self, VALUE it) {
 		return boolean_to_value(self == it);
 	}
 
-	Value object_not_equals(const CallFrame* here, const Value& self, const Value& it) {
+	VALUE object_not_equals(const CallFrame* here, VALUE self, VALUE it) {
 		return boolean_to_value(self != it);
 	}
 
- 	Value object_compare(const CallFrame* here, const Value& self, const Value& it) {
+ 	VALUE object_compare(const CallFrame* here, VALUE self, VALUE it) {
 		// XXX: TODO: With accurate GC, this is unsafe.
-		return integer_to_value((ssize_t)self.value() - (ssize_t)it.value());
+		return integer_to_value((ssize_t)self - (ssize_t)it);
 	}
 }
 
 namespace snow {
-	Value object_get_instance_variable(const AnyObjectPtr& obj, Symbol name) {
+	Value object_get_instance_variable(AnyObjectPtr obj, Symbol name) {
 		ASSERT(obj != NULL);
 		int32_t idx = object_get_index_of_instance_variable(obj, name);
 		if (idx >= 0) {
@@ -46,7 +46,7 @@ namespace snow {
 		return NULL;
 	}
 	
-	Value object_set_instance_variable(const AnyObjectPtr& obj, Symbol name, const Value& val) {
+	Value object_set_instance_variable(AnyObjectPtr obj, Symbol name, Value val) {
 		ASSERT(obj != NULL);
 		int32_t idx = class_get_index_of_instance_variable(obj->cls, name);
 		if (idx < 0)
@@ -54,12 +54,12 @@ namespace snow {
 		return object_set_instance_variable_by_index(obj, idx, val);
 	}
 	
-	Value object_get_instance_variable_by_index(const AnyObjectPtr& obj, int32_t idx) {
+	Value object_get_instance_variable_by_index(AnyObjectPtr obj, int32_t idx) {
 		if (idx < 0 || idx > obj->num_alloc_members) return NULL;
 		return obj->members[idx];
 	}
 	
-	Value& object_set_instance_variable_by_index(const AnyObjectPtr& obj, int32_t idx, const Value& val) {
+	Value& object_set_instance_variable_by_index(AnyObjectPtr obj, int32_t idx, Value val) {
 		ASSERT(idx >= 0);
 		if (idx >= obj->num_alloc_members) {
 			int32_t sz = class_get_num_instance_variables(obj->cls);
@@ -72,11 +72,11 @@ namespace snow {
 		return place;
 	}
 	
-	int32_t object_get_index_of_instance_variable(const AnyObjectPtr& obj, Symbol name) {
+	int32_t object_get_index_of_instance_variable(AnyObjectPtr obj, Symbol name) {
 		return class_get_index_of_instance_variable(obj->cls, name);
 	}
 	
-	int32_t object_get_or_create_index_of_instance_variable(const AnyObjectPtr& object, Symbol name) {
+	int32_t object_get_or_create_index_of_instance_variable(AnyObjectPtr object, Symbol name) {
 		int32_t idx = class_get_index_of_instance_variable(object->cls, name);
 		if (idx < 0) {
 			idx = class_define_instance_variable(object->cls, name);
@@ -85,7 +85,7 @@ namespace snow {
 		return idx;
 	}
 	
-	bool object_give_meta_class(const AnyObjectPtr& obj) {
+	bool object_give_meta_class(AnyObjectPtr obj) {
 		if (!class_is_meta(obj->cls)) {
 			obj->cls = create_meta_class(obj->cls);
 			return true;
@@ -93,19 +93,19 @@ namespace snow {
 		return false;
 	}
 	
-	Value _object_define_method(const AnyObjectPtr& obj, Symbol name, const Value& func) {
+	Value _object_define_method(AnyObjectPtr obj, Symbol name, Value func) {
 		object_give_meta_class(obj);
 		snow::_class_define_method(obj->cls, name, func);
 		return obj;
 	}
 	
-	Value _object_define_property(const AnyObjectPtr& obj, Symbol name, const Value& getter, const Value& setter) {
+	Value _object_define_property(AnyObjectPtr obj, Symbol name, Value getter, Value setter) {
 		object_give_meta_class(obj);
 		snow::_class_define_property(obj->cls, name, getter, setter);
 		return obj;
 	}
 	
-	Value object_set_property_or_define_method(const AnyObjectPtr& obj, Symbol name, const Value& val) {
+	Value object_set_property_or_define_method(AnyObjectPtr obj, Symbol name, Value val) {
 		Method method_or_property;
 		if (class_lookup_method(obj->cls, name, &method_or_property)) {
 			if (method_or_property.type == MethodTypeProperty) {

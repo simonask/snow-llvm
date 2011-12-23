@@ -8,8 +8,8 @@
 namespace snow {
 	struct Array;
 	struct Class;
-	typedef const ObjectPtr<Array>& ArrayPtr;
-	typedef const ObjectPtr<const Array>& ArrayConstPtr;
+	typedef ObjectPtr<Array> ArrayPtr;
+	typedef ObjectPtr<const Array> ArrayConstPtr;
 	
 	ObjectPtr<Array> create_array();
 	ObjectPtr<Array> create_array_from_range(const Value* begin, const Value* end);
@@ -17,14 +17,14 @@ namespace snow {
 	
 	size_t array_size(ArrayConstPtr array);
 	Value array_get(ArrayConstPtr array, int32_t idx);
-	Value& array_set(ArrayPtr array, int32_t idx, const Value& val);
+	Value& array_set(ArrayPtr array, int32_t idx, Value val);
 	size_t array_get_all(ArrayConstPtr array, Value* out_values, size_t max);
 	void array_reserve(ArrayPtr array, uint32_t new_alloc_size);
-	void array_push(ArrayPtr array, const Value& val);
+	void array_push(ArrayPtr array, Value val);
 	void array_push_range(ArrayPtr array, const Value* begin, const Value* end);
 	ObjectPtr<Array> array_concatenate(ArrayConstPtr a, ArrayConstPtr b);
-	bool array_contains(ArrayConstPtr a, const Value& val);
-	int32_t array_index_of(ArrayConstPtr a, const Value& val);
+	bool array_contains(ArrayConstPtr a, Value val);
+	int32_t array_index_of(ArrayConstPtr a, Value val);
 	
 	ObjectPtr<Class> get_array_class();
 }

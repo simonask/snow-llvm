@@ -7,8 +7,8 @@
 
 namespace snow {
 	struct Class;
-	typedef const ObjectPtr<Class>& ClassPtr;
-	typedef const ObjectPtr<const Class>& ClassConstPtr;
+	typedef ObjectPtr<Class> ClassPtr;
+	typedef ObjectPtr<const Class> ClassConstPtr;
 	
 	enum MethodType {
 		MethodTypeNone,
@@ -29,7 +29,7 @@ namespace snow {
 	};
 	
 	ObjectPtr<Class> get_class_class();
-	bool is_class(const Value& val);
+	bool is_class(Value val);
 	
 	ObjectPtr<Class> create_class(Symbol name, ClassPtr super);
 	ObjectPtr<Class> create_class_for_type(Symbol name, const Type* type);
@@ -45,11 +45,11 @@ namespace snow {
 	// Methods and Properties API
 	bool class_lookup_method(ClassConstPtr cls, Symbol name, Method* out_method);
 	void class_get_method(ClassConstPtr cls, Symbol name, Method* out_method); // throws if not found!
-	ClassPtr _class_define_method(ClassPtr cls, Symbol name, const Value& function);
-	ClassPtr _class_define_property(ClassPtr cls, Symbol name, const Value& getter, const Value& setter);
+	ClassPtr _class_define_method(ClassPtr cls, Symbol name, Value function);
+	ClassPtr _class_define_property(ClassPtr cls, Symbol name, Value getter, Value setter);
 	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow::sym(NAME), snow::create_function(FUNCPTR, snow::sym(#FUNCPTR)))
 	#define SN_DEFINE_PROPERTY(CLS, NAME, GETTER, SETTER) snow::_class_define_property(CLS, snow::sym(NAME), snow::create_function(GETTER, snow::sym(#GETTER)), snow::create_function(SETTER, snow::sym(#SETTER)))
-	const Value& class_get_initialize(ClassConstPtr cls);
+	Value class_get_initialize(ClassConstPtr cls);
 	
 	ObjectPtr<Class> get_symbol_class();
 }

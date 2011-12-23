@@ -50,56 +50,55 @@ namespace snow {
 		return val != NULL && val != SN_NIL && val != SN_FALSE;
 	}
 	
+	class Immediate;
+	
 	class Value {
 		VALUE value_;
-		void assign(VALUE val);
+		void assign(VALUE val) { value_ = val; }
 	public:
 		Value() : value_(NULL) {}
 		Value(VALUE val) : value_(NULL) { assign(val); }
-		Value(const Value& other) : value_(NULL) { assign(other.value()); }
-		Value(Value&& other) { value_ = other.value_; other.value_ = NULL; }
-		~Value() { assign(NULL); }
-		Value& operator=(VALUE other) { assign(other); return *this; }
-		Value& operator=(const Value& other) { assign(other.value_); return *this; }
-		Value& operator=(Value&& other) { value_ = other.value_; other.value_ = NULL; return *this;}
+		explicit Value(const Value& other) : value_(other.value_) {}
+		Value& operator=(const Value& other) { value_ = other.value_; return *this; }
 		VALUE value() const { return value_; }
 		operator VALUE() const { return value_; }
 		
-		bool operator==(const Value& other) const { return value_ == other.value_; }
+		bool operator==(Value other) const { return value_ == other.value_; }
 		bool operator==(VALUE other) const { return value_ == other; }
-		bool operator!=(const Value& other) const { return value_ != other.value_; }
+		bool operator!=(Value other) const { return value_ != other.value_; }
 		bool operator!=(VALUE other) const { return value_ != other; }
 		
-		bool is_object() const { return snow::is_object(value_); }
+		bool is_object() const    { return snow::is_object(value_); }
 		bool is_immediate() const { return !is_object(); }
-		bool is_integer() const;
-		bool is_float() const;
-		bool is_nil() const;
-		bool is_boolean() const;
-		bool is_symbol() const;
+		bool is_integer() const   { return type_of(value_) == IntegerType; }
+		bool is_float() const     { return type_of(value_) == FloatType; }
+		bool is_nil() const       { return type_of(value_) == NilType; }
+		bool is_boolean() const   { return type_of(value_) == BooleanType; }
+		bool is_symbol() const    { return type_of(value_) == SymbolType; }
 	};
 	
 	class Immediate {
-		VALUE value_;
+		Value value_;
 	public:
-		Immediate(); // NULL (nil) by default
-		Immediate(VALUE value) { ASSERT(is_immediate(value)); value_ = value; }
-		Immediate(const Value& value) { ASSERT(value.is_immediate()); value_ = value.value(); }
+		Immediate() {} // NULL (nil) by default
+		Immediate(Value value) { ASSERT(value.is_immediate()); value_ = value; }
+		Immediate(VALUE value) : value_(value) { ASSERT(value_.is_immediate()); }
+		operator VALUE() const { return value_; }
 		operator Value() const { return value_; }
-		VALUE value() const { return value_; }
+		VALUE value() const { return value_.value(); }
 		
-		bool operator==(const Immediate& other) const { return value_ == other.value_; }
-		bool operator!=(const Immediate& other) const { return value_ != other.value_; }
-		bool operator>(const Immediate& other) const { return value_ > other.value_; }
-		bool operator>=(const Immediate& other) const { return value_ >= other.value_; }
-		bool operator<(const Immediate& other) const { return value_ < other.value_; }
-		bool operator<=(const Immediate& other) const { return value_ <= other.value_; }
+		bool operator==(Immediate other) const { return value_ == other.value_; }
+		bool operator!=(Immediate other) const { return value_ != other.value_; }
+		bool operator>(Immediate other) const { return value_ > other.value_; }
+		bool operator>=(Immediate other) const { return value_ >= other.value_; }
+		bool operator<(Immediate other) const { return value_ < other.value_; }
+		bool operator<=(Immediate other) const { return value_ <= other.value_; }
 		
-		bool is_integer() const;
-		bool is_float() const;
-		bool is_nil() const;
-		bool is_boolean() const;
-		bool is_symbol() const;
+		bool is_integer() const { return value_.is_integer(); }
+		bool is_float() const   { return value_.is_float(); }
+		bool is_nil() const     { return value_.is_nil(); }
+		bool is_boolean() const { return value_.is_boolean(); }
+		bool is_symbol() const  { return value_.is_symbol(); }
 	};
 }
 

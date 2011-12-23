@@ -6,11 +6,11 @@
 
 namespace snow {
 	namespace {
-		static Value nil_inspect(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE nil_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			return snow::create_string_constant("nil");
 		}
 
-		static Value nil_to_string(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE nil_to_string(const CallFrame* here, VALUE self, VALUE it) {
 			return snow::create_string_constant("");
 		}
 	}

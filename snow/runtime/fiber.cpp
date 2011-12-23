@@ -46,7 +46,7 @@ namespace snow {
 		{
 		}
 		
-		void initialize(const Value& func) {
+		void initialize(Value func) {
 			functor = func;
 			state = Waiting;
 			thread = new std::thread(Fiber::_start, this);
@@ -80,7 +80,7 @@ namespace snow {
 	}
 
 	static void set_current_fiber(FiberPtr fiber) {
-		*_current_fiber = (const Value&)fiber;
+		*_current_fiber = fiber;
 	}
 	
 	static NO_INLINE byte* get_sp() {
@@ -95,13 +95,13 @@ namespace snow {
 		fiber->initialize_main(get_sp());
 	}
 
-	ObjectPtr<Fiber> create_fiber(const Value& functor) {
+	ObjectPtr<Fiber> create_fiber(Value functor) {
 		ObjectPtr<Fiber> fiber = create_object_without_initialize(get_fiber_class());
 		fiber->initialize(functor);
 		return fiber;
 	}
 	
-	Value fiber_resume_internal(FiberPtr fiber, const Value& incoming_value, Fiber::State sleeping_state) {
+	Value fiber_resume_internal(FiberPtr fiber, Value incoming_value, Fiber::State sleeping_state) {
 		ObjectPtr<Fiber> current = get_current_fiber();
 		if (fiber == current) return incoming_value;
 		
@@ -121,7 +121,7 @@ namespace snow {
 		return current->incoming_value;
 	}
 
-	Value fiber_resume(FiberPtr fiber, const Value& incoming_value) {
+	Value fiber_resume(FiberPtr fiber, Value incoming_value) {
 		return fiber_resume_internal(fiber, incoming_value, Fiber::Waiting);
 	}
 
@@ -176,10 +176,10 @@ namespace snow {
 	}
 
 	namespace bindings {
-		static Value fiber_inspect(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE fiber_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Fiber> fiber = self;
 
-			const Value& functor = fiber->functor;
+			Value functor = fiber->functor;
 
 			ObjectPtr<String> inspected_functor = value_inspect(functor);
 			ObjectPtr<String> result = string_format("[Fiber@%p stack:[%p-%p] functor:", fiber.value(), fiber->stack_bottom, fiber->stack_top);
@@ -188,20 +188,20 @@ namespace snow {
 			return result;
 		}
 
-		static Value fiber_resume(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE fiber_resume(const CallFrame* here, VALUE self, VALUE it) {
 			return snow::fiber_resume(self, it);
 		}
 
-		static Value fiber_is_running(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE fiber_is_running(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Fiber> fiber = self;
 			return boolean_to_value(fiber->state == Fiber::Running);
 		}
 		
-		static Value fiber_is_started(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE fiber_is_started(const CallFrame* here, VALUE self, VALUE it) {
 			return boolean_to_value(ObjectPtr<Fiber>(self)->state != Fiber::Stopped);
 		}
 
-		static Value fiber_each(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE fiber_each(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Fiber> f = self;
 			ASSERT(f != NULL);
 			while (f->state == Fiber::Waiting) {
@@ -211,7 +211,7 @@ namespace snow {
 			return SN_NIL;
 		}
 
-		static Value fiber_initialize(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE fiber_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Fiber> fiber = self;
 			fiber->initialize(it);
 			return self;

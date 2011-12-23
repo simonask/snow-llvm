@@ -3,7 +3,7 @@
 #include "snow/function.hpp"
 #include "snow/numeric.hpp"
 
-static VALUE fiber_function(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE fiber_function(const CallFrame* here, Value self, Value it) {
 	printf("fiber started\n");
 	ASSERT(type_of(it) == FiberType);
 	SnObject* cc = (SnObject*)it;

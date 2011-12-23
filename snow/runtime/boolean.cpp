@@ -7,11 +7,11 @@
 
 namespace snow {
 	namespace bindings {
-		static Value boolean_inspect(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE boolean_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			return snow::create_string_constant(value_to_boolean(self) ? "true" : "false");
 		}
 
-		static Value boolean_complement(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE boolean_complement(const CallFrame* here, VALUE self, VALUE it) {
 			return boolean_to_value(!value_to_boolean(self));
 		}
 	}

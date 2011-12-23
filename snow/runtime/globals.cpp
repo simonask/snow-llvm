@@ -17,11 +17,11 @@
 using namespace snow;
 
 
-static Value get_load_paths(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE get_load_paths(const CallFrame* here, VALUE self, VALUE it) {
 	return get_load_paths();
 }
 
-static Value get_version(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE get_version(const CallFrame* here, VALUE self, VALUE it) {
 	return create_string_constant(snow::version());
 }
 
@@ -36,7 +36,7 @@ Value snow_get_vm_interface() {
 	return *root;
 }
 
-static Value global_puts(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
 	for (size_t i = 0; i < here->args->size; ++i) {
 		ObjectPtr<String> str = value_to_string(here->args->data[i]);
 		size_t sz = string_size(str);
@@ -49,33 +49,33 @@ static Value global_puts(const CallFrame* here, const Value& self, const Value& 
 	return SN_NIL;
 }
 
-static Value global_import(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_import(const CallFrame* here, VALUE self, VALUE it) {
 	ObjectPtr<String> file = value_to_string(it);
 	return import(file);
 }
 
-static Value global_import_global(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_import_global(const CallFrame* here, VALUE self, VALUE it) {
 	ObjectPtr<String> file = value_to_string(it);
 	load_in_global_module(file);
 	return SN_TRUE;
 }
 
-static Value global_load(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_load(const CallFrame* here, VALUE self, VALUE it) {
 	ObjectPtr<String> file = value_to_string(it);
 	return load(file);
 }
 
-static Value global_resolve_symbol(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_resolve_symbol(const CallFrame* here, VALUE self, VALUE it) {
 	if (!is_integer(it)) return NULL;
 	int64_t n = value_to_integer(it);
 	const char* str = snow::sym_to_cstr(n);
 	return str ? create_string_constant(str) : create_string_constant("<invalid symbol>");
 }
 
-static Value global_print_call_stack(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_print_call_stack(const CallFrame* here, VALUE self, VALUE it) {
 	ObjectPtr<Fiber> fiber = get_current_fiber();
 	int level = 0;
-	while (fiber) {
+	while (fiber != NULL) {
 		CallFrame* frame = fiber_get_current_frame(fiber);
 		while (frame) {
 			Symbol function_name = function_get_name(frame->function);
@@ -89,7 +89,7 @@ static Value global_print_call_stack(const CallFrame* here, const Value& self, c
 	return SN_NIL;
 }
 
-static Value global_throw(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE global_throw(const CallFrame* here, VALUE self, VALUE it) {
 	throw_exception(it);
 	return NULL; // unreachable
 }

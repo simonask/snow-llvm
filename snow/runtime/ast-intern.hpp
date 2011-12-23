@@ -16,7 +16,7 @@ namespace snow {
 
 		ASTNode* sequence(unsigned int n = 0, ...);
 		void sequence_push(ASTNode* seq, ASTNode* n);
-		ASTNode* literal(const Immediate& val);
+		ASTNode* literal(Value val);
 		ASTNode* closure(ASTNode* parameters, ASTNode* body);
 		ASTNode* parameter(Symbol name, ASTNode* id_type, ASTNode* default_value);
 		ASTNode* return_(ASTNode* value = NULL);
@@ -67,9 +67,9 @@ namespace snow {
 		else { seq->sequence.tail->next = n; seq->sequence.tail = n; }
 	}
 	
-	inline ASTNode* AST::literal(const Immediate& val) {
+	inline ASTNode* AST::literal(Value val) {
 		ASTNode* n = create(ASTNodeTypeLiteral);
-		n->literal.value = new Immediate(val);
+		n->literal.value = val;
 		return n;
 	}
 	

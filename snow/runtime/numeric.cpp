@@ -11,7 +11,7 @@
 
 using namespace snow;
 
-static Value numeric_add(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_add(const CallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
 	const bool is_self_int = is_integer(self);
 	const bool is_it_int = is_integer(it);
@@ -24,7 +24,7 @@ static Value numeric_add(const CallFrame* here, const Value& self, const Value& 
 	}
 }
 
-static Value numeric_subtract(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_subtract(const CallFrame* here, VALUE self, VALUE it) {
 	const bool is_self_int = is_integer(self);
 	if (!it) {
 		// unary
@@ -43,7 +43,7 @@ static Value numeric_subtract(const CallFrame* here, const Value& self, const Va
 	}
 }
 
-static Value numeric_multiply(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_multiply(const CallFrame* here, VALUE self, VALUE it) {
 	if (!it) return self;
 	const ValueType self_type = type_of(self);
 	const ValueType it_type = type_of(it);
@@ -61,7 +61,7 @@ static Value numeric_multiply(const CallFrame* here, const Value& self, const Va
 	}
 }
 
-static Value numeric_divide(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_divide(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const ValueType self_type = type_of(self);
 	const ValueType it_type = type_of(it);
@@ -79,7 +79,7 @@ static Value numeric_divide(const CallFrame* here, const Value& self, const Valu
 	}
 }
 
-static Value numeric_less_than(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_less_than(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const ValueType self_type = type_of(self);
 	const ValueType it_type = type_of(it);
@@ -97,7 +97,7 @@ static Value numeric_less_than(const CallFrame* here, const Value& self, const V
 	}
 }
 
-static Value numeric_less_than_or_equal(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_less_than_or_equal(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const ValueType self_type = type_of(self);
 	const ValueType it_type = type_of(it);
@@ -115,7 +115,7 @@ static Value numeric_less_than_or_equal(const CallFrame* here, const Value& self
 	}
 }
 
-static Value numeric_greater_than(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_greater_than(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const ValueType self_type = type_of(self);
 	const ValueType it_type = type_of(it);
@@ -133,7 +133,7 @@ static Value numeric_greater_than(const CallFrame* here, const Value& self, cons
 	}
 }
 
-static Value numeric_greater_than_or_equal(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_greater_than_or_equal(const CallFrame* here, VALUE self, VALUE it) {
 	ASSERT(it); // TODO: Exception
 	const ValueType self_type = type_of(self);
 	const ValueType it_type = type_of(it);
@@ -151,21 +151,21 @@ static Value numeric_greater_than_or_equal(const CallFrame* here, const Value& s
 	}
 }
 
-static Value integer_complement(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE integer_complement(const CallFrame* here, VALUE self, VALUE it) {
 	if (!is_integer(self)) return NULL;
 	return integer_to_value(~value_to_integer(self));
 }
 
-static Value integer_modulo(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE integer_modulo(const CallFrame* here, VALUE self, VALUE it) {
 	if (!is_integer(self)) return NULL;
 	if (!is_integer(it)) {
-		throw_exception_with_description("Error in modulo operation: %p is not an integer.", it.value());
+		throw_exception_with_description("Error in modulo operation: %p is not an integer.", it);
 		return NULL;
 	}
 	return integer_to_value(value_to_integer(self) % value_to_integer(it));
 }
 
-static Value numeric_inspect(const CallFrame* here, const Value& self, const Value& it) {
+static VALUE numeric_inspect(const CallFrame* here, VALUE self, VALUE it) {
 	if (is_integer(self)) {
 		char buffer[100];
 		snprintf(buffer, 100, "%d", value_to_integer(self));

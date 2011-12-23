@@ -14,7 +14,7 @@ namespace snow {
 	void gc();
 	struct Object* gc_allocate_object(const snow::Type*);
 	void gc_free_object(Object* obj);
-	Value* gc_create_root(const Value& initial_value = Value());
+	Value* gc_create_root(Value initial_value = Value());
 	Value  gc_free_root(Value* root); 
 }
 

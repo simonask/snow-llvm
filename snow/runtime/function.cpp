@@ -43,7 +43,7 @@ namespace snow {
 	
 	SN_REGISTER_CPP_TYPE(Environment, NULL)
 
-	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, const ObjectPtr<Environment>& definition_scope) {
+	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, ObjectPtr<Environment> definition_scope) {
 		ObjectPtr<Function> function = create_object(get_function_class(), 0, NULL);
 		function->descriptor = descriptor;
 		function->definition_scope = definition_scope;
@@ -55,22 +55,22 @@ namespace snow {
 	}
 	
 	namespace bindings {
-		static Value function_call(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE function_call(const CallFrame* here, VALUE self, VALUE it) {
 			CallFrame frame = *here;
 			return function_call(self, &frame);
 		}
 
-		static Value environment_get_self(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE environment_get_self(const CallFrame* here, VALUE self, VALUE it) {
 			return ObjectPtr<Environment>(self)->self;
 		}
 
-		static Value environment_get_arguments(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE environment_get_arguments(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Environment> cf = self;
 			return create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
 		}
 	}
 	
-	static void environment_liberate(const ObjectPtr<Environment>& cf) {
+	static void environment_liberate(ObjectPtr<Environment> cf) {
 		cf->locals = snow::duplicate_range(cf->locals, cf->num_locals);
 		cf->args.names = snow::duplicate_range(cf->args.names, cf->args.num_names);
 		cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
@@ -144,7 +144,7 @@ namespace snow {
 		return *root;
 	}
 	
-	ObjectPtr<Function> value_to_function(const Value& val, Value* out_new_self) {
+	ObjectPtr<Function> value_to_function(Value val, Value* out_new_self) {
 		Value functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			ObjectPtr<Class> cls = get_class(functor);
@@ -191,7 +191,7 @@ namespace snow {
 		};
 	}
 	
-	Value function_call(const ObjectPtr<Function>& function, CallFrame* frame) {
+	Value function_call(ObjectPtr<Function> function, CallFrame* frame) {
 		const SnArguments* args = frame->args;
 		// Allocate locals
 		size_t num_locals = function->descriptor->num_locals;
@@ -211,28 +211,28 @@ namespace snow {
 		return fptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
-	Symbol function_get_name(const ObjectPtr<const Function>& function) {
+	Symbol function_get_name(ObjectPtr<const Function> function) {
 		return function->descriptor->name;
 	}
 	
-	size_t function_get_num_locals(const ObjectPtr<const Function>& function) {
+	size_t function_get_num_locals(ObjectPtr<const Function> function) {
 		return function->descriptor->num_locals;
 	}
 	
-	ObjectPtr<Environment> function_get_definition_scope(const ObjectPtr<const Function>& function) {
+	ObjectPtr<Environment> function_get_definition_scope(ObjectPtr<const Function> function) {
 		return function->definition_scope;
 	}
 	
-	static Value method_proxy_call(const CallFrame* here, const Value& self, const Value& it) {
-		ASSERT(self.is_object());
+	static VALUE method_proxy_call(const CallFrame* here, VALUE self, VALUE it) {
+		ASSERT(is_object(self));
 		auto obj = object_get_instance_variable(self, snow::sym("object"));
 		auto method = object_get_instance_variable(self, snow::sym("method"));
 		return call_with_arguments(method, obj, here->args);
 	}
 
-	Value create_method_proxy(const Value& self, const Value& method) {
+	AnyObjectPtr create_method_proxy(Value self, Value method) {
 		// TODO: Use a real class for proxy methods
-		Value obj = create_object(get_object_class(), 0, NULL);
+		AnyObjectPtr obj = create_object(get_object_class(), 0, NULL);
 		object_define_method(obj, "__call__", method_proxy_call);
 		object_set_instance_variable(obj, snow::sym("object"), self);
 		object_set_instance_variable(obj, snow::sym("method"), method);

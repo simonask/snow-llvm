@@ -16,27 +16,27 @@ namespace snow {
 		return ((intptr_t)val.value() & 1) != 0;
 	}
 
-	INLINE bool is_float(const Immediate& val) {
+	INLINE bool is_float(Immediate val) {
 		return ((intptr_t)val.value() & ValueTypeMask) == FloatType;
 	}
 
 	INLINE Immediate integer_to_value(int n) {
 		return (VALUE)(((intptr_t)n << 1) | 1);
 	}
-	INLINE int value_to_integer(const Immediate& val) {
+	INLINE int value_to_integer(Immediate val) {
 		ASSERT(is_integer(val));
 		return (int)((int64_t)val.value() >> 1);
 	}
 
 	Value big_integer_to_value(const void* bytes, size_t n_bytes);
-	void extract_big_integer(void* destination_bytes, size_t n_bytes, const Value& big_integer);
+	void extract_big_integer(void* destination_bytes, size_t n_bytes, Value big_integer);
 
-	Immediate float_to_value(float f) {
+	INLINE Immediate float_to_value(float f) {
 		uintptr_t n = *(uintptr_t*)&f;
 		return (VALUE)((n << 16) | FloatType);
 	}
 
-	INLINE float value_to_float(const Immediate& val) {
+	INLINE float value_to_float(Immediate val) {
 		uintptr_t n = (uintptr_t)val.value() >> 16;
 		float* f = (float*)&n;
 		return *f;

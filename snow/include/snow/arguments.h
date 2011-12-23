@@ -7,7 +7,7 @@
 
 typedef struct SnArguments {
 	size_t num_names;
-	snow::Symbol* names;
+	const snow::Symbol* names;
 	size_t size;
 	const snow::Value* data;
 } SnArguments;

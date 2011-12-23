@@ -94,7 +94,7 @@ namespace snow {
 		return str;
 	}
 	
-	bool is_string(const Value& val) {
+	bool is_string(Value val) {
 		return snow::value_is_of_type(val, get_type<String>());
 	}
 
@@ -184,8 +184,8 @@ namespace snow {
 	}
 
 	namespace bindings {
-		static Value string_inspect(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %p.", self.value());
+		static VALUE string_inspect(const CallFrame* here, VALUE self, VALUE it) {
+			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
 			ObjectPtr<String> s = self;
 			size_t size = string_size(s);
 			char buffer[size + 2];
@@ -195,13 +195,13 @@ namespace snow {
 			return create_string_with_size(buffer, size + 2);
 		}
 
-		static Value string_to_string(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %p.", self.value());
+		static VALUE string_to_string(const CallFrame* here, VALUE self, VALUE it) {
+			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
 			return self;
 		}
 
-		static Value string_add(const CallFrame* here, const Value& self, const Value& it) {
-			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %p.", self.value());
+		static VALUE string_add(const CallFrame* here, VALUE self, VALUE it) {
+			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
 
 			if (it) {
 				ObjectPtr<String> other = value_to_string(it);
@@ -210,14 +210,14 @@ namespace snow {
 			return self;
 		}
 
-		static Value string_get_size(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE string_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			if (is_string(self)) {
 				return integer_to_value((int64_t)string_size(self));
 			}
 			return NULL;
 		}
 
-		static Value string_get_length(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE string_get_length(const CallFrame* here, VALUE self, VALUE it) {
 			if (is_string(self)) {
 				return integer_to_value((int64_t)string_length(self));
 			}

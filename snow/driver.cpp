@@ -13,7 +13,7 @@ int main (int argc, char* const* argv) {
 		return n;
 	}
 	catch (const snow::Exception& ex) {
-		fprintf(stderr, "Caught Snow exception %p\n", ex.value);
+		fprintf(stderr, "Caught Snow exception %p\n", ex.value.value());
 		abort();
 	}
 	catch (...) {

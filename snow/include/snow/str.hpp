@@ -12,12 +12,12 @@ namespace snow {
 	struct String;
 	struct Array;
 	struct Class;
-	typedef const ObjectPtr<const String>& StringConstPtr;
-	typedef const ObjectPtr<String>& StringPtr;
+	typedef ObjectPtr<const String> StringConstPtr;
+	typedef ObjectPtr<String> StringPtr;
 	
 	template <typename T> class LinkBuffer;
 	
-	bool is_string(VALUE);
+	bool is_string(Value);
 	ObjectPtr<String> create_string(const char* utf8);
 	ObjectPtr<String> create_string_constant(const char* utf8);
 	ObjectPtr<String> create_string_with_size(const char* utf8, size_t size);

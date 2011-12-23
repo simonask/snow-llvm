@@ -27,7 +27,7 @@ namespace snow {
 		VariableReference* variable_references;
 	};
 	
-	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, const ObjectPtr<Environment>& definition_frame);
+	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, ObjectPtr<Environment> definition_frame);
 }
 
 #endif /* end of include guard: FUNCTION_INTERNAL_HPP_U4QUBRPT */

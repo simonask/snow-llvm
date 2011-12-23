@@ -149,7 +149,7 @@ namespace snow {
 			return module_name;
 		}
 
-		inline Module* compile_module(const std::string& path, const std::string& source, const Value& mod) {
+		inline Module* compile_module(const std::string& path, const std::string& source, Value mod) {
 			Module* m = new Module;
 			m->path = path;
 			m->source = source;

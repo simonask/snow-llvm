@@ -44,15 +44,15 @@ namespace snow {
 		return map->size();
 	}
 	
-	Value map_get(MapConstPtr map, const Value& key) {
+	Value map_get(MapConstPtr map, Value key) {
 		return map->get(key);
 	}
 		
-	Value& map_set(MapPtr map, const Value& key, const Value& value) {
+	Value& map_set(MapPtr map, Value key, Value value) {
 		return map->set(key, value);
 	}
 	
-	Value map_erase(MapPtr map, const Value& key) {
+	Value map_erase(MapPtr map, Value key) {
 		return map->erase(key);
 	}
 	
@@ -69,7 +69,7 @@ namespace snow {
 	}
 	
 	namespace bindings {
-		static Value map_inspect(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE map_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<const Map> map = self;
 			const size_t size = map_size(map);
 			ObjectPtr<String> result = create_string_constant("#(");
@@ -85,15 +85,15 @@ namespace snow {
 			return result;
 		}
 
-		static Value map_index_get(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE map_index_get(const CallFrame* here, VALUE self, VALUE it) {
 			return map_get(self, it);
 		}
 
-		static Value map_index_set(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE map_index_set(const CallFrame* here, VALUE self, VALUE it) {
 			return map_set(self, it, here->locals[1]);
 		}
 
-		static Value map_each_pair(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE map_each_pair(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<const Map> s = self;
 			size_t sz = map_size(s);
 			SN_STACK_ARRAY(KeyValuePair, pairs, sz);
@@ -104,7 +104,7 @@ namespace snow {
 			return SN_NIL;
 		}
 
-		static Value map_initialize(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE map_initialize(const CallFrame* here, VALUE self, VALUE it) {
 			const SnArguments* args = here->args;
 			if ((args->size - args->num_names) % 2) {
 				throw_exception_with_description("Cannot create map with odd number (%u) of arguments.", (uint32_t)(args->size - args->num_names));
@@ -120,7 +120,7 @@ namespace snow {
 			}
 
 			ObjectPtr<Map> map = self;
-			if (map == NULL) throw_exception_with_description("Map#initialized with non-map as self: %p.", self.value());
+			if (map == NULL) throw_exception_with_description("Map#initialized with non-map as self: %p.", self);
 
 			// Slightly hack-ish, needed because we can't yet convert from immediate to non-immediate map.
 			ASSERT(map->size() == 0);
@@ -143,7 +143,7 @@ namespace snow {
 			return self;
 		}
 
-		static Value map_get_size(const CallFrame* here, const Value& self, const Value& it) {
+		static VALUE map_get_size(const CallFrame* here, VALUE self, VALUE it) {
 			return integer_to_value(map_size(self));
 		}
 	}

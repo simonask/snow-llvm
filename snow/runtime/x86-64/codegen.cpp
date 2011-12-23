@@ -12,6 +12,8 @@
 
 #define CALL(FUNC) call_direct((void(*)(void))FUNC)
 
+#define UNSAFE_OFFSET_OF(TYPE, FIELD) (size_t)(&((const TYPE*)NULL)->FIELD)
+
 namespace {
 	using namespace snow;
 	
@@ -83,12 +85,58 @@ namespace snow {
 			snow::array_push(array, value);
 		}
 		
-		SnObject* create_function_for_descriptor(const FunctionDescriptor* descriptor, VALUE definition_environment) {
+		Object* create_function_for_descriptor(const FunctionDescriptor* descriptor, VALUE definition_environment) {
 			return snow::create_function_for_descriptor(descriptor, definition_environment);
 		}
 		
-		SnObject* get_class(VALUE val) {
+		Object* get_class(VALUE val) {
 			return snow::get_class(val);
+		}
+		
+		VALUE call(VALUE functor, VALUE self, size_t num_args, const VALUE* args) {
+			const Value* vargs = reinterpret_cast<const Value*>(args); // TODO: Consider this
+			return snow::call(functor, self, num_args, vargs);
+		}
+		
+		VALUE call_with_named_arguments(VALUE functor, VALUE self, size_t num_names, Symbol* names, size_t num_args, VALUE* args) {
+			const Value* vargs = reinterpret_cast<const Value*>(args); // TODO: Consider this
+			return snow::call_with_named_arguments(functor, self, num_names, names, num_args, vargs);
+		}
+		
+		VALUE local_missing(CallFrame* here, Symbol name) {
+			return snow::local_missing(here, name);
+		}
+		
+		Object* create_method_proxy(VALUE object, VALUE method) {
+			return snow::create_method_proxy(object, method);
+		}
+		
+		Object* create_array_with_size(uint32_t size) {
+			return snow::create_array_with_size(size);
+		}
+		
+		Value* call_frame_get_locals(const CallFrame* here) {
+			return here->locals;
+		}
+		
+		int32_t object_get_or_create_index_of_instance_variable(VALUE obj, Symbol name) {
+			return snow::object_get_or_create_index_of_instance_variable(obj, name);
+		}
+		
+		int32_t object_get_index_of_instance_variable(VALUE obj, Symbol name) {
+			return snow::object_get_index_of_instance_variable(obj, name);
+		}
+		
+		VALUE object_get_instance_variable_by_index(VALUE obj, int32_t idx) {
+			return snow::object_get_instance_variable_by_index(obj, idx);
+		}
+		
+		VALUE object_set_instance_variable_by_index(VALUE obj, int32_t idx, VALUE val) {
+			return snow::object_set_instance_variable_by_index(obj, idx, val);
+		}
+		
+		VALUE object_set_property_or_define_method(VALUE obj, Symbol name, VALUE val) {
+			return snow::object_set_property_or_define_method(obj, name, val);
 		}
 	}
 	
@@ -258,7 +306,7 @@ namespace snow {
 				} else {
 					movq(REG_CALL_FRAME, RDI);
 					movq(node->identifier.name, RSI);
-					CALL(snow::local_missing);
+					CALL(ccall::local_missing);
 				}
 				return true;
 			}
@@ -300,7 +348,7 @@ namespace snow {
 					bind_label(get_method);
 					movq(RDI, RSI);
 					movq(self, RDI);
-					CALL(snow::create_method_proxy);
+					CALL(ccall::create_method_proxy);
 					// jmp(after);
 				}
 				
@@ -313,7 +361,7 @@ namespace snow {
 				movq(RAX, self);
 				compile_get_index_of_field_inline_cache(RAX, node->instance_variable.name, RSI);
 				movq(self, RDI);
-				CALL(object_get_instance_variable_by_index);
+				CALL(ccall::object_get_instance_variable_by_index);
 				return true;
 			}
 			case ASTNodeTypeCall: {
@@ -344,7 +392,7 @@ namespace snow {
 				if (!compile_ast_node(node->logic_and.left)) return false;
 				movq(RAX, RBX);
 				movq(RAX, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				cmpq(0, RAX);
 				j(CC_NOT_EQUAL, left_true);
 				movq(RBX, RAX);
@@ -363,7 +411,7 @@ namespace snow {
 				if (!compile_ast_node(node->logic_or.left)) return false;
 				movq(RAX, RBX);
 				movq(RAX, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				cmpq(0, RAX);
 				j(CC_EQUAL, left_false);
 				movq(RBX, RAX);
@@ -387,11 +435,11 @@ namespace snow {
 				if (!compile_ast_node(node->logic_xor.right)) return false;
 				movq(RAX, RBX); // save right value in caller-preserved register
 				movq(RAX, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				Temporary right_truth(*this);
 				movq(RAX, right_truth);
 				movq(left_value, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				cmpb(RAX, right_truth); // compare left truth to right truth
 				j(CC_EQUAL, equal_truth);
 				cmpq(0, RAX); // compare left truth to zero
@@ -415,7 +463,7 @@ namespace snow {
 				
 				if (!compile_ast_node(node->logic_not.expr)) return false;
 				movq(RAX, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				cmpq(0, RAX);
 				j(CC_NOT_EQUAL, truth);
 				movq((uint64_t)SN_TRUE, RAX);
@@ -434,7 +482,7 @@ namespace snow {
 				bind_label(cond);
 				if (!compile_ast_node(node->loop.cond)) return false;
 				movq(RAX, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				cmpq(0, RAX);
 				j(CC_EQUAL, after);
 				
@@ -458,7 +506,7 @@ namespace snow {
 				
 				if (!compile_ast_node(node->if_else.cond)) return false;
 				movq(RAX, RDI);
-				CALL(is_truthy);
+				CALL(snow::is_truthy);
 				cmpq(0, RAX);
 				j(CC_EQUAL, else_body);
 				if (!compile_ast_node(node->if_else.body)) return false;
@@ -510,7 +558,7 @@ namespace snow {
 			if (i == num_targets-1 && num_values > num_targets) {
 				size_t num_remaining = num_values - num_targets + 1;
 				movq(num_remaining, RDI);
-				CALL(snow::create_array_with_size);
+				CALL(ccall::create_array_with_size);
 				movq(RAX, RBX);
 				for (size_t j = i; j < num_values; ++j) {
 					movq(RBX, RDI);
@@ -554,7 +602,7 @@ namespace snow {
 						movq(values[i], RDX);
 					else
 						xorq(RDX, RDX);
-					CALL(object_set_instance_variable_by_index);
+					CALL(ccall::object_set_instance_variable_by_index);
 					break;
 				}
 				case ASTNodeTypeIdentifier: {
@@ -572,7 +620,7 @@ namespace snow {
 						movq(values[i], RDX);
 					else
 						xorq(RDX, RDX);
-					CALL(object_set_property_or_define_method);
+					CALL(ccall::object_set_property_or_define_method);
 				}
 				default:
 					fprintf(stderr, "CODEGEN: Invalid target for assignment! (type=%d)", target->type);
@@ -616,15 +664,17 @@ namespace snow {
 		if (index >= 0) {
 			if (level == 0) {
 				// local to this scope
-				movq(address(REG_CALL_FRAME, offsetof(CallFrame, locals)), reg);
-				return address(reg, index * sizeof(VALUE));
+				movq(REG_CALL_FRAME, RDI);
+				CALL(ccall::call_frame_get_locals);
+				movq(RAX, reg);
+				return address(reg, index * sizeof(Value));
 			} else {
 				// local in parent scope
 				movq(REG_CALL_FRAME, RDI);
 				movq(level, RSI);
 				CALL(snow::get_locals_from_higher_lexical_scope);
 				movq(RAX, reg);
-				return address(reg, index * sizeof(VALUE));
+				return address(reg, index * sizeof(Value));
 			}
 		}
 		
@@ -639,9 +689,10 @@ namespace snow {
 				// if we're not in module global scope, define a regular local
 				index = local_names.size();
 				local_names.push_back(name);
-				movq(REG_CALL_FRAME, reg); // 'here'
-				movq(address(reg, offsetof(CallFrame, locals)), reg);
-				return address(reg, index * sizeof(VALUE));
+				movq(REG_CALL_FRAME, RDI);
+				CALL(ccall::call_frame_get_locals);
+				movq(RAX, reg);
+				return address(reg, index * sizeof(Value));
 			} else {
 				global_idx = codegen.module_globals.size();
 				codegen.module_globals.push_back(name);
@@ -724,14 +775,14 @@ namespace snow {
 			movq(names_ptr, RCX);
 			movq(num_args, R8);
 			movq(args_ptr, R9);
-			CALL(snow::call_with_named_arguments);
+			CALL(ccall::call_with_named_arguments);
 		} else {
 			if (num_args)
 				movq(num_args, RDX);
 			else
 				xorq(RDX, RDX);
 			movq(args_ptr, RCX);
-			CALL(snow::call);
+			CALL(ccall::call);
 		}
 	}
 	
@@ -768,7 +819,7 @@ namespace snow {
 	
 	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, Symbol name, const Register& out_type, const Register& out_method_getter) {
 		if (settings.use_inline_cache) {
-			Label* uninitialized = label();
+			/*Label* uninitialized = label();
 			Label* monomorphic = label();
 			Label* miss = label();
 			Label* after = label();
@@ -796,7 +847,7 @@ namespace snow {
 				movl_label_to_jmp(monomorphic, state_jmp_data);
 				movq(address(RBX), RAX);
 				movq(RAX, Operand(monomorphic_class_data));
-				movq(address(RBX, sizeof(SnObject*) + offsetof(Method, type)), out_type);
+				movq(address(RBX, sizeof(Object*) + offsetof(Method, type)), out_type);
 				movq(out_type, Operand(monomorphic_method_type_data));
 				movq(address(RBX, sizeof(SnObject*) + offsetof(Method, function)), out_method_getter);
 				movq(out_method_getter, Operand(monomorphic_method_data));
@@ -827,7 +878,7 @@ namespace snow {
 				movq(address(RBX, offsetof(Method, function)), out_method_getter);
 			}
 
-			bind_label(after);
+			bind_label(after);*/
 		} else {
 			movq(object, RDI);
 			CALL(ccall::get_class);
@@ -836,14 +887,14 @@ namespace snow {
 			movq(name, RSI);
 			movq(RBX, RDX);
 			CALL(ccall::class_get_method);
-			movq(address(RBX, offsetof(Method, type)), out_type);
-			movq(address(RBX, offsetof(Method, function)), out_method_getter);
+			movq(address(RBX, UNSAFE_OFFSET_OF(Method, type)), out_type);
+			movq(address(RBX, UNSAFE_OFFSET_OF(Method, function)), out_method_getter);
 		}
 	}
 	
 	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target, bool can_define) {
 		if (settings.use_inline_cache) {
-			Label* uninitialized = label();
+			/*Label* uninitialized = label();
 			Label* monomorphic = label();
 			Label* miss = label();
 			Label* after = label();
@@ -894,14 +945,14 @@ namespace snow {
 				movq(RAX, target);
 			}
 
-			bind_label(after);
+			bind_label(after);*/
 		} else {
 			movq(object, RDI);
 			movq(name, RSI);
 			if (can_define)
-				CALL(snow::object_get_or_create_index_of_instance_variable);
+				CALL(ccall::object_get_or_create_index_of_instance_variable);
 			else
-				CALL(snow::object_get_index_of_instance_variable);
+				CALL(ccall::object_get_index_of_instance_variable);
 			movq(RAX, target);
 		}
 	}
