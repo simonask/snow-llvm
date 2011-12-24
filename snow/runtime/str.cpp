@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <xlocale.h>
 
+#include <sstream>
+
 namespace snow {
 	struct String {
 		char* data; // not NULL-terminated!
@@ -157,6 +159,12 @@ namespace snow {
 		size_t to_copy = str->size < max ? str->size : max;
 		snow::copy_range(buffer, str->data, to_copy);
 		return to_copy;
+	}
+	
+	template <>
+	size_t string_copy_to(StringConstPtr str, std::stringstream& buffer) {
+		buffer.write(str->data, str->size);
+		return str->size;
 	}
 
 	ObjectPtr<String> string_format(const char* utf8_format, ...) {

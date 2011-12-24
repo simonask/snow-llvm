@@ -27,8 +27,9 @@ namespace snow {
 	void string_append(StringPtr str, StringConstPtr other);
 	void string_append_cstr(StringPtr str, const char* utf8);
 	size_t string_copy_to(StringConstPtr str, char* buffer, size_t max);
+	template <typename Buffer>
+	size_t string_copy_to(StringConstPtr str, Buffer& buffer);
 	ObjectPtr<Array> string_split(StringConstPtr str, StringConstPtr separator);
-	
 	ObjectPtr<String> string_format(const char* utf8_format, ...);
 	ObjectPtr<String> string_format_va(const char* utf8_format, va_list ap);
 	
