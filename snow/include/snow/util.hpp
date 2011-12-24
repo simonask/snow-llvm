@@ -168,8 +168,8 @@ namespace snow {
 	};
 	
 	template <bool COND> struct StaticAssertion;
-	template <> struct StaticAssertion<true> {};
-	#define SN_STATIC_ASSERT(COND) enum { dummy = snow::StaticAssertion<(bool)(COND)> }
+	template <> struct StaticAssertion<true> { static const int RESULT = 1; };
+	#define SN_STATIC_ASSERT(COND) enum { _SN_STATIC_ASSERTION__ ## __LINE__ = snow::StaticAssertion<(bool)(COND)>::RESULT };
 }
 
 #endif /* end of include guard: UTIL_HPP_A83WWPWN */
