@@ -65,7 +65,7 @@ namespace snow {
 		if (idx < 0)
 			idx += array->size();
 		if (idx < 0) {
-			throw_exception_with_description("Index %d is out of bounds.", idx - array->size());
+			throw_exception_with_description("Index %@ is out of bounds.", idx - array->size());
 		}
 		Value& ref = (*array)[idx];
 		ref = val;
@@ -125,7 +125,7 @@ namespace snow {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			if (type_of(it) != IntegerType) {
-				throw_exception_with_description("Array#get called with a non-integer index %p.", it);
+				throw_exception_with_description("Array#get called with a non-integer index %@.", value_inspect(it));
 			}
 			return array_get(array, value_to_integer(it));
 		}
@@ -134,7 +134,7 @@ namespace snow {
 			ObjectPtr<Array> array = self;
 			if (array == NULL) return NULL;
 			if (type_of(it) != IntegerType) {
-				throw_exception_with_description("Array#set called with a non-integer index %p.", it);
+				throw_exception_with_description("Array#set called with a non-integer index %@.", value_inspect(it));
 			}
 			Value val = here->args->size > 1 ? here->args->data[1] : Value(SN_NIL);
 			return array_set(array, value_to_integer(it), val);

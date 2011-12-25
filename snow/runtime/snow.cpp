@@ -133,7 +133,7 @@ namespace snow {
 	Value get_module_value(AnyObjectPtr module, Symbol member) {
 		Value v = object_get_instance_variable(module, member);
 		if (v) return v;
-		throw_exception_with_description("Variable '%s' not found in module %p.", snow::sym_to_cstr(member), module.value());
+		throw_exception_with_description("Variable '%@' not found in module %@.", snow::sym_to_cstr(member), value_inspect(module));
 		return NULL;
 	}
 

@@ -176,7 +176,7 @@ namespace snow {
 
 	namespace bindings {
 		static VALUE string_inspect(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %p.", self);
+			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %@.", self);
 			ObjectPtr<String> s = self;
 			size_t size = string_size(s);
 			char buffer[size + 2];
@@ -187,12 +187,12 @@ namespace snow {
 		}
 
 		static VALUE string_to_string(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %p.", self);
+			if (!is_string(self)) throw_exception_with_description("String#to_string called on something that's not a string: %@.", self);
 			return self;
 		}
 
 		static VALUE string_add(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %p.", self);
+			if (!is_string(self)) throw_exception_with_description("String#+ called on something that's not a string: %@.", self);
 
 			if (it) {
 				ObjectPtr<String> other = value_to_string(it);

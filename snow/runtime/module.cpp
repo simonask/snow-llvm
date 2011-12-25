@@ -81,9 +81,10 @@ namespace snow {
 
 				ObjectPtr<Array> load_paths = get_load_paths();
 				for (size_t i = 0; i < array_size(load_paths); ++i) {
-					ObjectPtr<String> p = array_get(load_paths, i);
+					Value vp = array_get(load_paths, i);
+					ObjectPtr<String> p = vp;
 					if (p == NULL) {
-						throw_exception_with_description("Load path is not a string: %p.", p.value());
+						throw_exception_with_description("Load path is not a string: %@.", value_inspect(vp));
 					}
 
 					std::string spath;
@@ -196,7 +197,7 @@ namespace snow {
 					break;
 				}
 				default: {
-					throw_exception_with_description("Only Snow Source and LLVM Bitcode modules are supported at this time.");
+					throw_exception_with_description("Only Snow source code files are supported at this time.");
 					return NULL;
 				}
 			}
@@ -239,7 +240,7 @@ namespace snow {
 				return load_module(path)->module;
 			}
 		}
-		throw_exception_with_description("File not found in any load path: %s", file.c_str());
+		throw_exception_with_description("File not found in any load path: %@", file.c_str());
 		return NULL;
 	}
 	
@@ -268,7 +269,7 @@ namespace snow {
 				return NULL;
 			}
 		} else {
-			throw_exception_with_description("File not found in any load path: %s", file.c_str());
+			throw_exception_with_description("File not found in any load path: %@", file.c_str());
 			return NULL;
 		}
 	}

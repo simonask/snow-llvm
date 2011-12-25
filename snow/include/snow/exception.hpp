@@ -3,6 +3,7 @@
 #define EXCEPTION_HPP_M1JVGOQ3
 
 #include "snow/value.hpp"
+#include "snow/str-format.hpp"
 
 namespace snow {
 	struct Exception {
@@ -12,7 +13,12 @@ namespace snow {
 	
 	Value try_catch_ensure(Value try_f, Value catch_f, Value ensure_f);
 	void throw_exception(Value ex);
-	void throw_exception_with_description(const char* fmt, ...);
+	
+	template <typename... Args>
+	void throw_exception_with_description(const char* fmt, Args... args) {
+		ObjectPtr<String> description = format_string(fmt, args...);
+		throw_exception(description);
+	}
 }
 
 #endif /* end of include guard: EXCEPTION_HPP_M1JVGOQ3 */

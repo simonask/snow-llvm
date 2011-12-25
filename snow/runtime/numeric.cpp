@@ -159,7 +159,7 @@ static VALUE integer_complement(const CallFrame* here, VALUE self, VALUE it) {
 static VALUE integer_modulo(const CallFrame* here, VALUE self, VALUE it) {
 	if (!is_integer(self)) return NULL;
 	if (!is_integer(it)) {
-		throw_exception_with_description("Error in modulo operation: %p is not an integer.", it);
+		throw_exception_with_description("Error in modulo operation: %@ is not an integer.", value_inspect(it));
 		return NULL;
 	}
 	return integer_to_value(value_to_integer(self) % value_to_integer(it));

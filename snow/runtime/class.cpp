@@ -3,6 +3,7 @@
 #include "snow/exception.hpp"
 #include "snow/str.hpp"
 #include "snow/snow.hpp"
+#include "snow/str-format.hpp"
 
 #include "snow/util.hpp"
 #include "snow/objectptr.hpp"
@@ -50,7 +51,7 @@ namespace snow {
 				cls->instance_type = super->instance_type;
 				cls->instance_variables = super->instance_variables;
 			} else if (is_truthy(it)) {
-				throw_exception_with_description("Cannot use %p as superclass.", it);
+				throw_exception_with_description("Cannot use %@ as superclass.", it);
 			}
 			return self;
 		}
@@ -59,14 +60,14 @@ namespace snow {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
-					throw_exception_with_description("Class#define_method expects 2 arguments, %u given,", (uint32_t)here->args->size);
+					throw_exception_with_description("Class#define_method expects 2 arguments, %@ given,", here->args->size);
 				}
 				Value vmethod = here->args->data[1];
-				if (!is_symbol(it)) throw_exception_with_description("Expected method name as argument 1 of Class#define_method.");
+				if (!is_symbol(it)) throw_exception_with_description("Expected method name as first argument of Class#define_method.");
 				_class_define_method(cls, value_to_symbol(it), vmethod);
 				return self;
 			}
-			throw_exception_with_description("Class#define_method called on an object that isn't a class: %p.", self);
+			throw_exception_with_description("Class#define_method called on an object that isn't a class: %@.", value_inspect(self));
 			return NULL; // unreachable
 		}
 
@@ -75,7 +76,7 @@ namespace snow {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
 				if (here->args->size < 2) {
-					throw_exception_with_description("Class#define_property expects 2 arguments, %u given,", (uint32_t)here->args->size);
+					throw_exception_with_description("Class#define_property expects 2 arguments, %@ given,", here->args->size);
 				}
 				Value vgetter = here->args->data[1];
 				Value vsetter = here->args->size >= 3 ? here->args->data[2] : NULL;
@@ -83,13 +84,13 @@ namespace snow {
 				_class_define_property(cls, value_to_symbol(it), vgetter, vsetter);
 				return self;
 			}
-			throw_exception_with_description("Class#define_property called on an object that isn't a class: %p.", self);
+			throw_exception_with_description("Class#define_property called on an object that isn't a class: %@.", value_inspect(self));
 			return NULL; // unreachable
 		}
 
 		VALUE class_inspect(const CallFrame* here, VALUE self, VALUE it) {
-			if (!is_class(self)) throw_exception_with_description("Class#inspect called for object that is not a class: %p.", self);
-			return string_format("[Class@%p name:%s]", self, class_get_name(self));
+			if (!is_class(self)) throw_exception_with_description("Class#inspect called for object that is not a class: %@.", value_inspect(self));
+			return format_string("[Class@%@ name:%@]", format::pointer(self), class_get_name(self));
 		}
 
 		VALUE class_get_instance_methods(const CallFrame* here, VALUE self, VALUE it) {
@@ -168,7 +169,7 @@ namespace snow {
 	
 	void class_get_method(ClassConstPtr cls, Symbol name, Method* out_method) {
 		if (!class_lookup_method(cls, name, out_method)) {
-			throw_exception_with_description("Class %s@%p does not contain a method or property named '%s'.", class_get_name(cls), cls.value(), snow::sym_to_cstr(name));
+			throw_exception_with_description("Class %@@%@ does not contain a method or property named '%@'.", class_get_name(cls), format::pointer(cls), snow::sym_to_cstr(name));
 		}
 	}
 	
@@ -196,7 +197,7 @@ namespace snow {
 		ASSERT(!snow::is_symbol(function));
 		Method key = { .name = name, .type = MethodTypeFunction, .function = function };
 		if (!class_define_method_or_property(cls, key)) {
-			throw_exception_with_description("Method or property '%s' is already defined in class %s@%p.", snow::sym_to_cstr(name), class_get_name(cls), cls.value());
+			throw_exception_with_description("Method or property '%@' is already defined in class %@@%@.", snow::sym_to_cstr(name), class_get_name(cls), format::pointer(cls));
 		}
 		return cls;
 	}
@@ -208,7 +209,7 @@ namespace snow {
 		Method key = { .name = name, .type = MethodTypeProperty, .property = property };
 		if (!class_define_method_or_property(cls, key)) {
 			delete property;
-			throw_exception_with_description("Method or property '%s' is already defined in class %s@%p.", snow::sym_to_cstr(name), class_get_name(cls), cls.value());
+			throw_exception_with_description("Method or property '%@' is already defined in class %@@%@.", snow::sym_to_cstr(name), class_get_name(cls), format::pointer(cls));
 		}
 		return cls;
 	}

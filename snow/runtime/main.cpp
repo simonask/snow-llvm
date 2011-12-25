@@ -10,6 +10,8 @@
 #include "snow/object.hpp"
 #include "snow/parser.hpp"
 #include "snow/str.hpp"
+#include "snow/numeric.hpp"
+#include "snow/str-format.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,7 +53,7 @@ static void interactive_prompt()
 				Value result = eval_in_global_module(str);
 				ObjectPtr<String> inspected = value_inspect(result);
 				if (inspected == NULL) {
-					inspected = string_format("[Object@%p]", result.value());
+					inspected = format_string("[Object@%@]", format::pointer(result));
 				}
 				
 				size_t sz = string_size(inspected);
@@ -143,6 +145,14 @@ int main(int argc, char* const* argv) {
 		ASSERT(str != NULL);
 		load(str);
 	}
+	
+	auto s = format_string("hej verden: %@ (%@), %@\n", integer_to_value(2), 123, format::format("%f", 123));
+	size_t len = string_size(s);
+	char buffer[len+1];
+	string_copy_to(s, buffer, len);
+	buffer[len] = '\0';
+	printf("%s", buffer);
+		
 	
 	if (interactive_mode) {
 		interactive_prompt();

@@ -45,12 +45,4 @@ namespace snow {
 		#endif
 		throw snow::Exception(ex);
 	}
-
-	void throw_exception_with_description(const char* fmt, ...) {
-		va_list ap;
-		va_start(ap, fmt);
-		ObjectPtr<String> ex = snow::string_format_va(fmt, ap);
-		va_end(ap);
-		throw_exception(ex);
-	}
 }

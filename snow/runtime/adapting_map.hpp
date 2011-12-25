@@ -91,7 +91,7 @@ namespace snow {
 	struct CallValueHash {
 		size_t operator()(Value v) const {
 			Value hash = SN_CALL_METHOD(v, "hash", 0, NULL);
-			if (!hash.is_integer()) throw_exception_with_description("A hash method for object %p returned a non-integer (%p).", v.value(), hash.value());
+			if (!hash.is_integer()) throw_exception_with_description("A hash method for object %@ returned a non-integer %@.", value_inspect(v), value_inspect(hash));
 			return (size_t)value_to_integer(hash);
 		}
 	};
@@ -104,7 +104,7 @@ namespace snow {
 				return (int64_t)((intptr_t)a.value() - (intptr_t)b.value());
 			} else {
 				Value diff = SN_CALL_METHOD(a, "<=>", 1, &b);
-				if (!diff.is_integer()) throw_exception_with_description("A comparison method (<=>) for object %p returned a non-integer (%p).", a.value(), diff.value());
+				if (!diff.is_integer()) throw_exception_with_description("A comparison method (<=>) for object %@ returned a non-integer %@.", value_inspect(a), value_inspect(diff));
 				return value_to_integer(diff);
 			}
 		}

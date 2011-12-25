@@ -155,12 +155,12 @@ namespace snow {
 					functor = method.function;
 				} else {
 					if (method.property->getter == NULL) {
-						throw_exception_with_description("Property __call__ is read-only on class %s@p.", class_get_name(cls), cls.value());
+						throw_exception_with_description("Property __call__ is read-only on class %@@%@.", class_get_name(cls), format::pointer(cls));
 					}
 					functor = call(method.property->getter, *out_new_self, 0, NULL);
 				}
 			} else {
-				throw_exception_with_description("Object %p of class %s@%p is not a function, and does not respond to __call__.", functor.value(), class_get_name(cls), cls.value());
+				throw_exception_with_description("Object %@ of class %@@%@ is not a function, and does not respond to __call__.", functor, class_get_name(cls), format::pointer(cls));
 			}
 		}
 		

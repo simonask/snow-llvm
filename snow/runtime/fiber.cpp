@@ -182,7 +182,7 @@ namespace snow {
 			Value functor = fiber->functor;
 
 			ObjectPtr<String> inspected_functor = value_inspect(functor);
-			ObjectPtr<String> result = string_format("[Fiber@%p stack:[%p-%p] functor:", fiber.value(), fiber->stack_bottom, fiber->stack_top);
+			ObjectPtr<String> result = format_string("[Fiber@%@ stack:[%@-%@] functor:", format::pointer(fiber), fiber->stack_bottom, fiber->stack_top);
 			string_append(result, inspected_functor);
 			string_append_cstr(result, "]");
 			return result;

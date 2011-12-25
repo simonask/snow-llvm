@@ -15,7 +15,7 @@ namespace {
 	using namespace snow;
 	
 	VALUE object_inspect(const CallFrame* here, VALUE self, VALUE it) {
-		return snow::string_format("[%s@%p]", class_get_name(get_class(self)), self);
+		return snow::format_string("[%@@%@]", class_get_name(get_class(self)), format::pointer(self));
 	}
 
 	VALUE object_instance_eval(const CallFrame* here, VALUE self, VALUE it) {
@@ -112,7 +112,7 @@ namespace snow {
 				if (method_or_property.property->setter) {
 					return call(method_or_property.property->setter, obj, 1, &val);
 				}
-				throw_exception_with_description("Property '%s' is not writable on objects of class %s.", snow::sym_to_cstr(name), class_get_name(obj->cls));
+				throw_exception_with_description("Property '%@' is not writable on objects of class %@.", snow::sym_to_cstr(name), class_get_name(obj->cls));
 			}
 		}
 
