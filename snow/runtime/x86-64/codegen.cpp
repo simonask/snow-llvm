@@ -790,7 +790,12 @@ namespace snow {
 		ASSERT(args_ptr.is_memory());
 		if (num_names) ASSERT(names_ptr.is_memory());
 		Temporary self(*this);
-		movq(in_self, self);
+		if (in_self.is_memory()) {
+			movq(in_self, RAX);
+			movq(RAX, self);
+		} else {
+			movq(in_self, self);
+		}
 		
 		Label* property_call = label();
 		Label* after = label();
