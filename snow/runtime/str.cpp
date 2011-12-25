@@ -161,26 +161,9 @@ namespace snow {
 		return to_copy;
 	}
 	
-	template <>
 	size_t string_copy_to(StringConstPtr str, std::stringstream& buffer) {
 		buffer.write(str->data, str->size);
 		return str->size;
-	}
-
-	ObjectPtr<String> string_format(const char* utf8_format, ...) {
-		va_list ap;
-		va_start(ap, utf8_format);
-		ObjectPtr<String> str = string_format_va(utf8_format, ap);
-		va_end(ap);
-		return str;
-	}
-
-	ObjectPtr<String> string_format_va(const char* utf8_format, va_list ap) {
-		char* str;
-		vasprintf(&str, utf8_format, ap);
-		ObjectPtr<String> obj = create_string(str);
-		free(str);
-		return obj;
 	}
 
 	size_t string_size(StringConstPtr str) {
