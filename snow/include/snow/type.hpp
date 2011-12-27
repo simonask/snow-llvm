@@ -6,14 +6,16 @@
 #include "snow/value.hpp"
 
 namespace snow {
+	typedef void(*GCCallback)(VALUE);
+	
 	struct Type {
 		size_t data_size;
 		void(*initialize)(void* data);
 		void(*finalize)(void* data);
 		void(*copy)(void* data, void* other_data);
-		void(*gc_each_root)(void* data, void(*callback)(VALUE*));
+		void(*gc_each_root)(void* data, GCCallback callback);
 	};
-	inline void dummy_gc_each_root_callback(void* data, void(*callback)(VALUE*)) {}
+	inline void dummy_gc_each_root_callback(void* data, GCCallback callback) {}
 	
 	template <typename T> struct TypeRegistry;
 	template <typename T> struct TypeRegistry<const T> { static const Type* get() { return TypeRegistry<T>::get(); } };

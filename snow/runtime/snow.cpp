@@ -32,7 +32,7 @@ namespace snow {
 	void init_fibers();
 	
 	void init(const char* lib_path) {
-		const void* stk;
+		void* stk;
 		init_gc(&stk);
 		init_fibers();
 		snow_init_globals();

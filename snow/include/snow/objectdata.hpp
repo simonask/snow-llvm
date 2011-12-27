@@ -10,12 +10,11 @@ namespace snow {
 	struct Class;
 	
 	struct Object {
-		uint32_t refcount;
 		uint32_t num_alloc_members;
 		Value* members;
 		const Type* type;
 		ObjectPtr<Class> cls;
-		Object() : refcount(0), num_alloc_members(0), members(NULL), type(NULL) {}
+		Object() : num_alloc_members(0), members(NULL), type(NULL) {}
 		~Object() { dealloc_range(members, num_alloc_members); }
 	};
 	

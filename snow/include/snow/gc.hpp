@@ -10,7 +10,7 @@ namespace snow {
 	struct Object;
 	struct Type;
 
-	void init_gc(const void** stack_top);
+	void init_gc(void** stack_top);
 	void gc();
 	struct Object* gc_allocate_object(const snow::Type*);
 	void gc_free_object(Object* obj);

@@ -132,7 +132,7 @@ namespace snow {
 	template <typename T>
 	void LinkBuffer<T>::push_range(const T* begin, const T* end) {
 		// TODO: optimize
-		ASSERT(begin < end);
+		ASSERT(begin <= end);
 		for (const T* p = begin; p < end; ++p) {
 			push(*p);
 		}
