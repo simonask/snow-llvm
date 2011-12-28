@@ -57,9 +57,11 @@ namespace snow {
 
 	Value local_missing(CallFrame* frame, Symbol name) {
 		// XXX: TODO!!
-		return get_global(name);
-		//fprintf(stderr, "LOCAL MISSING: %s\n", snow::sym_to_cstr(name));
-		//return NULL;
+		Value v = get_global(name);
+		if (v == NULL) {
+			throw_exception_with_description("LOCAL MISSING: %@\n", sym_to_cstr(name));
+		}
+		return v;
 	}
 
 	ObjectPtr<Class> get_immediate_class(ValueType type) {
