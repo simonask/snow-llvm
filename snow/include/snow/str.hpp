@@ -27,6 +27,7 @@ namespace snow {
 	ObjectPtr<String> string_concat(StringConstPtr a, StringConstPtr b);
 	void string_append(StringPtr str, StringConstPtr other);
 	void string_append_cstr(StringPtr str, const char* utf8);
+	ObjectPtr<String> string_escape(StringConstPtr str);
 	size_t string_copy_to(StringConstPtr str, char* buffer, size_t max);
 	size_t string_copy_to(StringConstPtr str, std::stringstream& buffer);
 	ObjectPtr<Array> string_split(StringConstPtr str, StringConstPtr separator);

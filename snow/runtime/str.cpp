@@ -165,6 +165,21 @@ namespace snow {
 		buffer.write(str->data, str->size);
 		return str->size;
 	}
+	
+	ObjectPtr<String> string_escape(StringConstPtr str) {
+		std::stringstream ss;
+		const char* end = str->data + str->size;
+		for (const char* p = str->data; p < end; ++p) {
+			switch (*p) {
+				case '"':
+				case '\\':
+					ss << '\\';
+				default: break;
+			}
+			ss << *p;
+		}
+		return create_string(ss.str().c_str());
+	}
 
 	size_t string_size(StringConstPtr str) {
 		return str->size;
@@ -178,12 +193,7 @@ namespace snow {
 		static VALUE string_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			if (!is_string(self)) throw_exception_with_description("String#inspect called on something that's not a string: %@.", self);
 			ObjectPtr<String> s = self;
-			size_t size = string_size(s);
-			char buffer[size + 2];
-			size = string_copy_to(s, buffer+1, size);
-			buffer[0] = '"';
-			buffer[size + 1] = '"';
-			return create_string_with_size(buffer, size + 2);
+			return format_string("\"%@\"", string_escape(s));
 		}
 
 		static VALUE string_to_string(const CallFrame* here, VALUE self, VALUE it) {
