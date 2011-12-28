@@ -77,6 +77,8 @@ namespace snow {
 		inline Value erase(Value key);
 		inline size_t get_pairs(KeyValuePair* pairs, size_t max) const;
 		inline void clear(bool free_allocated_memory);
+		
+		void gc_each_root(GCCallback callback);
 	private:
 		HashMap* as_hash_map() { return reinterpret_cast<HashMap*>(hash_map); }
 		const HashMap* as_hash_map() const { return reinterpret_cast<const HashMap*>(hash_map); }
@@ -370,6 +372,34 @@ namespace snow {
 		snow::dealloc_range(flat.values);
 		flags &= ~MAP_FLAT;
 		hash_map = hmap;
+	}
+	
+	inline void AdaptingMap::gc_each_root(GCCallback callback) {
+		if (has_immediate_keys()) {
+			if (is_flat()) {
+				for (size_t i = 0; i < flat.size; ++i) {
+					callback(flat.values[i]);
+				}
+			} else {
+				ImmediateHashMap& hmap = *as_immediate_hash_map();
+				for (auto it = hmap.begin(); it != hmap.end(); ++it) {
+					callback(it->second);
+				}
+			}
+		} else {
+			if (is_flat()) {
+				for (size_t i = 0; i < flat.size; ++i) {
+					callback(flat.keys[i]);
+					callback(flat.values[i]);
+				}
+			} else {
+				HashMap& hmap = *as_hash_map();
+				for (auto it = hmap.begin(); it != hmap.end(); ++it) {
+					callback(it->first);
+					callback(it->second);
+				}
+			}
+		}
 	}
 }
 

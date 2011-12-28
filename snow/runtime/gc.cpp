@@ -70,6 +70,7 @@ namespace snow {
 			flags |= GCReachable;
 			
 			if (!was_scanned) {
+				scan_definite_value(object->cls);
 				for (size_t i = 0; i < object->num_alloc_members; ++i) {
 					scan_definite_value(object->members[i]);
 				}

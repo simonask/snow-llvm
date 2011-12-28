@@ -19,7 +19,14 @@ namespace snow {
 		Array(const Array& other) : std::vector<Value>(other) {}
 	};
 	
-	SN_REGISTER_CPP_TYPE(Array, NULL);
+	static void array_gc_each_root(void* priv, GCCallback callback) {
+		auto p = static_cast<std::vector<Value>*>(priv);
+		for (auto it = p->begin(); it != p->end(); ++it) {
+			callback(*it);
+		}
+	}
+	
+	SN_REGISTER_CPP_TYPE(Array, array_gc_each_root);
 
 	ObjectPtr<Array> create_array() {
 		return create_object(get_array_class(), 0, NULL);

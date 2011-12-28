@@ -12,6 +12,7 @@
 #include "snow/snow.hpp"
 #include "snow/str.hpp"
 #include "snow/exception.hpp"
+#include "gc-intern.hpp"
 
 #include <thread>
 
@@ -52,11 +53,11 @@ namespace snow {
 			thread = new std::thread(Fiber::_start, this);
 		}
 		
-		void initialize_main(byte* system_stack_top) {
+		void initialize_main() {
 			functor = NULL;
 			thread = NULL;
 			state = Running;
-			stack_top = system_stack_top;
+			stack_top = NULL;
 		}
 		
 		~Fiber() {
@@ -70,8 +71,18 @@ namespace snow {
 		void terminate();
 		static void _start(Fiber* f) { f->start(); }
 	};
+	
+	static void fiber_gc_each_root(void* priv, GCCallback callback) {
+		auto fiber = static_cast<Fiber*>(priv);
+		callback(fiber->functor);
+		callback(fiber->incoming_value);
+		callback(fiber->resumed_by);
+		if (fiber->stack_top != NULL) { // Not main fiber.
+			snow::gc_scan_fiber_stack(fiber->stack_top, fiber->stack_bottom);
+		}
+	}
 
-	SN_REGISTER_TYPE(Fiber, ((Type){ .data_size = sizeof(Fiber), .initialize = snow::construct<Fiber>, .finalize = snow::destruct<Fiber>, .copy = NULL, .gc_each_root = NULL}))
+	SN_REGISTER_TYPE(Fiber, ((Type){ .data_size = sizeof(Fiber), .initialize = snow::construct<Fiber>, .finalize = snow::destruct<Fiber>, .copy = NULL, .gc_each_root = fiber_gc_each_root}))
 
 	static Value* _current_fiber = NULL;
 
@@ -92,7 +103,7 @@ namespace snow {
 	void init_fibers() {
 		ObjectPtr<Fiber> fiber = create_object_without_initialize(get_fiber_class());
 		_current_fiber = gc_create_root(fiber);
-		fiber->initialize_main(get_sp());
+		fiber->initialize_main();
 	}
 
 	ObjectPtr<Fiber> create_fiber(Value functor) {

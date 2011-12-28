@@ -18,7 +18,13 @@ namespace snow {
 		Function() : descriptor(NULL), variable_references(NULL) {}
 	};
 	
-	SN_REGISTER_CPP_TYPE(Function, NULL)
+	static void function_gc_each_root(void* priv, GCCallback callback) {
+		auto function = static_cast<Function*>(priv);
+		callback(function->definition_scope);
+		// TODO: Variable references?
+	}
+	
+	SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
 	
 	struct Environment {
 		ObjectPtr<Function> function;
@@ -41,7 +47,19 @@ namespace snow {
 		}
 	};
 	
-	SN_REGISTER_CPP_TYPE(Environment, NULL)
+	static void environment_gc_each_root(void* priv, GCCallback callback) {
+		auto env = static_cast<Environment*>(priv);
+		callback(env->function);
+		callback(env->self);
+		for (size_t i = 0; i < env->num_locals; ++i) {
+			callback(env->locals[i]);
+		}
+		for (size_t i = 0; i < env->args.size; ++i) {
+			callback(env->args.data[i]);
+		}
+	}
+	
+	SN_REGISTER_CPP_TYPE(Environment, environment_gc_each_root)
 
 	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, ObjectPtr<Environment> definition_scope) {
 		ObjectPtr<Function> function = create_object(get_function_class(), 0, NULL);

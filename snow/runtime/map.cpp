@@ -16,7 +16,12 @@
 namespace snow {
 	struct Map : AdaptingMap {};
 	
-	SN_REGISTER_CPP_TYPE(Map, NULL)
+	static void map_gc_each_root(void* priv, GCCallback callback) {
+		auto map = static_cast<Map*>(priv);
+		map->gc_each_root(callback);
+	}
+	
+	SN_REGISTER_CPP_TYPE(Map, map_gc_each_root)
 	
 	ObjectPtr<Map> create_map_with_flags(uint32_t flags) {
 		ObjectPtr<Map> map = create_object(get_map_class(), 0, NULL);

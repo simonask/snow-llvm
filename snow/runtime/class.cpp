@@ -32,13 +32,27 @@ namespace snow {
 		}
 	};
 	
+	static void class_gc_each_root(void* priv, GCCallback callback) {
+		auto cls = static_cast<Class*>(priv);
+		callback(cls->super);
+		for (auto it = cls->methods.begin(); it != cls->methods.end(); ++it) {
+			if (it->type == MethodTypeFunction) {
+				callback(it->function);
+			} else {
+				callback(it->property->getter);
+				callback(it->property->setter);
+			}
+		}
+		// cls->initialize is also in the method list, so already checked by now.
+	}
+	
+	SN_REGISTER_CPP_TYPE(Class, class_gc_each_root)
+	
 	struct MethodLessThan {
 		bool operator()(const Method& a, const Method& b) {
 			return a.name < b.name;
 		}
 	};
-	
-	SN_REGISTER_CPP_TYPE(Class, NULL)
 
 	namespace bindings {
 		VALUE class_initialize(const CallFrame* here, VALUE self, VALUE it) {
