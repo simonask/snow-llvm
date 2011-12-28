@@ -146,14 +146,6 @@ int main(int argc, char* const* argv) {
 		load(str);
 	}
 	
-	auto s = format_string("hej verden: %@ (%@), %@\n", integer_to_value(2), 123, format::format("%f", 123));
-	size_t len = string_size(s);
-	char buffer[len+1];
-	string_copy_to(s, buffer, len);
-	buffer[len] = '\0';
-	printf("%s", buffer);
-		
-	
 	if (interactive_mode) {
 		interactive_prompt();
 	}
