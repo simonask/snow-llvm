@@ -1,8 +1,8 @@
 LEVEL = .
 TARGET := snow
 
-SOURCES := $(wildcard *.c *.cpp)
-OBJECTS := $(patsubst %,%.o,$(SOURCES))
+SOURCES = $(wildcard *.cpp)
+OBJECTS := $(SOURCES:.cpp=.cpp.o)
 
 SUBDIRS := runtime lib tests
 SUBDIRS_NOTEST := runtime lib

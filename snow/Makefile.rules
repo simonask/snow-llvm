@@ -11,31 +11,27 @@ CXX_COMMAND = $(CXX) -c $(CXXFLAGS)
 CC_MM_COMMAND = $(CC) $(CFLAGS) -MM
 CXX_MM_COMMAND = $(CXX) $(CXXFLAGS) -MM
 
-%.c.o: %.c .%.c.o.deps $(LEVEL)/Makefile.config
+%.c.o: %.c .%.c.deps $(LEVEL)/Makefile.config
 	$(CC_COMMAND) -o $@ $<
 
-%.cpp.o: %.cpp .%.cpp.o.deps $(LEVEL)/Makefile.config
+%.cpp.o: %.cpp .%.cpp.deps $(LEVEL)/Makefile.config
 	$(CXX_COMMAND) -o $@ $<
 
-.%.c.o.deps: %.c $(LEVEL)/Makefile.config
-	$(CC_MM_COMMAND) -MM $< > $@
-.%.cpp.o.deps: %.cpp $(LEVEL)/Makefile.config
-	$(CXX_MM_COMMAND) -MM $< > $@
+.%.c.deps: %.c $(LEVEL)/Makefile.config
+	@$(CC_MM_COMMAND) -MM $< | sed -e 's:\($*\)\.o[ \:]:\1.c.o $@\::g' > $@
+.%.cpp.deps: %.cpp $(LEVEL)/Makefile.config
+	@$(CXX_MM_COMMAND) -MM $< | sed -e 's:\($*\)\.o[ \:]:\1.cpp.o $@\::g' > $@
 
-DEPENDENCIES := $(patsubst %,.%.deps,$(OBJECTS))
-depends: $(DEPENDENCIES)
-	-rm .depends
-	cat $(DEPENDENCIES) > .depends
-	rm $(DEPENDENCIES)
+DEPENDENCIES := $(patsubst %,.%.deps,$(SOURCES))
 
 ifneq ($(MAKECMDGOALS),clean)
--include .depends
+-include $(DEPENDENCIES)
 endif
 
 all: $(TARGET)
 
 clean: subdirs
-	-rm -f $(OBJECTS) $(TARGET)
+	-rm -f $(OBJECTS) $(TARGET) $(DEPENDENCIES)
 
 subdirs: $(SUBDIRS)
 

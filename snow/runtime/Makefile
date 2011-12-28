@@ -1,11 +1,11 @@
 LEVEL = ..
 TARGET = libsnow-runtime.a
 
-SOURCES := $(wildcard *.c *.cpp) $(wildcard x86-64/*.c x86-64/*.cpp)
-OBJECTS = $(patsubst %,%.o,$(SOURCES))
+SOURCES := $(wildcard *.cpp) $(wildcard x86-64/*.cpp)
+OBJECTS = $(SOURCES:.cpp=.cpp.o)
 
 include $(LEVEL)/Makefile.rules
 
 $(TARGET): $(OBJECTS)
-	-rm $@
+	-@rm $@
 	$(AR) rcs $@ $(OBJECTS)
