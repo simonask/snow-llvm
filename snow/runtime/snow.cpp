@@ -105,13 +105,13 @@ namespace snow {
 
 	Value call_method(Value self, Symbol method_name, size_t num_args, const Value* args) {
 		ObjectPtr<Class> cls = get_class(self);
-		Method method;
+		MethodQueryResult method;
 		class_get_method(cls, method_name, &method);
 		Value func;
 		if (method.type == MethodTypeFunction) {
-			func = method.function;
+			func = method.result;
 		} else if (method.type == MethodTypeProperty) {
-			func = call(method.property->getter, self, 0, NULL);
+			func = call(method.result, self, 0, NULL);
 		}
 		return call(func, self, num_args, args);
 	}

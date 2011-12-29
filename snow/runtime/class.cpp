@@ -147,7 +147,7 @@ namespace snow {
 		return cls->instance_variables.size();
 	}
 	
-	bool class_lookup_method(ClassConstPtr cls, Symbol name, Method* out_method) {
+	static bool class_lookup_method(ClassConstPtr cls, Symbol name, Method* out_method) {
 		ObjectPtr<const Class> object_class = get_object_class();
 		static const Symbol init_sym = snow::sym("initialize");
 		Method key = { .name = name, .type = MethodTypeNone };
@@ -156,7 +156,6 @@ namespace snow {
 			// Check for 'initialize'
 			if (name == init_sym && c->initialize) {
 				out_method->type = MethodTypeFunction;
-				out_method->name = init_sym;
 				out_method->function = c->initialize;
 				return true;
 			}
@@ -181,7 +180,29 @@ namespace snow {
 		return false;
 	}
 	
-	void class_get_method(ClassConstPtr cls, Symbol name, Method* out_method) {
+	bool class_lookup_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method) {
+		Method m;
+		if (class_lookup_method(cls, name, &m)) {
+			out_method->type = m.type;
+			out_method->result = m.type == MethodTypeFunction ? m.function : m.property->getter;
+			return true;
+		}
+		return false;
+	}
+	
+	bool class_lookup_property_setter(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method) {
+		Method m;
+		if (class_lookup_method(cls, name, &m)) {
+			if (m.type == MethodTypeProperty) {
+				out_method->type = m.type;
+				out_method->result = m.property->setter;
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	void class_get_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method) {
 		if (!class_lookup_method(cls, name, out_method)) {
 			throw_exception_with_description("Class %@@%@ does not contain a method or property named '%@'.", class_get_name(cls), format::pointer(cls), snow::sym_to_cstr(name));
 		}
@@ -209,7 +230,7 @@ namespace snow {
 	
 	ClassPtr _class_define_method(ClassPtr cls, Symbol name, Value function) {
 		ASSERT(!snow::is_symbol(function));
-		Method key = { .name = name, .type = MethodTypeFunction, .function = function };
+		Method key = { .name = name, .type = MethodTypeFunction, .function = function, .property = NULL };
 		if (!class_define_method_or_property(cls, key)) {
 			throw_exception_with_description("Method or property '%@' is already defined in class %@@%@.", snow::sym_to_cstr(name), class_get_name(cls), format::pointer(cls));
 		}
@@ -220,7 +241,7 @@ namespace snow {
 		Property* property = new Property;
 		property->getter = getter;
 		property->setter = setter;
-		Method key = { .name = name, .type = MethodTypeProperty, .property = property };
+		Method key = { .name = name, .type = MethodTypeProperty, .function = NULL, .property = property };
 		if (!class_define_method_or_property(cls, key)) {
 			delete property;
 			throw_exception_with_description("Method or property '%@' is already defined in class %@@%@.", snow::sym_to_cstr(name), class_get_name(cls), format::pointer(cls));

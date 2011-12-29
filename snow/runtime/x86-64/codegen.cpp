@@ -69,7 +69,7 @@ namespace {
 
 namespace snow {
 	namespace ccall {
-		void class_get_method(VALUE cls, Symbol name, Method* out_method) {
+		void class_get_method(VALUE cls, Symbol name, MethodQueryResult* out_method) {
 			snow::class_get_method(cls, name, out_method);
 		}
 		
@@ -887,13 +887,13 @@ namespace snow {
 		} else {
 			movq(object, RDI);
 			CALL(ccall::get_class);
-			Alloca _1(*this, RBX, sizeof(Method));
+			Alloca _1(*this, RBX, sizeof(MethodQueryResult));
 			movq(RAX, RDI);
 			movq(name, RSI);
 			movq(RBX, RDX);
 			CALL(ccall::class_get_method);
-			movq(address(RBX, UNSAFE_OFFSET_OF(Method, type)), out_type);
-			movq(address(RBX, UNSAFE_OFFSET_OF(Method, function)), out_method_getter);
+			movq(address(RBX, offsetof(MethodQueryResult, type)), out_type);
+			movq(address(RBX, offsetof(MethodQueryResult, result)), out_method_getter);
 		}
 	}
 	
@@ -958,7 +958,7 @@ namespace snow {
 				CALL(ccall::object_get_or_create_index_of_instance_variable);
 			else
 				CALL(ccall::object_get_index_of_instance_variable);
-			movq(RAX, target);
+			movl(RAX, target);
 		}
 	}
 	

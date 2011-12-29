@@ -166,16 +166,18 @@ namespace snow {
 		Value functor = val;
 		while (!snow::value_is_of_type(functor, get_type<Function>())) {
 			ObjectPtr<Class> cls = get_class(functor);
-			Method method;
+			MethodQueryResult method;
 			if (class_lookup_method(cls, snow::sym("__call__"), &method)) {
 				*out_new_self = functor;
 				if (method.type == MethodTypeFunction) {
-					functor = method.function;
-				} else {
-					if (method.property->getter == NULL) {
+					functor = method.result;
+				} else if (method.type == MethodTypeProperty) {
+					if (method.result == NULL) {
 						throw_exception_with_description("Property __call__ is read-only on class %@@%@.", class_get_name(cls), format::pointer(cls));
 					}
-					functor = call(method.property->getter, *out_new_self, 0, NULL);
+					functor = call(method.result, *out_new_self, 0, NULL);
+				} else {
+					ASSERT(false);
 				}
 			} else {
 				throw_exception_with_description("Object %@ of class %@@%@ is not a function, and does not respond to __call__.", functor, class_get_name(cls), format::pointer(cls));

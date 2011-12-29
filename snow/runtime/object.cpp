@@ -106,12 +106,11 @@ namespace snow {
 	}
 	
 	Value object_set_property_or_define_method(AnyObjectPtr obj, Symbol name, Value val) {
-		Method method_or_property;
-		if (class_lookup_method(obj->cls, name, &method_or_property)) {
-			if (method_or_property.type == MethodTypeProperty) {
-				if (method_or_property.property->setter) {
-					return call(method_or_property.property->setter, obj, 1, &val);
-				}
+		MethodQueryResult method;
+		if (class_lookup_property_setter(obj->cls, name, &method)) {
+			if (method.result != NULL) {
+				return call(method.result, obj, 1, &val);
+			} else {
 				throw_exception_with_description("Property '%@' is not writable on objects of class %@.", snow::sym_to_cstr(name), class_get_name(obj->cls));
 			}
 		}

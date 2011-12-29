@@ -28,6 +28,11 @@ namespace snow {
 		Property* property;
 	};
 	
+	struct MethodQueryResult {
+		MethodType type;
+		VALUE result;
+	};
+	
 	ObjectPtr<Class> get_class_class();
 	bool is_class(Value val);
 	
@@ -43,8 +48,9 @@ namespace snow {
 	size_t class_get_num_instance_variables(ClassConstPtr cls);
 	
 	// Methods and Properties API
-	bool class_lookup_method(ClassConstPtr cls, Symbol name, Method* out_method);
-	void class_get_method(ClassConstPtr cls, Symbol name, Method* out_method); // throws if not found!
+	bool class_lookup_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method);
+	void class_get_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method); // throws if not found!
+	bool class_lookup_property_setter(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method);
 	ClassPtr _class_define_method(ClassPtr cls, Symbol name, Value function);
 	ClassPtr _class_define_property(ClassPtr cls, Symbol name, Value getter, Value setter);
 	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow::sym(NAME), snow::create_function(FUNCPTR, snow::sym(#FUNCPTR)))
