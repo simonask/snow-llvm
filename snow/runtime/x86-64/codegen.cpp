@@ -2,6 +2,7 @@
 #include "asm.hpp"
 #include "snow/util.hpp"
 #include "../function-internal.hpp"
+#include "../inline-cache.hpp"
 
 #include "snow/snow.hpp"
 #include "snow/array.hpp"
@@ -138,6 +139,21 @@ namespace snow {
 		VALUE object_set_property_or_define_method(VALUE obj, Symbol name, VALUE val) {
 			return snow::object_set_property_or_define_method(obj, name, val);
 		}
+		
+		VALUE call_frame_get_it(const CallFrame* frame) {
+			if (frame->args != NULL) {
+				return frame->args->size ? frame->args->data[0] : NULL;
+			}
+			return NULL;
+		}
+		
+		MethodCacheLine* call_frame_get_method_cache_lines(const CallFrame* frame) {
+			return function_get_method_cache_lines(frame->function);
+		}
+		
+		InstanceVariableCacheLine* call_frame_get_instance_variable_cache_lines(const CallFrame* frame) {
+			return function_get_instance_variable_cache_lines(frame->function);
+		}
 	}
 	
 	class Codegen::Function : public Asm {
@@ -153,6 +169,8 @@ namespace snow {
 			name(0),
 			it_index(0),
 			needs_environment(true),
+			num_method_calls(0),
+			num_instance_variable_accesses(0),
 			num_temporaries(0)
 		{}
 
@@ -176,6 +194,8 @@ namespace snow {
 		std::vector<size_t> gc_root_offsets;
 		struct GlobalReference { int32_t global_idx; size_t offset; };
 		std::vector<GlobalReference> global_references;
+		size_t num_method_calls;
+		size_t num_instance_variable_accesses;
 
 		int num_temporaries;
 		std::vector<int> temporaries_freelist;
@@ -218,26 +238,29 @@ namespace snow {
 		return address(RBP, -(idx+1)*sizeof(VALUE));
 	}
 	
-	#define REG_CALL_FRAME R12
-	#define REG_SELF       R13
-	#define REG_IT         R14
+	#define REG_CALL_FRAME   R12
+	#define REG_METHOD_CACHE R13
+	#define REG_IVAR_CACHE   R14
 	
 	bool Codegen::Function::compile_function_body(const ASTNode* body_seq) {
 		pushq(RBP);
 		movq(RSP, RBP);
-		size_t stack_size_offset1 = subq(0, RSP);
+		size_t stack_size_offset1 = subq(PLACEHOLDER_IMM32, RSP);
 		
 		// Back up preserved registers
 		pushq(RBX);
 		pushq(REG_CALL_FRAME);
-		pushq(REG_SELF);
-		pushq(REG_IT);
+		pushq(REG_METHOD_CACHE);
+		pushq(REG_IVAR_CACHE);
 		pushq(R15);
 		
 		// Set up function environment
 		movq(RDI, REG_CALL_FRAME);
-		movq(RSI, REG_SELF);
-		movq(RDX, REG_IT);
+		CALL(ccall::call_frame_get_method_cache_lines);
+		movq(RAX, REG_METHOD_CACHE);
+		movq(REG_CALL_FRAME, RDI);
+		CALL(ccall::call_frame_get_instance_variable_cache_lines);
+		movq(RAX, REG_IVAR_CACHE);
 		xorq(RAX, RAX); // always clear RAX, so empty functions return nil.
 		return_label = label();
 		
@@ -246,11 +269,11 @@ namespace snow {
 		// Restore preserved registers and return
 		bind_label(return_label);
 		popq(R15);
-		popq(REG_IT);
-		popq(REG_SELF);
+		popq(REG_IVAR_CACHE);
+		popq(REG_METHOD_CACHE);
 		popq(REG_CALL_FRAME);
 		popq(RBX);
-		size_t stack_size_offset2 = addq(0, RSP);
+		//size_t stack_size_offset2 = addq(0, RSP);
 		leave();
 		ret();
 		
@@ -260,7 +283,7 @@ namespace snow {
 		if (pad != 8) stack_size += 8;
 		for (size_t i = 0; i < 4; ++i) {
 			code()[stack_size_offset1+i] = reinterpret_cast<byte*>(&stack_size)[i];
-			code()[stack_size_offset2+i] = reinterpret_cast<byte*>(&stack_size)[i];
+			//code()[stack_size_offset2+i] = reinterpret_cast<byte*>(&stack_size)[i];
 		}
 		
 		return true;
@@ -311,7 +334,7 @@ namespace snow {
 				return true;
 			}
 			case ASTNodeTypeSelf: {
-				movq(REG_SELF, RAX);
+				movq(address(REG_CALL_FRAME, UNSAFE_OFFSET_OF(CallFrame, self)), RAX);
 				return true;
 			}
 			case ASTNodeTypeHere: {
@@ -319,7 +342,8 @@ namespace snow {
 				return true;
 			}
 			case ASTNodeTypeIt: {
-				movq(REG_IT, RAX);
+				movq(REG_CALL_FRAME, RDI);
+				CALL(ccall::call_frame_get_it);
 				return true;
 			}
 			case ASTNodeTypeAssign: {
@@ -824,66 +848,15 @@ namespace snow {
 	
 	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, Symbol name, const Register& out_type, const Register& out_method_getter) {
 		if (settings.use_inline_cache) {
-			/*Label* uninitialized = label();
-			Label* monomorphic = label();
-			Label* miss = label();
-			Label* after = label();
-
-			// TODO: Make this work for W^X systems.
-
-			// Data labels
-			Label* state_jmp_data = label();
-			Label* monomorphic_class_data = label();
-			Label* monomorphic_method_type_data = label();
-			Label* monomorphic_method_data = label();
-
 			movq(object, RDI);
-			CALL(ccall::get_class);
-			bind_label_at(state_jmp_data, jmp(uninitialized));
-
-			{
-				bind_label(uninitialized);
-				Alloca _1(*this, RBX, sizeof(SnObject*) + sizeof(Method), 1);
-				movq(RAX, address(RBX));
-				movq(RAX, RDI);
-				movq(name, RSI);
-				leaq(address(RBX, sizeof(SnObject*)), RDX);
-				CALL(ccall::class_get_method);
-				movl_label_to_jmp(monomorphic, state_jmp_data);
-				movq(address(RBX), RAX);
-				movq(RAX, Operand(monomorphic_class_data));
-				movq(address(RBX, sizeof(Object*) + offsetof(Method, type)), out_type);
-				movq(out_type, Operand(monomorphic_method_type_data));
-				movq(address(RBX, sizeof(SnObject*) + offsetof(Method, function)), out_method_getter);
-				movq(out_method_getter, Operand(monomorphic_method_data));
-				jmp(after);
-			}
-
-			{
-				bind_label(monomorphic);
-				// compare incoming class (in RAX from call to ccall::get_class) with cached value
-				bind_label_at(monomorphic_class_data, movq(0, RDI));
-				cmpq(RDI, RAX); // cmpq does not support 8-byte immediates
-				gc_root_offsets.push_back(monomorphic_class_data->offset);
-				j(CC_NOT_EQUAL, miss);
-				bind_label_at(monomorphic_method_type_data, movq(0, out_type));
-				bind_label_at(monomorphic_method_data, movq(0, out_method_getter));
-				gc_root_offsets.push_back(monomorphic_method_data->offset);
-				jmp(after);
-			}
-
-			{
-				bind_label(miss);
-				Alloca _1(*this, RBX, sizeof(Method), 1);
-				movq(RBX, RDX);
-				movq(RAX, RDI);
-				movq(name, RSI);
-				CALL(ccall::class_get_method);
-				movq(address(RBX, offsetof(Method, type)), out_type);
-				movq(address(RBX, offsetof(Method, function)), out_method_getter);
-			}
-
-			bind_label(after);*/
+			movq(name, RSI);
+			size_t cache_line = num_method_calls++;
+			leaq(address(REG_METHOD_CACHE, cache_line * sizeof(MethodCacheLine)), RDX);
+			Alloca _1(*this, RBX, sizeof(MethodQueryResult));
+			movq(RBX, RCX);
+			CALL(snow::get_method_inline_cache);
+			movq(address(RBX, offsetof(MethodQueryResult, type)), out_type);
+			movq(address(RBX, offsetof(MethodQueryResult, result)), out_method_getter);
 		} else {
 			movq(object, RDI);
 			CALL(ccall::get_class);
@@ -899,58 +872,15 @@ namespace snow {
 	
 	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target, bool can_define) {
 		if (settings.use_inline_cache) {
-			/*Label* uninitialized = label();
-			Label* monomorphic = label();
-			Label* miss = label();
-			Label* after = label();
-
-			// TODO: Make this work for W^X systems.
-
-			Label* state_jmp_data = label();
-			Label* monomorphic_class_data = label();
-			Label* monomorphic_iv_offset_data = label();
-
 			movq(object, RDI);
-			CALL(ccall::get_class);
-			bind_label_at(state_jmp_data, jmp(uninitialized));
-
-			{
-				bind_label(uninitialized);
-				Temporary in_class(*this);
-				movq(RAX, in_class);
-				movq(RAX, RDI);
-				movq(name, RSI);
-				CALL(ccall::class_get_index_of_instance_variable);
-				movq(RAX, target);
-				cmpq(0, target);
-				j(CC_LESS, after);
-				// change state to monomorphic
-				movl_label_to_jmp(monomorphic, state_jmp_data); // XXX: Modifying code
-				movq(in_class, RDI);
-				movq(RDI, Operand(monomorphic_class_data));
-				movl(target, Operand(monomorphic_iv_offset_data)); // XXX: Modifying code
-				jmp(after);
-			}
-
-			{
-				bind_label(monomorphic);
-				bind_label_at(monomorphic_class_data, movq(0, RDI));
-				gc_root_offsets.push_back(monomorphic_class_data->offset);
-				cmpq(RDI, RAX);
-				j(CC_NOT_EQUAL, miss);
-				bind_label_at(monomorphic_iv_offset_data, movl(0, target));
-				jmp(after);
-			}
-
-			{
-				bind_label(miss);
-				movq(RAX, RDI);
-				movq(name, RSI);
-				CALL(ccall::class_get_index_of_instance_variable);
-				movq(RAX, target);
-			}
-
-			bind_label(after);*/
+			movq(name, RSI);
+			size_t cache_line = num_instance_variable_accesses++;
+			leaq(address(REG_IVAR_CACHE, cache_line * sizeof(InstanceVariableCacheLine)), RDX);
+			if (can_define)
+				CALL(snow::get_or_define_instance_variable_inline_cache);
+			else
+				CALL(snow::get_instance_variable_inline_cache);
+			movl(RAX, target);
 		} else {
 			movq(object, RDI);
 			movq(name, RSI);
@@ -1038,6 +968,9 @@ namespace snow {
 			
 			descriptor->num_variable_references = 0; // TODO
 			descriptor->variable_references = NULL;
+			
+			descriptor->num_method_calls = f->num_method_calls;
+			descriptor->num_instance_variable_accesses = f->num_instance_variable_accesses;
 		}
 		
 		std::vector<Function::FunctionDescriptorReference> descriptor_references;

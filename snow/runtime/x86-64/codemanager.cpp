@@ -4,13 +4,6 @@
 #include <vector>
 #include <sys/mman.h>
 
-namespace {
-	struct FunctionMemory {
-		byte* mem;
-		size_t size;
-	};
-}
-
 namespace snow {
 	CodeModule::~CodeModule() {
 		delete[] global_names;
@@ -24,7 +17,7 @@ namespace snow {
 		CodeModule* compile_ast(const ASTBase* ast, const char* source, const char* module_name)
 		{
 			CodegenSettings settings = {
-				.use_inline_cache = false,
+				.use_inline_cache = true,
 			};
 			
 			Codegen codegen(settings);

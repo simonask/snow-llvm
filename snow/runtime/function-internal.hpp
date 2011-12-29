@@ -25,6 +25,10 @@ namespace snow {
 		uint32_t num_locals; // num_locals >= num_params (locals include arguments)
 		size_t num_variable_references;
 		VariableReference* variable_references;
+		
+		// for inline cache management
+		size_t num_method_calls;
+		size_t num_instance_variable_accesses;
 	};
 	
 	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, ObjectPtr<Environment> definition_frame);

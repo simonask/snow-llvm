@@ -82,7 +82,7 @@ namespace snow {
 	};
 	
 	struct Operand {
-		OperandType type;
+		int8_t type;
 		union {
 			Register reg;
 
@@ -141,6 +141,7 @@ namespace snow {
 		}
 		
 		bool is_valid() const { return type != OP_INVALID; }
+		bool is_address() const { return type == OP_ADDRESS; }
 		bool is_memory() const { return (type == OP_ADDRESS) || (type == OP_SIB) || (type == OP_RIP_RELATIVE) || (type == OP_GLOBAL); }
 	};
 	
@@ -183,6 +184,9 @@ namespace snow {
 	
 	class Asm {
 	public:
+		static const uint32_t PLACEHOLDER_IMM32 = UINT32_MAX;
+		static const uint8_t PLACEHOLDER_IMM8 = UINT8_MAX;
+		
 		const std::vector<byte>& code() const { return _code; }
 		std::vector<byte>& code() { return _code; }
 		void link_labels();
@@ -270,7 +274,7 @@ namespace snow {
 			op.address.reg = reg;
 			op.address.disp = disp;
 			if (disp) {
-				if (disp < -127 || disp > 128) {
+				if (disp < -127 || disp >= 128) {
 					op.address.disp_size = 4;
 				} else {
 					op.address.disp_size = 1;
@@ -363,13 +367,23 @@ namespace snow {
 	}
 	
 	inline size_t Asm::subl(uint32_t immediate, const Operand& target) {
-		emit_instruction(0x81, opcode_ext(5), target, false);
-		return emit_immediate(&immediate, 4);
+		if (immediate <= UINT8_MAX) {
+			emit_instruction(0x83, opcode_ext(5), target, true);
+			return emit_immediate(&immediate, 1);
+		} else {
+			emit_instruction(0x81, opcode_ext(5), target, false);
+			return emit_immediate(&immediate, 4);
+		}
 	}
 	
 	inline size_t Asm::subq(uint32_t immediate, const Operand& target) {
-		emit_instruction(0x81, opcode_ext(5), target, true);
-		return emit_immediate(&immediate, 4);
+		if (immediate <= UINT8_MAX) {
+			emit_instruction(0x83, opcode_ext(5), target, true);
+			return emit_immediate(&immediate, 1);
+		} else {
+			emit_instruction(0x81, opcode_ext(5), target, true);
+			return emit_immediate(&immediate, 4);
+		}
 	}
 	
 	inline void Asm::subl(const Operand& source, const Operand& target) {
@@ -438,7 +452,11 @@ namespace snow {
 	
 	inline void Asm::leaq(const Operand& address, const Register& target) {
 		ASSERT(address.is_memory());
-		emit_instruction(0x8d, target, address, true);
+		if (address.is_address() && address.address.disp == 0) {
+			movq(address.address.reg, target);
+		} else {
+			emit_instruction(0x8d, target, address, true);
+		}
 	}
 	
 	inline size_t Asm::pushq(uint64_t immediate) {
@@ -589,12 +607,14 @@ namespace snow {
 					default: ASSERT(false && "Invalid displacement size!"); break;
 				}
 				
+				bool force_disp8 = false;
 				if (mod == RM_ADDRESS && rm.address.reg.reg == 5) {
 					// RBP and R13 need special treatment
 					mod = RM_ADDRESS_DISP8;
+					force_disp8 = true;
 				}
 				emit_modrm(mod, reg.reg.reg, rm.address.reg.reg);
-				return emit_immediate(&rm.address.disp, rm.address.disp_size);
+				return emit_immediate(&rm.address.disp, force_disp8 ? 1 : rm.address.disp_size);
 			}
 			case OP_SIB: {
 				switch (rm.sib.disp_size) {
@@ -604,9 +624,11 @@ namespace snow {
 					default: ASSERT(false && "Invalid displacement size!"); break;
 				}
 				
+				bool force_disp8 = false;
 				if (mod == RM_ADDRESS && rm.sib.base == R12) {
 					// R12 needs special treatment
 					mod = RM_ADDRESS_DISP8;
+					force_disp8 = true;
 				}
 				
 				if (mod == RM_ADDRESS_DISP32 && rm.sib.base.reg == 5) {
@@ -615,7 +637,7 @@ namespace snow {
 				
 				emit_modrm(mod, reg.reg.reg, 4);
 				emit_sib(rm.sib.scale, rm.sib.index.reg, rm.sib.base.reg);
-				return emit_immediate(&rm.sib.disp, rm.sib.disp_size);
+				return emit_immediate(&rm.sib.disp, force_disp8 ? 1 : rm.sib.disp_size);
 			}
 			case OP_RIP_RELATIVE: {
 				mod = RM_ADDRESS;

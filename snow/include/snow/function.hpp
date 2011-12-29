@@ -15,6 +15,9 @@ namespace snow {
 	struct Environment;
 	typedef ObjectPtr<const Environment> EnvironmentConstPtr;
 	
+	struct MethodCacheLine;
+	struct InstanceVariableCacheLine;
+	
 	struct CallFrame {
 		ObjectPtr<Function> function;
 		CallFrame* caller;
@@ -42,6 +45,8 @@ namespace snow {
 	Symbol function_get_name(ObjectPtr<const Function> function);
 	size_t function_get_num_locals(ObjectPtr<const Function> function);
 	ObjectPtr<Environment> function_get_definition_scope(ObjectPtr<const Function> function);
+	MethodCacheLine* function_get_method_cache_lines(ObjectPtr<const Function> function);
+	InstanceVariableCacheLine* function_get_instance_variable_cache_lines(ObjectPtr<const Function> function);
 	
 	// Convenience for currying `self`.
 	AnyObjectPtr create_method_proxy(Value self, Value method);

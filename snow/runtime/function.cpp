@@ -8,14 +8,22 @@
 #include "snow/class.hpp"
 #include "snow/exception.hpp"
 #include "snow/array.hpp"
+#include "inline-cache.hpp"
 
 namespace snow {
 	struct Function {
 		const snow::FunctionDescriptor* descriptor;
 		ObjectPtr<Environment> definition_scope;
 		Value** variable_references;
+		MethodCacheLine* method_cache_lines; // size = descriptor->num_method_calls;
+		InstanceVariableCacheLine* instance_variable_cache_lines; // size = descriptor->num_instance_variable_accesses;
 		
-		Function() : descriptor(NULL), variable_references(NULL) {}
+		Function() : descriptor(NULL), variable_references(NULL), method_cache_lines(NULL), instance_variable_cache_lines(NULL) {}
+		~Function() {
+			delete[] variable_references;
+			delete[] method_cache_lines;
+			delete[] instance_variable_cache_lines;
+		}
 	};
 	
 	static void function_gc_each_root(void* priv, GCCallback callback) {
@@ -69,6 +77,12 @@ namespace snow {
 			function->variable_references = new Value*[descriptor->num_variable_references];
 			// TODO: Set up references
 		}
+		if (descriptor->num_method_calls) {
+			function->method_cache_lines = new MethodCacheLine[descriptor->num_method_calls];
+		}
+		if (descriptor->num_instance_variable_accesses) {
+			function->instance_variable_cache_lines = new InstanceVariableCacheLine[descriptor->num_instance_variable_accesses];
+		}
 		return function;
 	}
 	
@@ -105,6 +119,8 @@ namespace snow {
 		descriptor->num_locals = 0;
 		descriptor->num_variable_references = 0;
 		descriptor->variable_references = NULL;
+		descriptor->num_method_calls = 0;
+		descriptor->num_instance_variable_accesses = 0;
 		
 		return create_function_for_descriptor(descriptor, NULL);
 	}
@@ -241,6 +257,14 @@ namespace snow {
 	
 	ObjectPtr<Environment> function_get_definition_scope(ObjectPtr<const Function> function) {
 		return function->definition_scope;
+	}
+	
+	MethodCacheLine* function_get_method_cache_lines(ObjectPtr<const Function> function) {
+		return function->method_cache_lines;
+	}
+	
+	InstanceVariableCacheLine* function_get_instance_variable_cache_lines(ObjectPtr<const Function> function) {
+		return function->instance_variable_cache_lines;
 	}
 	
 	static VALUE method_proxy_call(const CallFrame* here, VALUE self, VALUE it) {
