@@ -29,7 +29,10 @@ namespace snow {
 	static void function_gc_each_root(void* priv, GCCallback callback) {
 		auto function = static_cast<Function*>(priv);
 		callback(function->definition_scope);
-		// TODO: Variable references?
+
+		// Reset inline caching with each GC.
+		snow::assign_range(function->method_cache_lines, MethodCacheLine(), function->descriptor->num_method_calls);
+		snow::assign_range(function->instance_variable_cache_lines, InstanceVariableCacheLine(), function->descriptor->num_instance_variable_accesses);
 	}
 	
 	SN_REGISTER_CPP_TYPE(Function, function_gc_each_root)
