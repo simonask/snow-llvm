@@ -1,5 +1,5 @@
 LEVEL = ..
-TARGET = libsnow-runtime.a
+TARGET = objects.txt
 
 SOURCES := $(wildcard *.cpp) $(wildcard x86-64/*.cpp)
 OBJECTS = $(SOURCES:.cpp=.cpp.o)
@@ -7,5 +7,4 @@ OBJECTS = $(SOURCES:.cpp=.cpp.o)
 include $(LEVEL)/Makefile.rules
 
 $(TARGET): $(OBJECTS)
-	-@rm $@
-	$(AR) rcs $@ $(OBJECTS)
+	echo $(OBJECTS) > $(TARGET)
