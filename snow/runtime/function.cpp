@@ -242,7 +242,7 @@ namespace snow {
 		// Copy arguments to locals
 		// TODO: Named args
 		if (frame->args)
-			snow::copy_range<Value>(locals, args->data, args->size);
+			snow::copy_range<Value>(locals, args->data, args->size < num_locals ? args->size : num_locals);
 
 		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
