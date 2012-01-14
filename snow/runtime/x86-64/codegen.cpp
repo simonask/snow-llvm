@@ -273,7 +273,6 @@ namespace snow {
 		popq(REG_METHOD_CACHE);
 		popq(REG_CALL_FRAME);
 		popq(RBX);
-		//size_t stack_size_offset2 = addq(0, RSP);
 		leave();
 		ret();
 		
@@ -283,7 +282,6 @@ namespace snow {
 		if (pad != 8) stack_size += 8;
 		for (size_t i = 0; i < 4; ++i) {
 			code()[stack_size_offset1+i] = reinterpret_cast<byte*>(&stack_size)[i];
-			//code()[stack_size_offset2+i] = reinterpret_cast<byte*>(&stack_size)[i];
 		}
 		
 		return true;
