@@ -24,7 +24,6 @@ namespace snow {
 		};
 		
 		static struct {
-			size_t num_objects;
 			size_t collection_threshold;
 			const byte* stack_top;
 			const byte* stack_bottom;
@@ -32,6 +31,7 @@ namespace snow {
 			size_t num_object_flags;
 			
 			struct {
+				size_t num_objects;
 				size_t memory_usage;
 			} stats;
 		} GC;
@@ -52,7 +52,7 @@ namespace snow {
 		}
 		
 		void adjust_collection_threshold() {
-			size_t candidate = GC.num_objects * 2;
+			size_t candidate = GC.stats.num_objects * 2;
 			if (candidate > GC.collection_threshold) {
 				GC.collection_threshold = candidate;
 			}
@@ -134,7 +134,7 @@ namespace snow {
 				}
 				type->initialize(data);
 			}
-			++GC.num_objects;
+			++GC.stats.num_objects;
 			GC.stats.memory_usage += sizeof(Object) + (type ? type->data_size : 0);
 			return obj;
 		}
@@ -150,7 +150,7 @@ namespace snow {
 			}
 			snow::dealloc_range(obj->members, obj->num_alloc_members);
 			allocator.free(obj);
-			--GC.num_objects;
+			--GC.stats.num_objects;
 			GC.stats.memory_usage -= sizeof(Object) + (type ? type->data_size : 0);
 		}
 		
@@ -166,18 +166,18 @@ namespace snow {
 	}
 	
 	void init_gc(void** stk_top) {
-		GC.num_objects = 0;
 		GC.collection_threshold = Allocator::OBJECTS_PER_BLOCK * 4;
 		GC.stack_top = (const byte*)stk_top;
 		GC.stack_bottom = NULL;
 		GC.object_flags = NULL;
 		GC.num_object_flags = 0;
+		GC.stats.num_objects = 0;
 		GC.stats.memory_usage = 0;
 	}
 	
 	void gc() {
 		start_collection();
-		ssize_t num_before = GC.num_objects;
+		ssize_t num_before = GC.stats.num_objects;
 		size_t memory_usage_before = GC.stats.memory_usage;
 		scan_free_list();
 		scan_external_roots();
@@ -185,7 +185,7 @@ namespace snow {
 		scan_stack((const byte*)&sp);
 		free_unreachable();
 		adjust_collection_threshold();
-		ssize_t num_after = GC.num_objects;
+		ssize_t num_after = GC.stats.num_objects;
 		size_t memory_usage_after = GC.stats.memory_usage;
 		finish_collection();
 		
@@ -206,7 +206,7 @@ namespace snow {
 	}
 	
 	Object* gc_allocate_object(const Type* type) {
-		if (GC.num_objects >= GC.collection_threshold) {
+		if (GC.stats.num_objects >= GC.collection_threshold) {
 			snow::gc();
 		}
 		Object* obj = allocate_object(type);
