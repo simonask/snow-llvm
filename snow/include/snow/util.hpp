@@ -4,11 +4,12 @@
 
 #include "snow/basic.h"
 #include "snow/value.hpp"
+#include "snow/gc.hpp"
 #include <new>
 
 namespace snow {
 	template <typename T>
-	struct Placeholder { byte _[sizeof(T)]; };
+	struct Placeholder : GCAlloc { byte _[sizeof(T)]; };
 	
 	template <typename A, typename B> struct ReplicateConstPtr;
 	template <typename A, typename B> struct ReplicateConstPtr<const A, B> { typedef const B* Result; };

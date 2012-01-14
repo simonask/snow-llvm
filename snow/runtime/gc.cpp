@@ -1,4 +1,5 @@
 #include "snow/gc.hpp"
+#include "gc-intern.hpp"
 
 #include "snow/object.hpp"
 #include "snow/fiber.hpp"
@@ -12,6 +13,7 @@
 #include <vector>
 #include <algorithm>
 #include <pthread.h>
+#include <malloc/malloc.h>
 
 namespace snow {
 	namespace {
@@ -24,10 +26,14 @@ namespace snow {
 		static struct {
 			size_t num_objects;
 			size_t collection_threshold;
-			void** stack_top;
-			void** stack_bottom;
+			const byte* stack_top;
+			const byte* stack_bottom;
 			uint8_t* object_flags;
 			size_t num_object_flags;
+			
+			struct {
+				size_t memory_usage;
+			} stats;
 		} GC;
 		
 		static Allocator allocator;
@@ -111,16 +117,8 @@ namespace snow {
 			return is_object(val);
 		}
 		
-		void scan_stack(const void* stack_bottom) {
-			ASSERT(stack_bottom < GC.stack_top);
-			stack_bottom = (const void*)((uintptr_t)stack_bottom & (UINTPTR_MAX - 0xf)); // align
-			const VALUE* begin = (const VALUE*)stack_bottom;
-			const VALUE* end = (const VALUE*)GC.stack_top;
-			for (const VALUE* p = begin; p < end; ++p) {
-				if (looks_like_value(*p)) {
-					scan_possible_value(*p);
-				}
-			}
+		void scan_stack(const byte* stack_bottom) {
+			gc_scan_fiber_stack(GC.stack_top, stack_bottom);
 		}
 
 		Object* allocate_object(const Type* type) {
@@ -129,14 +127,15 @@ namespace snow {
 			obj->type = type;
 			void* data = obj + 1;
 			if (type) {
-				if (type->data_size + sizeof(Object) > SN_CACHE_LINE_SIZE) {
-					void* heap_data = new byte[type->data_size];
+				if (type->data_size + sizeof(Object) > SN_OBJECT_SIZE) {
+					void* heap_data = snow::alloc_range<byte>(type->data_size);
 					*(void**)data = heap_data;
 					data = heap_data;
 				}
 				type->initialize(data);
 			}
 			++GC.num_objects;
+			GC.stats.memory_usage += sizeof(Object) + (type ? type->data_size : 0);
 			return obj;
 		}
 
@@ -144,14 +143,15 @@ namespace snow {
 			const Type* type = obj->type;
 			if (type != NULL) {
 				type->finalize(object_get_private(obj, type));
-				if (type->data_size + sizeof(Object) > SN_CACHE_LINE_SIZE) {
+				if (type->data_size + sizeof(Object) > SN_OBJECT_SIZE) {
 					void* heap_data = *(void**)(obj + 1);
-					delete[] reinterpret_cast<byte*>(heap_data);
+					snow::dealloc_range<byte>((byte*)heap_data);
 				}
 			}
 			snow::dealloc_range(obj->members, obj->num_alloc_members);
 			allocator.free(obj);
 			--GC.num_objects;
+			GC.stats.memory_usage -= sizeof(Object) + (type ? type->data_size : 0);
 		}
 		
 		void free_unreachable() {
@@ -168,25 +168,28 @@ namespace snow {
 	void init_gc(void** stk_top) {
 		GC.num_objects = 0;
 		GC.collection_threshold = Allocator::OBJECTS_PER_BLOCK * 4;
-		GC.stack_top = stk_top;
+		GC.stack_top = (const byte*)stk_top;
 		GC.stack_bottom = NULL;
 		GC.object_flags = NULL;
 		GC.num_object_flags = 0;
+		GC.stats.memory_usage = 0;
 	}
 	
 	void gc() {
 		start_collection();
 		ssize_t num_before = GC.num_objects;
+		size_t memory_usage_before = GC.stats.memory_usage;
 		scan_free_list();
 		scan_external_roots();
 		void* sp = NULL;
-		scan_stack(&sp);
+		scan_stack((const byte*)&sp);
 		free_unreachable();
 		adjust_collection_threshold();
 		ssize_t num_after = GC.num_objects;
+		size_t memory_usage_after = GC.stats.memory_usage;
 		finish_collection();
 		
-		fprintf(stderr, "GC: Collection freed %lu/%lu objects, new threshold: %lu.\n", num_before - num_after, num_before, GC.collection_threshold);
+		fprintf(stderr, "GC: Collection reclaimed %lu of %lu objects (%lu of %lu bytes), new threshold: %lu.\n", num_before - num_after, num_before, memory_usage_before - memory_usage_after, memory_usage_before, GC.collection_threshold);
 	}
 	
 	Value* gc_create_root(Value initial_value) {
@@ -210,4 +213,54 @@ namespace snow {
 		ASSERT(((intptr_t)obj & 0xf) == 0); // unaligned object allocation!
 		return obj;
 	}
+	
+	void gc_scan_fiber_stack(const byte* top, const byte* bottom) {
+		ASSERT(bottom < top);
+		bottom = (const byte*)((uintptr_t)bottom & (UINTPTR_MAX - 0xf)); // align
+		const VALUE* begin = (const VALUE*)bottom;
+		const VALUE* end = (const VALUE*)top;
+		for (const VALUE* p = begin; p < end; ++p) {
+			if (looks_like_value(*p)) {
+				scan_possible_value(*p);
+			}
+		}
+	}
+	
+	#if defined(__APPLE__)
+	
+	void* allocate_memory(size_t size) {
+		void* ptr = ::malloc(size);
+		GC.stats.memory_usage += ::malloc_size(ptr);
+		return ptr;
+	}
+	
+	void* reallocate_memory(void* ptr, size_t new_size) {
+		GC.stats.memory_usage -= ::malloc_size(ptr);
+		ptr = ::realloc(ptr, new_size);
+		GC.stats.memory_usage += ::malloc_size(ptr);
+		return ptr;
+	}
+	
+	void free_memory(void* ptr) {
+		GC.stats.memory_usage -= malloc_size(ptr);
+		::free(ptr);
+	}
+	
+	#else
+	#if defined(DEBUG)
+	#warning This platform does not support malloc_size(void*). GC statistics will be limited to internal data structures.
+	#endif
+	void* allocate_memory(size_t size) {
+		return ::malloc(size);
+	}
+	
+	void* reallocate_memory(void* ptr, size_t new_size) {
+		return ::realloc(ptr, new_size);
+	}
+	
+	void free_memory(void* ptr) {
+		return ::free(ptr);
+	}
+	
+	#endif
 }
