@@ -144,8 +144,8 @@ namespace snow {
 			if (type != NULL) {
 				type->finalize(object_get_private(obj, type));
 				if (type->data_size + sizeof(Object) > SN_OBJECT_SIZE) {
-					void* heap_data = *(void**)(obj + 1);
-					snow::dealloc_range<byte>((byte*)heap_data);
+					byte* heap_data = (byte*)*(void**)(obj + 1);
+					snow::dealloc_range<byte>(heap_data);
 				}
 			}
 			snow::dealloc_range(obj->members, obj->num_alloc_members);
