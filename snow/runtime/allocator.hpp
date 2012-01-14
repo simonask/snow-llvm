@@ -62,7 +62,7 @@ namespace snow {
 	
 	class Allocator {
 		struct GCObject : Object {
-			byte padding[SN_CACHE_LINE_SIZE - sizeof(Object)];
+			byte padding[SN_OBJECT_SIZE - sizeof(Object)];
 		};
 		
 		struct Block {
