@@ -29,9 +29,9 @@ namespace snow {
 	// Meta-class related
 	bool object_give_meta_class(AnyObjectPtr obj);
 	Value _object_define_method(AnyObjectPtr obj, Symbol name, Value func);
-	#define object_define_method(OBJ, NAME, FUNC) _object_define_method(OBJ, snow::sym(NAME), snow::create_function(FUNC, snow::sym(#FUNC)))
+	#define SN_OBJECT_DEFINE_METHOD(OBJ, NAME, FUNC) snow::_object_define_method(OBJ, snow::sym(NAME), snow::create_function(FUNC, snow::sym(#FUNC)))
 	Value _object_define_property(AnyObjectPtr obj, Symbol name, Value getter, Value setter);
-	#define object_define_property(OBJ, NAME, GETTER, SETTER) _object_define_property(OBJ, snow::sym(NAME), snow::create_function(GETTER, snow::sym(#GETTER)), snow::create_function(SETTER, snow::sym(#SETTER)))
+	#define SN_OBJECT_DEFINE_PROPERTY(OBJ, NAME, GETTER, SETTER) snow::_object_define_property(OBJ, snow::sym(NAME), snow::create_function(GETTER, snow::sym(#GETTER)), snow::create_function(SETTER, snow::sym(#SETTER)))
 	Value object_set_property_or_define_method(AnyObjectPtr self, Symbol name, Value val);
 }
 

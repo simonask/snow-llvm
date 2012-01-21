@@ -280,7 +280,7 @@ namespace snow {
 	AnyObjectPtr create_method_proxy(Value self, Value method) {
 		// TODO: Use a real class for proxy methods
 		AnyObjectPtr obj = create_object(get_object_class(), 0, NULL);
-		object_define_method(obj, "__call__", method_proxy_call);
+		SN_OBJECT_DEFINE_METHOD(obj, "__call__", method_proxy_call);
 		object_set_instance_variable(obj, snow::sym("object"), self);
 		object_set_instance_variable(obj, snow::sym("method"), method);
 		return obj;
