@@ -16,6 +16,7 @@ namespace snow {
 	AnyObjectPtr create_object(ObjectPtr<Class> cls, size_t num_constructor_args, const Value* args);
 	AnyObjectPtr create_object_with_arguments(ObjectPtr<Class> cls, const struct SnArguments* constructor_args);
 	AnyObjectPtr create_object_without_initialize(ObjectPtr<Class> cls);
+	void object_initialize(AnyObjectPtr obj, const SnArguments* args);
 
 	// Instance variable related
 	Value object_get_instance_variable(AnyObjectPtr obj, Symbol name);

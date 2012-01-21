@@ -309,6 +309,14 @@ namespace snow {
 		return obj;
 	}
 	
+	void object_initialize(AnyObjectPtr object, const SnArguments* args) {
+		// TODO: Consider how to call superclass initializers
+		Value initialize = class_get_initialize(get_class(object));
+		if (initialize != NULL) {
+			call_with_arguments(initialize, object, args);
+		}
+	}
+	
 	AnyObjectPtr create_object(ClassPtr cls, size_t num_constructor_args, const Value* args) {
 		SnArguments arguments = {
 			.size = num_constructor_args,
@@ -319,11 +327,7 @@ namespace snow {
 	
 	AnyObjectPtr create_object_with_arguments(ClassPtr cls, const SnArguments* args) {
 		AnyObjectPtr obj = create_object_without_initialize(cls);
-		// TODO: Consider how to call superclass initializers
-		Value initialize = class_get_initialize(cls);
-		if (initialize != NULL) {
-			call_with_arguments(initialize, obj, args);
-		}
+		object_initialize(obj, args);
 		return obj;
 	}
 }
