@@ -10,6 +10,9 @@
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+#include <errno.h>
+#include <stdio.h>
+#include <dlfcn.h>
 
 #include "codemanager.hpp"
 #include "function-internal.hpp"
@@ -21,7 +24,15 @@ namespace snow {
 			ObjectPtr<Function> entry;
 			std::string path;
 			std::string source;
+			void* snomo;
 			// AST?
+			
+			Module() : snomo(NULL) {}
+			~Module() {
+				if (snomo != NULL) {
+					dlclose(snomo);
+				}
+			}
 		};
 
 		typedef google::dense_hash_map<std::string, Module*> ModuleMap;
@@ -29,7 +40,6 @@ namespace snow {
 
 		enum ModuleType {
 			ModuleTypeSource,
-			ModuleTypeCompiledSource,
 			ModuleTypeDynamicLibrary
 		};
 
@@ -76,7 +86,7 @@ namespace snow {
 				path = file;
 				return file_exists(path);
 			} else {
-				static const char* file_suffixes[] = {"", ".sn", ".sno" /* TODO: Dynamic libraries? */};
+				static const char* file_suffixes[] = {"", ".sn", ".snomo" /* TODO: Dynamic libraries? */};
 				static const size_t num_file_suffixes = sizeof(file_suffixes) / sizeof(const char*);
 
 				ObjectPtr<Array> load_paths = get_load_paths();
@@ -128,8 +138,8 @@ namespace snow {
 			const std::string extension = strrchr(path.c_str(), '.') + 1;
 			if (extension == "sn") {
 				return ModuleTypeSource;
-			} else if (extension == "sno") {
-				return ModuleTypeCompiledSource;
+			} else if (extension == "snomo") {
+				return ModuleTypeDynamicLibrary;
 			} else {
 				fprintf(stderr, "WARNING: Unknown file extension '%s', assuming source code.\n", extension.c_str());
 				return ModuleTypeSource;
@@ -187,13 +197,33 @@ namespace snow {
 		}
 
 		inline Module* load_module(const std::string& path) {
-			ASSERT(path.size() && path[0] == '/'); // path must be expanded!
+			//ASSERT(path.size() && path[0] == '/'); // path must be expanded!
 			Module* module = NULL;
 			switch (get_module_type(path)) {
 				case ModuleTypeSource: {
 					Value mod = create_object(get_object_class(), 0, NULL);
 					object_give_meta_class(mod);
 					module = compile_module(path, load_source(path), mod);
+					break;
+				}
+				case ModuleTypeDynamicLibrary: {
+					void* snomo = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL | RTLD_FIRST);
+					if (snomo != NULL) {
+						void* ptr = dlsym(snomo, "snow_module_init");
+						if (ptr != NULL) {
+							VALUE(*entry)() = (VALUE(*)())ptr;
+							module = new Module;
+							module->path = path;
+							module->snomo = snomo;
+							get_module_list()->push_back(module);
+							(*get_module_map())[path] = module;
+							module->module = entry();
+						} else {
+							throw_exception_with_description("dlopen(%@): %@", path, strerror(errno));
+						}
+					} else {
+						throw_exception_with_description("dlopen(%@): %@", path, strerror(errno));
+					}
 					break;
 				}
 				default: {
@@ -212,6 +242,7 @@ namespace snow {
 		if (!root) {
 			ObjectPtr<Array> load_paths = create_array_with_size(10);
 			array_push(load_paths, create_string_constant("./"));
+			array_push(load_paths, create_string_constant("./lib"));
 			root = gc_create_root(load_paths);
 		}
 		return *root;
@@ -237,7 +268,8 @@ namespace snow {
 			if (module_is_loaded(path, module)) {
 				return module->module;
 			} else {
-				return load_module(path)->module;
+				module = load_module(path);
+				return module->module;
 			}
 		}
 		throw_exception_with_description("File not found in any load path: %@", file.c_str());
