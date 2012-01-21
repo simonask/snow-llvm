@@ -62,6 +62,7 @@ namespace snow {
 		Value& operator=(const Value& other) { value_ = other.value_; return *this; }
 		VALUE value() const { return value_; }
 		operator VALUE() const { return value_; }
+		ValueType type() const { return type_of(value_); }
 		
 		bool operator==(Value other) const { return value_ == other.value_; }
 		bool operator==(VALUE other) const { return value_ == other; }
@@ -86,6 +87,7 @@ namespace snow {
 		operator VALUE() const { return value_; }
 		operator Value() const { return value_; }
 		VALUE value() const { return value_.value(); }
+		ValueType type() const { return value_.type(); }
 		
 		bool operator==(Immediate other) const { return value_ == other.value_; }
 		bool operator!=(Immediate other) const { return value_ != other.value_; }
