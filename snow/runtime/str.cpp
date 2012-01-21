@@ -57,6 +57,24 @@ namespace snow {
 	uint32_t get_utf8_length(const char* utf8) {
 		return get_utf8_length(utf8, strlen(utf8));
 	}
+	
+	void preallocate_string_data(PreallocatedStringData& data, size_t sz) {
+		ASSERT(data.data == NULL);
+		if (sz) {
+			data.data = new char[sz];
+		}
+	}
+	
+	ObjectPtr<String> create_string_from_preallocated_data(PreallocatedStringData& data) {
+		ObjectPtr<String> str = create_object(get_string_class(), 0, NULL);
+		str->size = data.size;
+		str->data = data.data;
+		str->length = get_utf8_length(data.data, data.size);
+		str->constant = false;
+		data.data = NULL;
+		data.size = 0;
+		return str;
+	}
 
 	ObjectPtr<String> create_string(const char* utf8) {
 		return create_string_with_size(utf8, strlen(utf8));

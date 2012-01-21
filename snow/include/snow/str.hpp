@@ -36,6 +36,14 @@ namespace snow {
 	size_t string_length(StringConstPtr str);
 	
 	ObjectPtr<Class> get_string_class();
+	
+	struct PreallocatedStringData {
+		char* data;
+		size_t size;
+		PreallocatedStringData() : data(NULL), size(0) {}
+	};
+	void preallocate_string_data(PreallocatedStringData& out_data, size_t size);
+	ObjectPtr<String> create_string_from_preallocated_data(PreallocatedStringData& data);
 }
 
 #endif /* end of include guard: STRING_H_OYTL2E1P */
