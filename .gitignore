@@ -10,3 +10,6 @@ a.out
 *.swp
 snow/snow
 *.dSYM
+*.snomo
+*.dylib
+*.so
