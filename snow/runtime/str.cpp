@@ -104,7 +104,7 @@ namespace snow {
 		size_t size_a = string_size(a);
 		size_t size_b = string_size(b);
 		size_t s = size_a + size_b;
-		char* buffer = s ? new char(s) : NULL;
+		char* buffer = s ? new char[s] : NULL;
 		size_a = string_copy_to(a, buffer, size_a);
 		size_b = string_copy_to(b, buffer + size_a, size_b);
 		s = size_a + size_b;
