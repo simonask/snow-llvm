@@ -50,7 +50,7 @@ INLINE void crash_and_burn() { assert(false); }
 #endif
 
 #if defined(DEBUG)
-#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); __builtin_trap(); } while (0)
+#define TRAP() do { fprintf(stderr, "TRAP AT %s:%d (%s)\n", __FILE__, __LINE__, __FUNCTION__); __asm__("int3\n"); } while (0)
 #else
 #define TRAP() __builtin_unreachable()
 #endif
