@@ -154,9 +154,9 @@ namespace snow {
 			if (new_alloc_size > flat.alloc_size) {
 				size_t n = new_alloc_size - flat.alloc_size;
 				flat.keys = snow::realloc_range(flat.keys, flat.alloc_size, new_alloc_size);
-				snow::assign_range<Value>(flat.keys + flat.alloc_size, NULL, n);
+				snow::assign_range<Value>(flat.keys + flat.alloc_size, nullptr, n);
 				flat.values = snow::realloc_range(flat.values, flat.alloc_size, new_alloc_size);
-				snow::assign_range<Value>(flat.values + flat.alloc_size, NULL, n);
+				snow::assign_range<Value>(flat.values + flat.alloc_size, nullptr, n);
 				flat.alloc_size = new_alloc_size;
 			}
 		} else if (has_immediate_keys()) {

@@ -102,15 +102,15 @@ namespace snow {
 		return ptr;
 	}
 	
-	template <typename T>
-	inline void copy_range(T* dst, const T* src, size_t num) {
+	template <typename T, typename U>
+	inline void copy_range(T* dst, const U* src, size_t num) {
 		for (size_t i = 0; i < num; ++i) {
 			dst[i] = src[i];
 		}
 	}
 	
-	template <typename T>
-	inline void assign_range(T* dst, const T& x, size_t num) {
+	template <typename T, typename U>
+	inline void assign_range(T* dst, const U& x, size_t num) {
 		for (size_t i = 0; i < num; ++i) {
 			dst[i] = x;
 		}
