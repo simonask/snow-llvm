@@ -9,6 +9,7 @@
 namespace snow {
 	struct CodegenSettings {
 		bool use_inline_cache;
+		bool perform_inlining;
 	};
 	
 	class Codegen {

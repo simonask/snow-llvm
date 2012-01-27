@@ -250,6 +250,7 @@ namespace snow {
 		void compile_get_index_of_field_inline_cache(const Operand& self, Symbol name, const Register& target, bool can_define = false);
 		Operand compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
 		Function* compile_function(const ASTNode* function);
+		bool perform_inlining(void* callee);
 		void call_direct(void(*callee)(void));
 		void call_indirect(void(*callee)(void));
 		
@@ -900,11 +901,36 @@ namespace snow {
 		}
 	}
 	
+	bool Codegen::Function::perform_inlining(void* callee) {
+		if (settings.perform_inlining) {
+			if (callee == snow::is_truthy) {
+				// val != NULL && val != SN_NIL && val != SN_FALSE;
+				auto input = REG_ARGS[0];
+				auto scratch = REG_SCRATCH[0];
+				Label* done = label();
+				
+				movq(input, scratch);
+				orq((uintptr_t)SN_NIL, scratch);
+				xorb(REG_RETURN, REG_RETURN);
+				cmpq((uintptr_t)SN_NIL, scratch);
+				j(CC_EQUAL, done);
+				cmpq((uintptr_t)SN_FALSE, input);
+				setb(CC_NOT_EQUAL, REG_RETURN);
+				bind_label(done);
+				
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	void Codegen::Function::call_direct(void(*callee)(void)) {
-		DirectCall dc;
-		dc.offset = call(0);
-		dc.callee = (void*)callee;
-		direct_calls.push_back(dc);
+		if (!perform_inlining((void*)callee)) {
+			DirectCall dc;
+			dc.offset = call(0);
+			dc.callee = (void*)callee;
+			direct_calls.push_back(dc);
+		}
 	}
 	
 	void Codegen::Function::call_indirect(void(*callee)(void)) {

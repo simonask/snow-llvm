@@ -18,6 +18,7 @@ namespace snow {
 		{
 			CodegenSettings settings = {
 				.use_inline_cache = true,
+				.perform_inlining = true,
 			};
 			
 			Codegen codegen(settings);
