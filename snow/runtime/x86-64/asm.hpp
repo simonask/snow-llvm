@@ -213,6 +213,9 @@ namespace snow {
 		void imul_i(const Operand& reg, const Operand& rm, int32_t immediate);
 		void andq(const Operand& source, const Operand& target);
 		void xorq(const Operand& source, const Operand& target);
+		void xorb(const Operand& source, const Operand& target);
+		void orq(const Operand& source, const Operand& target);
+		void orq(uint32_t immediate, const Operand& target);
 		void shr(uint32_t immediate, const Operand& target);
 		
 		size_t movb(uint8_t immediate, const Operand& target);
@@ -222,6 +225,7 @@ namespace snow {
 		void movq(const Operand& source, const Operand& target);
 		void movl_label_to_jmp(const Label* new_jmp_target, const Label* jmp_disp);
 		void leaq(const Operand& address, const Register& target);
+		void setb(COND cc, const Operand& target);
 		
 		size_t pushq(uint64_t immediate);
 		void pushq(const Operand& source);
@@ -403,6 +407,20 @@ namespace snow {
 		choose_and_emit_instruction(0x31, 0x33, source, target, true);
 	}
 	
+	inline void Asm::xorb(const Operand& source, const Operand& target) {
+		choose_and_emit_instruction(0x30, 0x32, source, target, false);
+	}
+	
+	inline void Asm::orq(uint32_t mask, const Operand& target) {
+		if (mask <= UINT8_MAX) {
+			emit_instruction(0x83, opcode_ext(1), target, true);
+			emit_immediate(&mask, 1);
+		} else {
+			emit_instruction(0x81, opcode_ext(1), target, true);
+			emit_immediate(&mask, 4);
+		}
+	}
+	
 	inline void Asm::shr(uint32_t immediate, const Operand& target) {
 		emit_instruction(0xc1, opcode_ext(5), target);
 		emit_immediate(&immediate, 4);
@@ -458,6 +476,15 @@ namespace snow {
 		} else {
 			emit_instruction(0x8d, target, address, true);
 		}
+	}
+	
+	inline void Asm::setb(COND cc, const Operand& target) {
+		auto reg = opcode_ext(0);
+		byte rex = rex_for_operands(reg, target);
+		emit_rex(rex);
+		emit(0x0f);
+		emit(0x90 + cc);
+		emit_operands(reg, target);
 	}
 	
 	inline size_t Asm::pushq(uint64_t immediate) {
