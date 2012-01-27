@@ -94,6 +94,11 @@ namespace snow {
 			CallFrame frame = *here;
 			return function_call(self, &frame);
 		}
+		
+		static VALUE function_inspect(const CallFrame* here, VALUE self, VALUE it) {
+			ObjectPtr<Function> f = self;
+			return format_string("[Function@%@ name:%@ code:%@]", format::pointer(self), sym_to_cstr(f->descriptor->name), (void*)f->descriptor->ptr);
+		}
 
 		static VALUE environment_get_self(const CallFrame* here, VALUE self, VALUE it) {
 			return ObjectPtr<Environment>(self)->self;
@@ -134,6 +139,7 @@ namespace snow {
 			ObjectPtr<Class> cls = create_class_for_type(snow::sym("Function"), snow::get_type<Function>());
 			root = gc_create_root(cls);
 			SN_DEFINE_METHOD(cls, "__call__", bindings::function_call);
+			SN_DEFINE_METHOD(cls, "inspect", bindings::function_inspect);
 		}
 		return *root;
 	}
