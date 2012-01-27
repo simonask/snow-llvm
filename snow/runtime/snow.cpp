@@ -106,12 +106,17 @@ namespace snow {
 	Value call_method(Value self, Symbol method_name, size_t num_args, const Value* args) {
 		ObjectPtr<Class> cls = get_class(self);
 		MethodQueryResult method;
-		class_get_method(cls, method_name, &method);
+		class_lookup_method(cls, method_name, &method);
 		Value func;
 		if (method.type == MethodTypeFunction) {
 			func = method.result;
 		} else if (method.type == MethodTypeProperty) {
 			func = call(method.result, self, 0, NULL);
+		} else if (method.type == MethodTypeMissing) {
+			SN_STACK_ARRAY(Value, args_for_method_missing, num_args+1);
+			args_for_method_missing[0] = symbol_to_value(method_name);
+			snow::copy_range(args_for_method_missing+1, args, num_args);
+			return call(method.result, self, num_args+1, args_for_method_missing);
 		}
 		return call(func, self, num_args, args);
 	}

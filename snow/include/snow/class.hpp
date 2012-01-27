@@ -13,7 +13,8 @@ namespace snow {
 	enum MethodType {
 		MethodTypeNone,
 		MethodTypeFunction,
-		MethodTypeProperty
+		MethodTypeProperty,
+		MethodTypeMissing,
 	};
 	
 	struct Property {
@@ -49,7 +50,6 @@ namespace snow {
 	
 	// Methods and Properties API
 	bool class_lookup_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method);
-	void class_get_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method); // throws if not found!
 	bool class_lookup_property_setter(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method);
 	ClassPtr _class_define_method(ClassPtr cls, Symbol name, Value function);
 	ClassPtr _class_define_property(ClassPtr cls, Symbol name, Value getter, Value setter);

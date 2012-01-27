@@ -187,6 +187,14 @@ namespace snow {
 			out_method->result = m.type == MethodTypeFunction ? m.function : m.property->getter;
 			return true;
 		}
+		
+		if (class_lookup_method(cls, sym("method_missing"), &m)) {
+			out_method->type = MethodTypeMissing;
+			out_method->result = m.function;
+			return true;
+		}
+		
+		TRAP(); // method_missing not defined in Object.
 		return false;
 	}
 	
@@ -200,12 +208,6 @@ namespace snow {
 			}
 		}
 		return false;
-	}
-	
-	void class_get_method(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method) {
-		if (!class_lookup_method(cls, name, out_method)) {
-			throw_exception_with_description("Class %@@%@ does not contain a method or property named '%@'.", class_get_name(cls), format::pointer(cls), snow::sym_to_cstr(name));
-		}
 	}
 	
 	Value class_get_initialize(ClassConstPtr cls) {

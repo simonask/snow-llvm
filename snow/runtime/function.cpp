@@ -202,7 +202,7 @@ namespace snow {
 					}
 					functor = call(method.result, *out_new_self, 0, NULL);
 				} else {
-					ASSERT(false);
+					throw_exception_with_description("Object %@ of class %@@%@ is not a function, and does not respond to __call__.", functor, class_get_name(cls), format::pointer(cls));
 				}
 			} else {
 				throw_exception_with_description("Object %@ of class %@@%@ is not a function, and does not respond to __call__.", functor, class_get_name(cls), format::pointer(cls));

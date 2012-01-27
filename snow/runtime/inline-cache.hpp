@@ -33,7 +33,7 @@ namespace snow {
 			case CacheStateUninitialized: {
 				cache->state = CacheStatePremorphic;
 				cache->cls = cls;
-				class_get_method(cls, name, out_method);
+				class_lookup_method(cls, name, out_method);
 				break;
 			}
 			case CacheStatePremorphic: {
@@ -41,7 +41,7 @@ namespace snow {
 					cache->state = CacheStateMonomorphic;
 				}
 				cache->cls = cls;
-				class_get_method(cls, name, &cache->method);
+				class_lookup_method(cls, name, &cache->method);
 				*out_method = cache->method;
 				break;
 			}
@@ -50,7 +50,7 @@ namespace snow {
 					// cache hit!
 					*out_method = cache->method;
 				} else {
-					class_get_method(cls, name, out_method);
+					class_lookup_method(cls, name, out_method);
 				}
 				break;
 			}

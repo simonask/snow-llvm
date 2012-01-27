@@ -70,8 +70,30 @@ namespace {
 
 namespace snow {
 	namespace ccall {
-		void class_get_method(VALUE cls, Symbol name, MethodQueryResult* out_method) {
-			snow::class_get_method(cls, name, out_method);
+		void class_lookup_method(VALUE cls, Symbol name, MethodQueryResult* out_method) {
+			snow::class_lookup_method(cls, name, out_method);
+		}
+		
+		VALUE call_method(VALUE method, VALUE self, size_t num_args, const VALUE* args, MethodType type, Symbol name) {
+			switch (type) {
+				case MethodTypeNone: {
+					ASSERT(false);
+					return NULL;
+				}
+				case MethodTypeFunction: {
+					return snow::call(method, self, num_args, reinterpret_cast<const Value*>(args));
+				}
+				case MethodTypeProperty: {
+					Value functor = snow::call(method, self, 0, NULL);
+					return snow::call(functor, self, num_args, reinterpret_cast<const Value*>(args));
+				}
+				case MethodTypeMissing: {
+					SN_STACK_ARRAY(Value, new_args, num_args+1);
+					new_args[0] = symbol_to_value(name);
+					snow::copy_range(new_args+1, args, num_args);
+					return snow::call(method, self, num_args+1, new_args);
+				}
+			}
 		}
 		
 		int32_t class_get_index_of_instance_variable(VALUE cls, Symbol name) {
@@ -818,30 +840,13 @@ namespace snow {
 		} else {
 			movq(in_self, self);
 		}
-		
-		Label* property_call = label();
-		Label* after = label();
-		
-		compile_get_method_inline_cache(in_self, method_name, RSI, RDI);
-		cmpl(MethodTypeFunction, RSI);
-		j(CC_NOT_EQUAL, property_call);
-		
-		{
-			// Method call
-			compile_call(RDI, self, num_args, args_ptr, num_names, names_ptr);
-			jmp(after);
-		}
-		
-		{
-			// Property call
-			bind_label(property_call);
-			xorq(RCX, RCX);
-			compile_call(RDI, self, 0, RCX);
-			compile_call(RAX, self, num_args, args_ptr, num_names, names_ptr);
-			// jmp(after);
-		}
-		
-		bind_label(after);
+			
+		compile_get_method_inline_cache(in_self, method_name, R8, RDI);
+		movq(self, RSI);
+		movq(num_args, RDX);
+		movq(args_ptr, RCX);
+		movq(method_name, R9);
+		CALL(ccall::call_method);
 	}
 	
 	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, Symbol name, const Register& out_type, const Register& out_method_getter) {
@@ -862,7 +867,7 @@ namespace snow {
 			movq(RAX, RDI);
 			movq(name, RSI);
 			movq(RBX, RDX);
-			CALL(ccall::class_get_method);
+			CALL(ccall::class_lookup_method);
 			movq(address(RBX, offsetof(MethodQueryResult, type)), out_type);
 			movq(address(RBX, offsetof(MethodQueryResult, result)), out_method_getter);
 		}
