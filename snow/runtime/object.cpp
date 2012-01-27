@@ -34,6 +34,15 @@ namespace {
 		// XXX: TODO: With accurate GC, this is unsafe.
 		return integer_to_value((ssize_t)self - (ssize_t)it);
 	}
+	
+	VALUE object_get_class(const CallFrame* here, VALUE self, VALUE it) {
+		return get_class(self);
+	}
+	
+	VALUE object_get_object_id(const CallFrame* here, VALUE self, VALUE it) {
+		return integer_to_value((intptr_t)self);
+	}
+	
 }
 
 namespace snow {
@@ -129,6 +138,8 @@ namespace snow {
 			SN_DEFINE_METHOD(cls, "=", object_equals);
 			SN_DEFINE_METHOD(cls, "!=", object_not_equals);
 			SN_DEFINE_METHOD(cls, "<=>", object_compare);
+			SN_DEFINE_PROPERTY(cls, "class", object_get_class, NULL);
+			SN_DEFINE_PROPERTY(cls, "object_id", object_get_object_id, NULL);
 			root = gc_create_root(cls);
 		}
 		return *root;
