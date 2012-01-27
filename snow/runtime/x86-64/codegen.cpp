@@ -3,6 +3,7 @@
 #include "snow/util.hpp"
 #include "../function-internal.hpp"
 #include "../inline-cache.hpp"
+#include "../internal.h"
 
 #include "snow/snow.hpp"
 #include "snow/array.hpp"
@@ -14,6 +15,18 @@
 #define CALL(FUNC) call_direct((void(*)(void))FUNC)
 
 #define UNSAFE_OFFSET_OF(TYPE, FIELD) (size_t)(&((const TYPE*)NULL)->FIELD)
+
+namespace snow {
+	// Define calling convention. TODO: Define for Win32 as well.
+	static const Register REG_RETURN       = RAX;
+	static const Register REG_ARGS[]       = { RDI, RSI, RDX, RCX, R8, R9 };
+	static const Register REG_PRESERVE[]   = { RBX, R12, R13, R14, R15 };
+	static const Register REG_CALL_FRAME   = R12;
+	static const Register REG_METHOD_CACHE = R13;
+	static const Register REG_IVAR_CACHE   = R14;
+	static const Register REG_SCRATCH[]    = { R10, R11 };
+	static const Register REG_PRESERVED_SCRATCH[] = { RBX, R15 };
+}
 
 namespace {
 	using namespace snow;
@@ -260,41 +273,33 @@ namespace snow {
 		return address(RBP, -(idx+1)*sizeof(VALUE));
 	}
 	
-	#define REG_CALL_FRAME   R12
-	#define REG_METHOD_CACHE R13
-	#define REG_IVAR_CACHE   R14
-	
 	bool Codegen::Function::compile_function_body(const ASTNode* body_seq) {
 		pushq(RBP);
 		movq(RSP, RBP);
 		size_t stack_size_offset1 = subq(PLACEHOLDER_IMM32, RSP);
 		
 		// Back up preserved registers
-		pushq(RBX);
-		pushq(REG_CALL_FRAME);
-		pushq(REG_METHOD_CACHE);
-		pushq(REG_IVAR_CACHE);
-		pushq(R15);
+		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
+			pushq(REG_PRESERVE[i]);
+		}
 		
 		// Set up function environment
-		movq(RDI, REG_CALL_FRAME);
+		movq(REG_ARGS[0], REG_CALL_FRAME);
 		CALL(ccall::call_frame_get_method_cache_lines);
-		movq(RAX, REG_METHOD_CACHE);
-		movq(REG_CALL_FRAME, RDI);
+		movq(REG_RETURN, REG_METHOD_CACHE);
+		movq(REG_CALL_FRAME, REG_ARGS[0]);
 		CALL(ccall::call_frame_get_instance_variable_cache_lines);
-		movq(RAX, REG_IVAR_CACHE);
-		xorq(RAX, RAX); // always clear RAX, so empty functions return nil.
+		movq(REG_RETURN, REG_IVAR_CACHE);
+		xorq(REG_RETURN, REG_RETURN); // always clear return register, so empty functions return nil.
 		return_label = label();
 		
 		if (!compile_ast_node(body_seq)) return false;
 		
 		// Restore preserved registers and return
 		bind_label(return_label);
-		popq(R15);
-		popq(REG_IVAR_CACHE);
-		popq(REG_METHOD_CACHE);
-		popq(REG_CALL_FRAME);
-		popq(RBX);
+		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
+			popq(REG_PRESERVE[countof(REG_PRESERVE)-i-1]);
+		}
 		leave();
 		ret();
 		
@@ -319,17 +324,17 @@ namespace snow {
 			}
 			case ASTNodeTypeLiteral: {
 				uint64_t imm = (uint64_t)node->literal.value;
-				movq(imm, RAX);
+				movq(imm, REG_RETURN);
 				return true;
 			}
 			case ASTNodeTypeClosure: {
 				Function* f = compile_function(node);
 				if (!f) return false;
-				movq(REG_CALL_FRAME, RDI);
+				movq(REG_CALL_FRAME, REG_ARGS[0]);
 				CALL(ccall::call_frame_environment);
-				movq(RAX, RSI);
+				movq(REG_RETURN, REG_ARGS[1]);
 				FunctionDescriptorReference ref;
-				ref.offset = movq(0, RDI);
+				ref.offset = movq(PLACEHOLDER_IMM64, REG_ARGS[0]);
 				ref.function = f;
 				function_descriptor_references.push_back(ref);
 				CALL(ccall::create_function_for_descriptor);
@@ -343,26 +348,26 @@ namespace snow {
 				return true;
 			}
 			case ASTNodeTypeIdentifier: {
-				Operand local_addr = compile_get_address_for_local(RDX, node->identifier.name, false);
+				Operand local_addr = compile_get_address_for_local(REG_ARGS[2], node->identifier.name, false);
 				if (local_addr.is_valid()) {
-					movq(local_addr, RAX);
+					movq(local_addr, REG_RETURN);
 				} else {
-					movq(REG_CALL_FRAME, RDI);
-					movq(node->identifier.name, RSI);
+					movq(REG_CALL_FRAME, REG_ARGS[0]);
+					movq(node->identifier.name, REG_ARGS[1]);
 					CALL(ccall::local_missing);
 				}
 				return true;
 			}
 			case ASTNodeTypeSelf: {
-				movq(address(REG_CALL_FRAME, UNSAFE_OFFSET_OF(CallFrame, self)), RAX);
+				movq(address(REG_CALL_FRAME, UNSAFE_OFFSET_OF(CallFrame, self)), REG_RETURN);
 				return true;
 			}
 			case ASTNodeTypeHere: {
-				movq(REG_CALL_FRAME, RAX);
+				movq(REG_CALL_FRAME, REG_RETURN);
 				return true;
 			}
 			case ASTNodeTypeIt: {
-				movq(REG_CALL_FRAME, RDI);
+				movq(REG_CALL_FRAME, REG_ARGS[0]);
 				CALL(ccall::call_frame_get_it);
 				return true;
 			}
@@ -372,26 +377,26 @@ namespace snow {
 			case ASTNodeTypeMethod: {
 				if (!compile_ast_node(node->method.object)) return false;
 				Temporary self(*this);
-				movq(RAX, self);
-				compile_get_method_inline_cache(RAX, node->method.name, RAX, RDI);
+				movq(REG_RETURN, self);
+				compile_get_method_inline_cache(REG_RETURN, node->method.name, REG_RETURN, REG_ARGS[0]);
 				Label* get_method = label();
 				Label* after = label();
 				
-				cmpb(MethodTypeFunction, RAX);
+				cmpb(MethodTypeFunction, REG_RETURN);
 				j(CC_EQUAL, get_method);
 				
 				{
 					// get property
-					xorq(RCX, RCX);
-					compile_call(RDI, self, 0, RCX);
+					xorq(REG_ARGS[3], REG_ARGS[3]);
+					compile_call(REG_ARGS[0], self, 0, REG_ARGS[3]);
 					jmp(after);
 				}
 				
 				{
 					// get method proxy wrapper
 					bind_label(get_method);
-					movq(RDI, RSI);
-					movq(self, RDI);
+					movq(REG_ARGS[0], REG_ARGS[1]);
+					movq(self, REG_ARGS[0]);
 					CALL(ccall::create_method_proxy);
 					// jmp(after);
 				}
@@ -402,9 +407,9 @@ namespace snow {
 			case ASTNodeTypeInstanceVariable: {
 				if (!compile_ast_node(node->method.object)) return false;
 				Temporary self(*this);
-				movq(RAX, self);
-				compile_get_index_of_field_inline_cache(RAX, node->instance_variable.name, RSI);
-				movq(self, RDI);
+				movq(REG_RETURN, self);
+				compile_get_index_of_field_inline_cache(REG_RETURN, node->instance_variable.name, REG_ARGS[1]);
+				movq(self, REG_ARGS[0]);
 				CALL(ccall::object_get_instance_variable_by_index);
 				return true;
 			}
@@ -414,7 +419,7 @@ namespace snow {
 			case ASTNodeTypeAssociation: {
 				if (!compile_ast_node(node->association.object)) return false;
 				Temporary self(*this);
-				movq(RAX, self);
+				movq(REG_RETURN, self);
 				
 				size_t num_args = node->association.args->sequence.length;
 				Temporary args_ptr(*this);
@@ -423,8 +428,8 @@ namespace snow {
 				size_t i = 0;
 				for (ASTNode* x = node->association.args->sequence.head; x; x = x->next) {
 					if (!compile_ast_node(x)) return false;
-					movq(args_ptr, RCX);
-					movq(RAX, address(RCX, sizeof(VALUE) * i++));
+					movq(args_ptr, REG_SCRATCH[0]);
+					movq(REG_RETURN, address(REG_SCRATCH[0], sizeof(VALUE) * i++));
 				}
 				compile_method_call(self, snow::sym("get"), num_args, args_ptr);
 				return true;
@@ -434,12 +439,12 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->logic_and.left)) return false;
-				movq(RAX, RBX);
-				movq(RAX, RDI);
+				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]);
+				movq(REG_RETURN, REG_ARGS[0]);
 				CALL(snow::is_truthy);
-				cmpq(0, RAX);
+				cmpq(0, REG_RETURN);
 				j(CC_NOT_EQUAL, left_true);
-				movq(RBX, RAX);
+				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN);
 				jmp(after);
 				
 				bind_label(left_true);
@@ -453,12 +458,12 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->logic_or.left)) return false;
-				movq(RAX, RBX);
-				movq(RAX, RDI);
+				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]);
+				movq(REG_RETURN, REG_ARGS[0]);
 				CALL(snow::is_truthy);
-				cmpq(0, RAX);
+				cmpq(0, REG_RETURN);
 				j(CC_EQUAL, left_false);
-				movq(RBX, RAX);
+				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN);
 				jmp(after);
 				
 				bind_label(left_false);
@@ -474,29 +479,29 @@ namespace snow {
 				
 				if (!compile_ast_node(node->logic_xor.left)) return false;
 				Temporary left_value(*this);
-				movq(RAX, left_value); // save left value
+				movq(REG_RETURN, left_value); // save left value
 				
 				if (!compile_ast_node(node->logic_xor.right)) return false;
-				movq(RAX, RBX); // save right value in caller-preserved register
-				movq(RAX, RDI);
+				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]); // save right value in caller-preserved register
+				movq(REG_RETURN, REG_ARGS[0]);
 				CALL(snow::is_truthy);
 				Temporary right_truth(*this);
-				movq(RAX, right_truth);
-				movq(left_value, RDI);
+				movq(REG_RETURN, right_truth);
+				movq(left_value, REG_ARGS[0]);
 				CALL(snow::is_truthy);
-				cmpb(RAX, right_truth); // compare left truth to right truth
+				cmpb(REG_RETURN, right_truth); // compare left truth to right truth
 				j(CC_EQUAL, equal_truth);
-				cmpq(0, RAX); // compare left truth to zero
+				cmpq(0, REG_RETURN); // compare left truth to zero
 				j(CC_NOT_EQUAL, left_is_true);
-				movq(RBX, RAX); // previously saved right value
+				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN); // previously saved right value
 				jmp(after);
 				
 				bind_label(left_is_true);
-				movq(left_value, RAX);
+				movq(left_value, REG_RETURN);
 				jmp(after);
 				
 				bind_label(equal_truth);
-				movq((uint64_t)SN_FALSE, RAX);
+				movq((uint64_t)SN_FALSE, REG_RETURN);
 				
 				bind_label(after);
 				return true;
@@ -506,15 +511,15 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->logic_not.expr)) return false;
-				movq(RAX, RDI);
+				movq(REG_RETURN, REG_ARGS[0]);
 				CALL(snow::is_truthy);
-				cmpq(0, RAX);
+				cmpq(0, REG_RETURN);
 				j(CC_NOT_EQUAL, truth);
-				movq((uint64_t)SN_TRUE, RAX);
+				movq((uint64_t)SN_TRUE, REG_RETURN);
 				jmp(after);
 				
 				bind_label(truth);
-				movq((uint64_t)SN_FALSE, RAX);
+				movq((uint64_t)SN_FALSE, REG_RETURN);
 				
 				bind_label(after);
 				return true;
@@ -525,9 +530,9 @@ namespace snow {
 				
 				bind_label(cond);
 				if (!compile_ast_node(node->loop.cond)) return false;
-				movq(RAX, RDI);
+				movq(REG_RETURN, REG_ARGS[0]);
 				CALL(snow::is_truthy);
-				cmpq(0, RAX);
+				cmpq(0, REG_RETURN);
 				j(CC_EQUAL, after);
 				
 				if (!compile_ast_node(node->loop.body)) return false;
@@ -549,9 +554,9 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->if_else.cond)) return false;
-				movq(RAX, RDI);
+				movq(REG_RETURN, REG_ARGS[0]);
 				CALL(snow::is_truthy);
-				cmpq(0, RAX);
+				cmpq(0, REG_RETURN);
 				j(CC_EQUAL, else_body);
 				if (!compile_ast_node(node->if_else.body)) return false;
 				
@@ -592,7 +597,7 @@ namespace snow {
 		for (ASTNode* x = node->assign.value->sequence.head; x; x = x->next) {
 			// TODO: Assignment name
 			if (!compile_ast_node(x)) return false;
-			movq(RAX, values[i++]);
+			movq(REG_RETURN, values[i++]);
 		}
 		
 		// assign values to targets
@@ -601,15 +606,15 @@ namespace snow {
 			// values, put the rest of them in an array, and assign that.
 			if (i == num_targets-1 && num_values > num_targets) {
 				size_t num_remaining = num_values - num_targets + 1;
-				movq(num_remaining, RDI);
+				movq(num_remaining, REG_ARGS[0]);
 				CALL(ccall::create_array_with_size);
-				movq(RAX, RBX);
+				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]);
 				for (size_t j = i; j < num_values; ++j) {
-					movq(RBX, RDI);
-					movq(values[j], RSI);
+					movq(REG_PRESERVED_SCRATCH[0], REG_ARGS[0]);
+					movq(values[j], REG_ARGS[1]);
 					CALL(ccall::array_push);
 				}
-				movq(RBX, values[i]);
+				movq(REG_PRESERVED_SCRATCH[0], values[i]);
 			}
 			
 			ASTNode* target = targets[i];
@@ -622,48 +627,48 @@ namespace snow {
 					size_t j = 0;
 					for (ASTNode* x = target->association.args->sequence.head; x; x = x->next) {
 						if (!compile_ast_node(x)) return false;
-						movq(args_ptr, RCX);
-						movq(RAX, address(RCX, sizeof(VALUE) * j++));
+						movq(args_ptr, REG_ARGS[3]);
+						movq(REG_RETURN, address(REG_ARGS[3], sizeof(VALUE) * j++));
 					}
-					if (!j) movq(args_ptr, RCX); // if j != 0, args_ptr is already in RCX from above
+					if (!j) movq(args_ptr, REG_ARGS[3]); // if j != 0, args_ptr is already in RCX from above
 					if (i < num_values)
-						movq(values[i], RDX);
+						movq(values[i], REG_ARGS[2]);
 					else
-						movq((uint64_t)SN_NIL, RDX);
-					movq(RDX, address(RCX, sizeof(VALUE) * j));
+						movq((uint64_t)SN_NIL, REG_ARGS[2]);
+					movq(REG_ARGS[2], address(REG_ARGS[3], sizeof(VALUE) * j));
 					
 					if (!compile_ast_node(target->association.object)) return false;
-					compile_method_call(RAX, snow::sym("set"), num_args, args_ptr);
+					compile_method_call(REG_RETURN, snow::sym("set"), num_args, args_ptr);
 					break;
 				}
 				case ASTNodeTypeInstanceVariable: {
 					if (!compile_ast_node(target->instance_variable.object)) return false;
 					Temporary obj(*this);
-					movq(RAX, obj);
-					compile_get_index_of_field_inline_cache(RAX, target->instance_variable.name, RSI, true);
-					movq(obj, RDI);
+					movq(REG_RETURN, obj);
+					compile_get_index_of_field_inline_cache(REG_RETURN, target->instance_variable.name, REG_ARGS[1], true);
+					movq(obj, REG_ARGS[0]);
 					if (i <= num_values)
-						movq(values[i], RDX);
+						movq(values[i], REG_ARGS[2]);
 					else
-						xorq(RDX, RDX);
+						xorq(REG_ARGS[2], REG_ARGS[2]);
 					CALL(ccall::object_set_instance_variable_by_index);
 					break;
 				}
 				case ASTNodeTypeIdentifier: {
-					Operand local_addr = compile_get_address_for_local(RDX, target->identifier.name, true);
+					Operand local_addr = compile_get_address_for_local(REG_SCRATCH[0], target->identifier.name, true);
 					ASSERT(local_addr.is_valid());
-					movq(values[i], RAX);
-					movq(RAX, local_addr);
+					movq(values[i], REG_RETURN);
+					movq(REG_RETURN, local_addr);
 					break;
 				}
 				case ASTNodeTypeMethod: {
 					if (!compile_ast_node(target->method.object)) return false;
-					movq(RAX, RDI);
-					movq(target->method.name, RSI);
+					movq(REG_RETURN, REG_ARGS[0]);
+					movq(target->method.name, REG_ARGS[1]);
 					if (i <= num_values)
-						movq(values[i], RDX);
+						movq(values[i], REG_ARGS[2]);
 					else
-						xorq(RDX, RDX);
+						xorq(REG_ARGS[2], REG_ARGS[2]);
 					CALL(ccall::object_set_property_or_define_method);
 				}
 				default:
@@ -708,16 +713,16 @@ namespace snow {
 		if (index >= 0) {
 			if (level == 0) {
 				// local to this scope
-				movq(REG_CALL_FRAME, RDI);
+				movq(REG_CALL_FRAME, REG_ARGS[0]);
 				CALL(ccall::call_frame_get_locals);
-				movq(RAX, reg);
+				movq(REG_RETURN, reg);
 				return address(reg, index * sizeof(Value));
 			} else {
 				// local in parent scope
-				movq(REG_CALL_FRAME, RDI);
-				movq(level, RSI);
+				movq(REG_CALL_FRAME, REG_ARGS[0]);
+				movq(level, REG_ARGS[1]);
 				CALL(snow::get_locals_from_higher_lexical_scope);
-				movq(RAX, reg);
+				movq(REG_RETURN, reg);
 				return address(reg, index * sizeof(Value));
 			}
 		}
@@ -733,9 +738,9 @@ namespace snow {
 				// if we're not in module global scope, define a regular local
 				index = local_names.size();
 				local_names.push_back(name);
-				movq(REG_CALL_FRAME, RDI);
+				movq(REG_CALL_FRAME, REG_ARGS[0]);
 				CALL(ccall::call_frame_get_locals);
-				movq(RAX, reg);
+				movq(REG_RETURN, reg);
 				return address(reg, index * sizeof(Value));
 			} else {
 				global_idx = codegen.module_globals.size();
@@ -787,45 +792,45 @@ namespace snow {
 			const ASTNode* x = args[i].first;
 			int idx = args[i].second;
 			if (!compile_ast_node(x)) return false;
-			movq(args_ptr, RDX);
-			movq(RAX, address(RDX, sizeof(VALUE) * idx));
+			movq(args_ptr, REG_SCRATCH[0]);
+			movq(REG_RETURN, address(REG_SCRATCH[0], sizeof(VALUE) * idx));
 		}
 		
 		// Create name list.
 		// TODO: Use static storage for name lists, with RIP-addressing.
-		movq(names_ptr, RDX);
+		movq(names_ptr, REG_ARGS[2]);
 		for (size_t i = 0; i < names.size(); ++i) {
-			movq(names[i], RAX); // cannot move a 64-bit operand directly to memory
-			movq(RAX, address(RDX, sizeof(Symbol) * i));
+			movq(names[i], REG_SCRATCH[0]); // cannot move a 64-bit operand directly to memory
+			movq(REG_SCRATCH[0], address(REG_ARGS[2], sizeof(Symbol) * i));
 		}
 		
 		if (node->call.object->type == ASTNodeTypeMethod) {
 			if (!compile_ast_node(node->call.object->method.object)) return false;
-			compile_method_call(RAX, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
+			compile_method_call(REG_RETURN, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
 		} else {
 			if (!compile_ast_node(node->call.object)) return false;
-			xorq(RSI, RSI); // self = NULL
-			compile_call(RAX, RSI, args.size(), args_ptr, names.size(), names_ptr);
+			xorq(REG_ARGS[1], REG_ARGS[1]); // self = NULL
+			compile_call(REG_RETURN, REG_ARGS[1], args.size(), args_ptr, names.size(), names_ptr);
 		}
 		return true;
 	}
 	
 	void Codegen::Function::compile_call(const Operand& functor, const Operand& self, size_t num_args, const Operand& args_ptr, size_t num_names, const Operand& names_ptr) {
-		movq(functor, RDI);
-		movq(self, RSI);
+		movq(functor, REG_ARGS[0]);
+		movq(self, REG_ARGS[1]);
 		if (num_names) {
 			ASSERT(num_args >= num_names);
-			movq(num_names, RDX);
-			movq(names_ptr, RCX);
-			movq(num_args, R8);
-			movq(args_ptr, R9);
+			movq(num_names, REG_ARGS[2]);
+			movq(names_ptr, REG_ARGS[3]);
+			movq(num_args, REG_ARGS[4]);
+			movq(args_ptr, REG_ARGS[5]);
 			CALL(ccall::call_with_named_arguments);
 		} else {
 			if (num_args)
-				movq(num_args, RDX);
+				movq(num_args, REG_ARGS[2]);
 			else
-				xorq(RDX, RDX);
-			movq(args_ptr, RCX);
+				xorq(REG_ARGS[2], REG_ARGS[2]);
+			movq(args_ptr, REG_ARGS[3]);
 			CALL(ccall::call);
 		}
 	}
@@ -835,63 +840,63 @@ namespace snow {
 		if (num_names) ASSERT(names_ptr.is_memory());
 		Temporary self(*this);
 		if (in_self.is_memory()) {
-			movq(in_self, RAX);
-			movq(RAX, self);
+			movq(in_self, REG_SCRATCH[0]);
+			movq(REG_SCRATCH[0], self);
 		} else {
 			movq(in_self, self);
 		}
-			
-		compile_get_method_inline_cache(in_self, method_name, R8, RDI);
-		movq(self, RSI);
-		movq(num_args, RDX);
-		movq(args_ptr, RCX);
-		movq(method_name, R9);
+		
+		compile_get_method_inline_cache(in_self, method_name, REG_ARGS[4], REG_ARGS[0]);
+		movq(self, REG_ARGS[1]);
+		movq(num_args, REG_ARGS[2]);
+		movq(args_ptr, REG_ARGS[3]);
+		movq(method_name, REG_ARGS[5]);
 		CALL(ccall::call_method);
 	}
 	
 	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, Symbol name, const Register& out_type, const Register& out_method_getter) {
 		if (settings.use_inline_cache) {
-			movq(object, RDI);
-			movq(name, RSI);
+			movq(object, REG_ARGS[0]);
+			movq(name, REG_ARGS[1]);
 			size_t cache_line = num_method_calls++;
-			leaq(address(REG_METHOD_CACHE, cache_line * sizeof(MethodCacheLine)), RDX);
-			Alloca _1(*this, RBX, sizeof(MethodQueryResult));
-			movq(RBX, RCX);
+			leaq(address(REG_METHOD_CACHE, cache_line * sizeof(MethodCacheLine)), REG_ARGS[2]);
+			Alloca _1(*this, REG_PRESERVED_SCRATCH[0], sizeof(MethodQueryResult));
+			movq(REG_PRESERVED_SCRATCH[0], REG_ARGS[3]);
 			CALL(snow::get_method_inline_cache);
-			movq(address(RBX, offsetof(MethodQueryResult, type)), out_type);
-			movq(address(RBX, offsetof(MethodQueryResult, result)), out_method_getter);
+			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, type)), out_type);
+			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, result)), out_method_getter);
 		} else {
-			movq(object, RDI);
+			movq(object, REG_ARGS[0]);
 			CALL(ccall::get_class);
-			Alloca _1(*this, RBX, sizeof(MethodQueryResult));
-			movq(RAX, RDI);
-			movq(name, RSI);
-			movq(RBX, RDX);
+			Alloca _1(*this, REG_PRESERVED_SCRATCH[0], sizeof(MethodQueryResult));
+			movq(REG_RETURN, REG_ARGS[0]);
+			movq(name, REG_ARGS[1]);
+			movq(REG_PRESERVED_SCRATCH[0], REG_ARGS[2]);
 			CALL(ccall::class_lookup_method);
-			movq(address(RBX, offsetof(MethodQueryResult, type)), out_type);
-			movq(address(RBX, offsetof(MethodQueryResult, result)), out_method_getter);
+			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, type)), out_type);
+			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, result)), out_method_getter);
 		}
 	}
 	
 	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target, bool can_define) {
 		if (settings.use_inline_cache) {
-			movq(object, RDI);
-			movq(name, RSI);
+			movq(object, REG_ARGS[0]);
+			movq(name, REG_ARGS[1]);
 			size_t cache_line = num_instance_variable_accesses++;
-			leaq(address(REG_IVAR_CACHE, cache_line * sizeof(InstanceVariableCacheLine)), RDX);
+			leaq(address(REG_IVAR_CACHE, cache_line * sizeof(InstanceVariableCacheLine)), REG_ARGS[2]);
 			if (can_define)
 				CALL(snow::get_or_define_instance_variable_inline_cache);
 			else
 				CALL(snow::get_instance_variable_inline_cache);
-			movl(RAX, target);
+			movl(REG_RETURN, target);
 		} else {
-			movq(object, RDI);
-			movq(name, RSI);
+			movq(object, REG_ARGS[0]);
+			movq(name, REG_ARGS[1]);
 			if (can_define)
 				CALL(ccall::object_get_or_create_index_of_instance_variable);
 			else
 				CALL(ccall::object_get_index_of_instance_variable);
-			movl(RAX, target);
+			movl(REG_RETURN, target);
 		}
 	}
 	
@@ -903,8 +908,8 @@ namespace snow {
 	}
 	
 	void Codegen::Function::call_indirect(void(*callee)(void)) {
-		movq((uint64_t)callee, R10);
-		call(R10);
+		movq((uint64_t)callee, REG_SCRATCH[0]);
+		call(REG_SCRATCH[0]);
 	}
 	
 	void Codegen::Function::materialize_at(byte* destination) {

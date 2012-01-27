@@ -27,7 +27,6 @@ namespace snow {
 		friend class Function;
 		Function* _entry;
 		std::vector<Function*> _functions;
-		
 	};
 }
 

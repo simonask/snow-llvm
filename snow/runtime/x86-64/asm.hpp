@@ -185,6 +185,7 @@ namespace snow {
 	class Asm {
 	public:
 		static const uint32_t PLACEHOLDER_IMM32 = UINT32_MAX;
+		static const uint64_t PLACEHOLDER_IMM64 = UINT64_MAX;
 		static const uint8_t PLACEHOLDER_IMM8 = UINT8_MAX;
 		
 		const std::vector<byte>& code() const { return _code; }
