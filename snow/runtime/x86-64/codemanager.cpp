@@ -43,11 +43,6 @@ namespace snow {
 			return NULL;
 		}
 		
-		ModuleInitFunc load_module(const char* path) {
-			// TODO!!
-			return NULL;
-		}
-		
 		~Impl() {
 			for (size_t i = 0; i < _modules.size(); ++i) {
 				delete _modules[i];
