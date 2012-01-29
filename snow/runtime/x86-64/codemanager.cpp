@@ -63,9 +63,6 @@ namespace snow {
 	{
 		return _impl->compile_ast(ast, source, module_name);
 	}
-	ModuleInitFunc CodeManager::load_module(const char* path) {
-		return _impl->load_module(path);
-	}
 	
 	CodeManager* get_code_manager() {
 		static CodeManager* manager = NULL;
