@@ -1,9 +1,6 @@
-llvm*/*
 *.deps
-*.bc
 *.o
 *~
-*.ll
 .depends
 a.out
 .DS_Store
@@ -13,3 +10,4 @@ snow/snow
 *.snomo
 *.dylib
 *.so
+objects.txt
