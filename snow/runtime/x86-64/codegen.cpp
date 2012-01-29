@@ -963,13 +963,9 @@ namespace snow {
 	void Codegen::Function::compile_method_call(const ValueHolder<VALUE>& in_self, Symbol method_name, size_t num_args, const ValueHolder<VALUE*>& args_ptr, size_t num_names, const ValueHolder<Symbol*>& names_ptr) {
 		ASSERT(args_ptr.op.is_memory());
 		if (num_names) ASSERT(names_ptr.op.is_memory());
-		Temporary<VALUE> self(*this);
-		if (in_self.op.is_memory()) {
-			movq(in_self, REG_SCRATCH[0]);
-			movq(REG_SCRATCH[0], self);
-		} else {
-			movq(in_self, self);
-		}
+		
+		ValueHolder<VALUE> self(REG_PRESERVED_SCRATCH[1]);
+		movq(in_self, self);
 		
 		ValueHolder<VALUE> method(REG_ARGS[0]);
 		ValueHolder<MethodType> type(REG_ARGS[4]);
