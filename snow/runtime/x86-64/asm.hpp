@@ -220,7 +220,9 @@ namespace snow {
 		
 		size_t movb(uint8_t immediate, const Operand& target);
 		size_t movl(uint32_t immediate, const Operand& target);
+		size_t movl(int32_t immediate, const Operand& target);
 		size_t movq(uint64_t immediate, const Register& target);
+		size_t movq(uintptr_t immediate, const Register& target) { return movq((uint64_t)immediate, target); }
 		void movl(const Operand& source, const Operand& target);
 		void movq(const Operand& source, const Operand& target);
 		void movl_label_to_jmp(const Label* new_jmp_target, const Label* jmp_disp);
@@ -437,6 +439,16 @@ namespace snow {
 	}
 	
 	inline size_t Asm::movl(uint32_t immediate, const Operand& target) {
+		if (!target.is_memory()) {
+			emit_rex(target.reg.ext ? REX_EXTEND_RM : NO_REX);
+			emit(0xb8 + target.reg.reg);
+		} else {
+			emit_instruction(0xc7, opcode_ext(0), target, false);
+		}
+		return emit_immediate(&immediate, 4);
+	}
+	
+	inline size_t Asm::movl(int32_t immediate, const Operand& target) {
 		if (!target.is_memory()) {
 			emit_rex(target.reg.ext ? REX_EXTEND_RM : NO_REX);
 			emit(0xb8 + target.reg.reg);
