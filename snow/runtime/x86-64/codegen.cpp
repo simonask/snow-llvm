@@ -11,8 +11,7 @@
 
 #include <map>
 #include <algorithm>
-
-#define CALL(FUNC) call_direct((void(*)(void))FUNC)
+#include <tuple>
 
 #define UNSAFE_OFFSET_OF(TYPE, FIELD) (size_t)(&((const TYPE*)NULL)->FIELD)
 
@@ -26,10 +25,51 @@ namespace snow {
 	static const Register REG_IVAR_CACHE   = R14;
 	static const Register REG_SCRATCH[]    = { R10, R11 };
 	static const Register REG_PRESERVED_SCRATCH[] = { RBX, R15 };
-}
-
-namespace {
-	using namespace snow;
+	
+	struct Temporary;
+	struct TemporaryArray;
+	
+	template <typename T> struct ValueHolder;
+	template <typename T>
+	struct ValueHolder<const T*> {
+		Operand op;
+		ValueHolder() {}
+		ValueHolder(const ValueHolder<T*>& other) : op(other.op) {}
+		ValueHolder(const ValueHolder<const T*>& other) : op(other.op) {}
+		explicit ValueHolder(const Operand& op) : op(op) {}
+		operator const Operand&() const { return op; }
+	};
+	template <typename T>
+	struct ValueHolder {
+		Operand op;
+		ValueHolder() {}
+		ValueHolder(const ValueHolder<T>& other) : op(other.op) {}
+		explicit ValueHolder(const Operand& op) : op(op) {}
+		operator const Operand&() const { return op; }
+	};
+	
+	template <typename R, typename... Args>
+	struct Call {
+		typedef R(*FunctionType)(Args...);
+		
+		Codegen::Function* caller;
+		FunctionType callee;
+		
+		Call(Codegen::Function* caller, FunctionType callee) : caller(caller), callee(callee) {}
+		Call(const Call<R, Args...>& other) : caller(other.caller), callee(other.callee) {}
+		Call(Call<R,Args...>&& other) : caller(other.caller), callee(other.callee) {}
+		
+		template <int I, typename T>
+		void set_arg(T val);
+		template <int I, typename T>
+		void set_arg(const ValueHolder<T>& val);
+		template <int I>
+		void set_arg(const Temporary& tmp);
+		template <int I>
+		void clear_arg();
+		
+		ValueHolder<R> call();
+	};
 	
 	struct Alloca {
 		Alloca(Asm& a, const snow::Operand& target, size_t num_elements, size_t element_size = 1)
@@ -83,7 +123,7 @@ namespace {
 
 namespace snow {
 	namespace ccall {
-		void class_lookup_method(VALUE cls, Symbol name, MethodQueryResult* out_method) {
+		void class_lookup_method(Object* cls, Symbol name, MethodQueryResult* out_method) {
 			snow::class_lookup_method(cls, name, out_method);
 		}
 		
@@ -236,11 +276,11 @@ namespace snow {
 		std::vector<int> temporaries_freelist;
 		int alloc_temporary();
 		void free_temporary(int);
-		Operand temporary(int);
+		ValueHolder<VALUE> temporary(int);
 		
 		bool compile_function_body(const ASTNode* body_seq);
 		void materialize_at(byte* destination);
-	private:
+		
 		bool compile_ast_node(const ASTNode* node);
 		bool compile_assignment(const ASTNode* assign);
 		bool compile_call(const ASTNode* call);
@@ -251,10 +291,27 @@ namespace snow {
 		Operand compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
 		Function* compile_function(const ASTNode* function);
 		bool perform_inlining(void* callee);
-		void call_direct(void(*callee)(void));
-		void call_indirect(void(*callee)(void));
+		void call_direct(void* callee);
+		void call_indirect(void* callee);
 		
 		void compile_alloca(size_t num_bytes, const Operand& out_ptr);
+		
+		template <typename R, typename... Args>
+		Call<R, Args...> call(R(*callee)(Args...)) {
+			return Call<R, Args...>(this, callee);
+		}
+		
+		ValueHolder<CallFrame*> get_call_frame() const {
+			return ValueHolder<CallFrame*>(REG_CALL_FRAME);
+		}
+		
+		ValueHolder<MethodCacheLine*> get_method_cache() const {
+			return ValueHolder<MethodCacheLine*>(REG_METHOD_CACHE);
+		}
+		
+		ValueHolder<InstanceVariableCacheLine*> get_ivar_cache() const {
+			return ValueHolder<InstanceVariableCacheLine*>(REG_IVAR_CACHE);
+		}
 	};
 	
 	inline int Codegen::Function::alloc_temporary() {
@@ -270,8 +327,8 @@ namespace snow {
 		temporaries_freelist.push_back(idx);
 	}
 	
-	inline Operand Codegen::Function::temporary(int idx) {
-		return address(RBP, -(idx+1)*sizeof(VALUE));
+	inline ValueHolder<VALUE> Codegen::Function::temporary(int idx) {
+		return ValueHolder<VALUE>(address(RBP, -(idx+1)*sizeof(VALUE)));
 	}
 	
 	bool Codegen::Function::compile_function_body(const ASTNode* body_seq) {
@@ -286,11 +343,17 @@ namespace snow {
 		
 		// Set up function environment
 		movq(REG_ARGS[0], REG_CALL_FRAME);
-		CALL(ccall::call_frame_get_method_cache_lines);
-		movq(REG_RETURN, REG_METHOD_CACHE);
-		movq(REG_CALL_FRAME, REG_ARGS[0]);
-		CALL(ccall::call_frame_get_instance_variable_cache_lines);
-		movq(REG_RETURN, REG_IVAR_CACHE);
+		
+		auto c1 = call(ccall::call_frame_get_method_cache_lines);
+		c1.set_arg<0>(get_call_frame());
+		auto method_cache = c1.call();
+		movq(method_cache, REG_METHOD_CACHE);
+		
+		auto c2 = call(ccall::call_frame_get_instance_variable_cache_lines);
+		c2.set_arg<0>(get_call_frame());
+		auto ivar_cache = c2.call();
+		movq(ivar_cache, REG_IVAR_CACHE);
+		
 		xorq(REG_RETURN, REG_RETURN); // always clear return register, so empty functions return nil.
 		return_label = label();
 		
@@ -331,14 +394,19 @@ namespace snow {
 			case ASTNodeTypeClosure: {
 				Function* f = compile_function(node);
 				if (!f) return false;
-				movq(REG_CALL_FRAME, REG_ARGS[0]);
-				CALL(ccall::call_frame_environment);
-				movq(REG_RETURN, REG_ARGS[1]);
+				
+				auto c_env = call(ccall::call_frame_environment);
+				c_env.set_arg<0>(get_call_frame());
+				auto env = c_env.call();
 				FunctionDescriptorReference ref;
+				ValueHolder<const FunctionDescriptor*> desc(REG_ARGS[0]);
 				ref.offset = movq(PLACEHOLDER_IMM64, REG_ARGS[0]);
 				ref.function = f;
 				function_descriptor_references.push_back(ref);
-				CALL(ccall::create_function_for_descriptor);
+				auto c_func = call(ccall::create_function_for_descriptor);
+				c_func.set_arg<0>(desc);
+				c_func.set_arg<1>(env);
+				c_func.call();
 				return true;
 			}
 			case ASTNodeTypeReturn: {
@@ -353,9 +421,10 @@ namespace snow {
 				if (local_addr.is_valid()) {
 					movq(local_addr, REG_RETURN);
 				} else {
-					movq(REG_CALL_FRAME, REG_ARGS[0]);
-					movq(node->identifier.name, REG_ARGS[1]);
-					CALL(ccall::local_missing);
+					auto c_local_missing = call(ccall::local_missing);
+					c_local_missing.set_arg<0>(get_call_frame());
+					c_local_missing.set_arg<1>(node->identifier.name);
+					c_local_missing.call();
 				}
 				return true;
 			}
@@ -368,8 +437,9 @@ namespace snow {
 				return true;
 			}
 			case ASTNodeTypeIt: {
-				movq(REG_CALL_FRAME, REG_ARGS[0]);
-				CALL(ccall::call_frame_get_it);
+				auto c_it = call(ccall::call_frame_get_it);
+				c_it.set_arg<0>(get_call_frame());
+				c_it.call();
 				return true;
 			}
 			case ASTNodeTypeAssign: {
@@ -396,9 +466,10 @@ namespace snow {
 				{
 					// get method proxy wrapper
 					bind_label(get_method);
-					movq(REG_ARGS[0], REG_ARGS[1]);
-					movq(self, REG_ARGS[0]);
-					CALL(ccall::create_method_proxy);
+					auto c_create_method_proxy = call(ccall::create_method_proxy);
+					c_create_method_proxy.set_arg<1>(ValueHolder<VALUE>(REG_ARGS[0]));
+					c_create_method_proxy.set_arg<0>(self);
+					c_create_method_proxy.call();
 					// jmp(after);
 				}
 				
@@ -410,8 +481,10 @@ namespace snow {
 				Temporary self(*this);
 				movq(REG_RETURN, self);
 				compile_get_index_of_field_inline_cache(REG_RETURN, node->instance_variable.name, REG_ARGS[1]);
-				movq(self, REG_ARGS[0]);
-				CALL(ccall::object_get_instance_variable_by_index);
+				auto c_object_get_ivar_by_index = call(ccall::object_get_instance_variable_by_index);
+				c_object_get_ivar_by_index.set_arg<0>(ValueHolder<VALUE>(self));
+				c_object_get_ivar_by_index.set_arg<1>(ValueHolder<int32_t>(REG_ARGS[1]));
+				c_object_get_ivar_by_index.call();
 				return true;
 			}
 			case ASTNodeTypeCall: {
@@ -441,9 +514,10 @@ namespace snow {
 				
 				if (!compile_ast_node(node->logic_and.left)) return false;
 				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]);
-				movq(REG_RETURN, REG_ARGS[0]);
-				CALL(snow::is_truthy);
-				cmpq(0, REG_RETURN);
+				auto c_is_truthy = call(snow::is_truthy);
+				c_is_truthy.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+				auto truthy = c_is_truthy.call();
+				cmpq(0, truthy);
 				j(CC_NOT_EQUAL, left_true);
 				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN);
 				jmp(after);
@@ -460,9 +534,10 @@ namespace snow {
 				
 				if (!compile_ast_node(node->logic_or.left)) return false;
 				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]);
-				movq(REG_RETURN, REG_ARGS[0]);
-				CALL(snow::is_truthy);
-				cmpq(0, REG_RETURN);
+				auto c_is_truthy = call(snow::is_truthy);
+				c_is_truthy.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+				auto truthy = c_is_truthy.call();
+				cmpq(0, truthy);
 				j(CC_EQUAL, left_false);
 				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN);
 				jmp(after);
@@ -484,15 +559,17 @@ namespace snow {
 				
 				if (!compile_ast_node(node->logic_xor.right)) return false;
 				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]); // save right value in caller-preserved register
-				movq(REG_RETURN, REG_ARGS[0]);
-				CALL(snow::is_truthy);
+				auto c_is_truthy1 = call(snow::is_truthy);
+				c_is_truthy1.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+				auto truthy1 = c_is_truthy1.call();
 				Temporary right_truth(*this);
-				movq(REG_RETURN, right_truth);
-				movq(left_value, REG_ARGS[0]);
-				CALL(snow::is_truthy);
-				cmpb(REG_RETURN, right_truth); // compare left truth to right truth
+				movq(truthy1, right_truth);
+				auto c_is_truthy2 = call(snow::is_truthy);
+				c_is_truthy2.set_arg<0>(ValueHolder<VALUE>(left_value));
+				auto truthy2 = c_is_truthy2.call();
+				cmpb(truthy2, right_truth); // compare left truth to right truth
 				j(CC_EQUAL, equal_truth);
-				cmpq(0, REG_RETURN); // compare left truth to zero
+				cmpq(0, truthy2); // compare left truth to zero
 				j(CC_NOT_EQUAL, left_is_true);
 				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN); // previously saved right value
 				jmp(after);
@@ -512,9 +589,10 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->logic_not.expr)) return false;
-				movq(REG_RETURN, REG_ARGS[0]);
-				CALL(snow::is_truthy);
-				cmpq(0, REG_RETURN);
+				auto c_is_truthy = call(snow::is_truthy);
+				c_is_truthy.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+				auto truthy = c_is_truthy.call();
+				cmpq(0, truthy);
 				j(CC_NOT_EQUAL, truth);
 				movq((uint64_t)SN_TRUE, REG_RETURN);
 				jmp(after);
@@ -531,9 +609,10 @@ namespace snow {
 				
 				bind_label(cond);
 				if (!compile_ast_node(node->loop.cond)) return false;
-				movq(REG_RETURN, REG_ARGS[0]);
-				CALL(snow::is_truthy);
-				cmpq(0, REG_RETURN);
+				auto c_is_truthy = call(snow::is_truthy);
+				c_is_truthy.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+				auto truthy = c_is_truthy.call();
+				cmpq(0, truthy);
 				j(CC_EQUAL, after);
 				
 				if (!compile_ast_node(node->loop.body)) return false;
@@ -555,9 +634,10 @@ namespace snow {
 				Label* after = label();
 				
 				if (!compile_ast_node(node->if_else.cond)) return false;
-				movq(REG_RETURN, REG_ARGS[0]);
-				CALL(snow::is_truthy);
-				cmpq(0, REG_RETURN);
+				auto c_is_truthy = call(snow::is_truthy);
+				c_is_truthy.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+				auto truthy = c_is_truthy.call();
+				cmpq(0, truthy);
 				j(CC_EQUAL, else_body);
 				if (!compile_ast_node(node->if_else.body)) return false;
 				
@@ -607,13 +687,15 @@ namespace snow {
 			// values, put the rest of them in an array, and assign that.
 			if (i == num_targets-1 && num_values > num_targets) {
 				size_t num_remaining = num_values - num_targets + 1;
-				movq(num_remaining, REG_ARGS[0]);
-				CALL(ccall::create_array_with_size);
-				movq(REG_RETURN, REG_PRESERVED_SCRATCH[0]);
+				auto c_create_array_with_size = call(ccall::create_array_with_size);
+				c_create_array_with_size.set_arg<0>(num_remaining);
+				auto array = c_create_array_with_size.call();
+				movq(array, REG_PRESERVED_SCRATCH[0]);
 				for (size_t j = i; j < num_values; ++j) {
-					movq(REG_PRESERVED_SCRATCH[0], REG_ARGS[0]);
-					movq(values[j], REG_ARGS[1]);
-					CALL(ccall::array_push);
+					auto c_array_push = call(ccall::array_push);
+					c_array_push.set_arg<0>(ValueHolder<VALUE>(REG_PRESERVED_SCRATCH[0]));
+					c_array_push.set_arg<1>(ValueHolder<VALUE>(values[j]));
+					c_array_push.call();
 				}
 				movq(REG_PRESERVED_SCRATCH[0], values[i]);
 			}
@@ -647,12 +729,15 @@ namespace snow {
 					Temporary obj(*this);
 					movq(REG_RETURN, obj);
 					compile_get_index_of_field_inline_cache(REG_RETURN, target->instance_variable.name, REG_ARGS[1], true);
-					movq(obj, REG_ARGS[0]);
+					
+					auto c_object_set_ivar_by_index = call(ccall::object_set_instance_variable_by_index);
+					c_object_set_ivar_by_index.set_arg<0>(obj);
+					c_object_set_ivar_by_index.set_arg<1>(ValueHolder<int32_t>(REG_ARGS[1]));
 					if (i <= num_values)
-						movq(values[i], REG_ARGS[2]);
+						c_object_set_ivar_by_index.set_arg<2>(values[i]);
 					else
-						xorq(REG_ARGS[2], REG_ARGS[2]);
-					CALL(ccall::object_set_instance_variable_by_index);
+						c_object_set_ivar_by_index.clear_arg<2>();
+					c_object_set_ivar_by_index.call();
 					break;
 				}
 				case ASTNodeTypeIdentifier: {
@@ -664,13 +749,14 @@ namespace snow {
 				}
 				case ASTNodeTypeMethod: {
 					if (!compile_ast_node(target->method.object)) return false;
-					movq(REG_RETURN, REG_ARGS[0]);
-					movq(target->method.name, REG_ARGS[1]);
+					auto c_object_set = call(ccall::object_set_property_or_define_method);
+					c_object_set.set_arg<0>(ValueHolder<VALUE>(REG_RETURN));
+					c_object_set.set_arg<1>(target->method.name);
 					if (i <= num_values)
-						movq(values[i], REG_ARGS[2]);
+						c_object_set.set_arg<2>(values[i]);
 					else
-						xorq(REG_ARGS[2], REG_ARGS[2]);
-					CALL(ccall::object_set_property_or_define_method);
+						c_object_set.clear_arg<2>();
+					c_object_set.call();
 				}
 				default:
 					fprintf(stderr, "CODEGEN: Invalid target for assignment! (type=%d)", target->type);
@@ -714,16 +800,18 @@ namespace snow {
 		if (index >= 0) {
 			if (level == 0) {
 				// local to this scope
-				movq(REG_CALL_FRAME, REG_ARGS[0]);
-				CALL(ccall::call_frame_get_locals);
-				movq(REG_RETURN, reg);
+				auto c_get_locals = call(ccall::call_frame_get_locals);
+				c_get_locals.set_arg<0>(get_call_frame());
+				auto locals = c_get_locals.call();
+				movq(locals, reg);
 				return address(reg, index * sizeof(Value));
 			} else {
 				// local in parent scope
-				movq(REG_CALL_FRAME, REG_ARGS[0]);
-				movq(level, REG_ARGS[1]);
-				CALL(snow::get_locals_from_higher_lexical_scope);
-				movq(REG_RETURN, reg);
+				auto c_get_locals = call(snow::get_locals_from_higher_lexical_scope);
+				c_get_locals.set_arg<0>(get_call_frame());
+				c_get_locals.set_arg<1>(level);
+				auto locals = c_get_locals.call();
+				movq(locals, reg);
 				return address(reg, index * sizeof(Value));
 			}
 		}
@@ -739,9 +827,10 @@ namespace snow {
 				// if we're not in module global scope, define a regular local
 				index = local_names.size();
 				local_names.push_back(name);
-				movq(REG_CALL_FRAME, REG_ARGS[0]);
-				CALL(ccall::call_frame_get_locals);
-				movq(REG_RETURN, reg);
+				auto c_get_locals = call(ccall::call_frame_get_locals);
+				c_get_locals.set_arg<0>(get_call_frame());
+				auto locals = c_get_locals.call();
+				movq(locals, reg);
 				return address(reg, index * sizeof(Value));
 			} else {
 				global_idx = codegen.module_globals.size();
@@ -817,22 +906,26 @@ namespace snow {
 	}
 	
 	void Codegen::Function::compile_call(const Operand& functor, const Operand& self, size_t num_args, const Operand& args_ptr, size_t num_names, const Operand& names_ptr) {
-		movq(functor, REG_ARGS[0]);
-		movq(self, REG_ARGS[1]);
 		if (num_names) {
 			ASSERT(num_args >= num_names);
-			movq(num_names, REG_ARGS[2]);
-			movq(names_ptr, REG_ARGS[3]);
-			movq(num_args, REG_ARGS[4]);
-			movq(args_ptr, REG_ARGS[5]);
-			CALL(ccall::call_with_named_arguments);
+			auto c_call = call(ccall::call_with_named_arguments);
+			c_call.set_arg<0>(ValueHolder<VALUE>(functor));
+			c_call.set_arg<1>(ValueHolder<VALUE>(self));
+			c_call.set_arg<2>(num_names);
+			c_call.set_arg<3>(ValueHolder<Symbol*>(names_ptr));
+			c_call.set_arg<4>(num_args);
+			c_call.set_arg<5>(ValueHolder<VALUE*>(args_ptr));
+			c_call.call();
 		} else {
+			auto c_call = call(ccall::call);
+			c_call.set_arg<0>(ValueHolder<VALUE>(functor));
+			c_call.set_arg<1>(ValueHolder<VALUE>(self));
 			if (num_args)
-				movq(num_args, REG_ARGS[2]);
+				c_call.set_arg<2>(num_args);
 			else
-				xorq(REG_ARGS[2], REG_ARGS[2]);
-			movq(args_ptr, REG_ARGS[3]);
-			CALL(ccall::call);
+				c_call.clear_arg<2>();
+			c_call.set_arg<3>(ValueHolder<VALUE*>(args_ptr));
+			c_call.call();
 		}
 	}
 	
@@ -848,56 +941,71 @@ namespace snow {
 		}
 		
 		compile_get_method_inline_cache(in_self, method_name, REG_ARGS[4], REG_ARGS[0]);
-		movq(self, REG_ARGS[1]);
-		movq(num_args, REG_ARGS[2]);
-		movq(args_ptr, REG_ARGS[3]);
-		movq(method_name, REG_ARGS[5]);
-		CALL(ccall::call_method);
+		auto c_call = call(ccall::call_method);
+		c_call.set_arg<0>(ValueHolder<VALUE>(REG_ARGS[0]));
+		c_call.set_arg<1>(ValueHolder<VALUE>(self));
+		c_call.set_arg<2>(num_args);
+		c_call.set_arg<3>(ValueHolder<VALUE*>(args_ptr));
+		c_call.set_arg<4>(ValueHolder<MethodType>(REG_ARGS[4]));
+		c_call.set_arg<5>(method_name);
+		c_call.call();
 	}
 	
 	void Codegen::Function::compile_get_method_inline_cache(const Operand& object, Symbol name, const Register& out_type, const Register& out_method_getter) {
 		if (settings.use_inline_cache) {
-			movq(object, REG_ARGS[0]);
-			movq(name, REG_ARGS[1]);
+			auto c_get_method = call(snow::get_method_inline_cache);
+			c_get_method.set_arg<0>(ValueHolder<VALUE>(object));
+			c_get_method.set_arg<1>(name);
+			
 			size_t cache_line = num_method_calls++;
 			leaq(address(REG_METHOD_CACHE, cache_line * sizeof(MethodCacheLine)), REG_ARGS[2]);
-			Alloca _1(*this, REG_PRESERVED_SCRATCH[0], sizeof(MethodQueryResult));
-			movq(REG_PRESERVED_SCRATCH[0], REG_ARGS[3]);
-			CALL(snow::get_method_inline_cache);
-			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, type)), out_type);
-			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, result)), out_method_getter);
+			c_get_method.set_arg<2>(ValueHolder<MethodCacheLine*>(REG_ARGS[2]));
+			
+			ValueHolder<MethodQueryResult*> result_ptr(REG_PRESERVED_SCRATCH[0]);
+			Alloca _1(*this, result_ptr.op.reg, sizeof(MethodQueryResult));
+			c_get_method.set_arg<3>(result_ptr);
+			
+			c_get_method.call();
+			movq(address(result_ptr.op.reg, offsetof(MethodQueryResult, type)), out_type);
+			movq(address(result_ptr.op.reg, offsetof(MethodQueryResult, result)), out_method_getter);
 		} else {
-			movq(object, REG_ARGS[0]);
-			CALL(ccall::get_class);
-			Alloca _1(*this, REG_PRESERVED_SCRATCH[0], sizeof(MethodQueryResult));
-			movq(REG_RETURN, REG_ARGS[0]);
-			movq(name, REG_ARGS[1]);
-			movq(REG_PRESERVED_SCRATCH[0], REG_ARGS[2]);
-			CALL(ccall::class_lookup_method);
-			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, type)), out_type);
-			movq(address(REG_PRESERVED_SCRATCH[0], offsetof(MethodQueryResult, result)), out_method_getter);
+			auto c_get_class = call(ccall::get_class);
+			c_get_class.set_arg<0>(ValueHolder<VALUE>(object));
+			auto cls = c_get_class.call();
+			
+			auto c_lookup_method = call(ccall::class_lookup_method);
+			c_lookup_method.set_arg<0>(cls);
+			c_lookup_method.set_arg<1>(name);
+			ValueHolder<MethodQueryResult*> result_ptr(REG_PRESERVED_SCRATCH[0]);
+			Alloca _1(*this, result_ptr.op.reg, sizeof(MethodQueryResult));
+			c_lookup_method.set_arg<2>(result_ptr);
+			
+			c_lookup_method.call();
+			movq(address(result_ptr.op.reg, offsetof(MethodQueryResult, type)), out_type);
+			movq(address(result_ptr.op.reg, offsetof(MethodQueryResult, result)), out_method_getter);
 		}
 	}
 	
 	void Codegen::Function::compile_get_index_of_field_inline_cache(const Operand& object, Symbol name, const Register& target, bool can_define) {
 		if (settings.use_inline_cache) {
-			movq(object, REG_ARGS[0]);
-			movq(name, REG_ARGS[1]);
+			auto c_get_ivar_index = call(snow::get_instance_variable_inline_cache);
+			c_get_ivar_index.set_arg<0>(ValueHolder<VALUE>(object));
+			c_get_ivar_index.set_arg<1>(name);
 			size_t cache_line = num_instance_variable_accesses++;
 			leaq(address(REG_IVAR_CACHE, cache_line * sizeof(InstanceVariableCacheLine)), REG_ARGS[2]);
+			c_get_ivar_index.set_arg<2>(ValueHolder<InstanceVariableCacheLine*>(REG_ARGS[2]));
 			if (can_define)
-				CALL(snow::get_or_define_instance_variable_inline_cache);
-			else
-				CALL(snow::get_instance_variable_inline_cache);
-			movl(REG_RETURN, target);
+				c_get_ivar_index.callee = snow::get_or_define_instance_variable_inline_cache;
+			auto idx = c_get_ivar_index.call();
+			movl(idx, target);
 		} else {
-			movq(object, REG_ARGS[0]);
-			movq(name, REG_ARGS[1]);
+			auto c_get_ivar_index = call(ccall::object_get_index_of_instance_variable);
+			c_get_ivar_index.set_arg<0>(ValueHolder<VALUE>(object));
+			c_get_ivar_index.set_arg<1>(name);
 			if (can_define)
-				CALL(ccall::object_get_or_create_index_of_instance_variable);
-			else
-				CALL(ccall::object_get_index_of_instance_variable);
-			movl(REG_RETURN, target);
+				c_get_ivar_index.callee = ccall::object_get_or_create_index_of_instance_variable;
+			auto idx = c_get_ivar_index.call();
+			movl(idx, target);
 		}
 	}
 	
@@ -924,18 +1032,18 @@ namespace snow {
 		return false;
 	}
 	
-	void Codegen::Function::call_direct(void(*callee)(void)) {
-		if (!perform_inlining((void*)callee)) {
+	void Codegen::Function::call_direct(void* callee) {
+		if (!perform_inlining(callee)) {
 			DirectCall dc;
-			dc.offset = call(0);
-			dc.callee = (void*)callee;
+			dc.offset = Asm::call(0);
+			dc.callee = callee;
 			direct_calls.push_back(dc);
 		}
 	}
 	
-	void Codegen::Function::call_indirect(void(*callee)(void)) {
-		movq((uint64_t)callee, REG_SCRATCH[0]);
-		call(REG_SCRATCH[0]);
+	void Codegen::Function::call_indirect(void* callee) {
+		movq((uintptr_t)callee, REG_SCRATCH[0]);
+		Asm::call(REG_SCRATCH[0]);
 	}
 	
 	void Codegen::Function::materialize_at(byte* destination) {
@@ -1060,10 +1168,43 @@ namespace snow {
 	size_t Codegen::get_offset_for_entry_descriptor() const {
 		return _entry->materialized_descriptor_offset;
 	}
-}
+	
+	
+	template <typename R, typename... Args>
+	template <int I, typename T>
+	void Call<R, Args...>::set_arg(T val) {
+		std::tuple<Args...> args;
+		std::get<I>(args) = val; // type check
+		caller->movq(val, REG_ARGS[I]);
+	}
+	
+	template <typename R, typename... Args>
+	template <int I, typename T>
+	void Call<R, Args...>::set_arg(const ValueHolder<T>& val) {
+		std::tuple<ValueHolder<Args>...> args;
+		std::get<I>(args) = val; // type check
+		caller->movq(val, REG_ARGS[I]);
+	}
+	
+	template <typename R, typename... Args>
+	template <int I>
+	void Call<R, Args...>::set_arg(const Temporary& tmp) {
+		ValueHolder<VALUE> holder((Operand)tmp);
+		set_arg<I>(holder);
+	}
+	
+	template <typename R, typename... Args>
+	template <int I>
+	void Call<R, Args...>::clear_arg() {
+		caller->xorq(REG_ARGS[I], REG_ARGS[I]);
+	}
+	
+	template <typename R, typename... Args>
+	ValueHolder<R> Call<R, Args...>::call() {
+		caller->call_direct((void*)callee);
+		return ValueHolder<R>(REG_RETURN);
+	}
 
-namespace {
-	using namespace snow;
 	Temporary::Temporary(Codegen::Function& f) : f(f) {
 		idx = f.alloc_temporary();
 	}
