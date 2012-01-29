@@ -77,7 +77,7 @@ namespace snow {
 	}
 
 	ObjectPtr<String> create_string(const char* utf8) {
-		return create_string_with_size(utf8, strlen(utf8));
+		return create_string_with_size(utf8, utf8 ? strlen(utf8) : 0);
 	}
 
 	ObjectPtr<String> create_string_constant(const char* utf8) {
