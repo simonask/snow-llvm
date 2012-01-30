@@ -14,57 +14,57 @@
 namespace snow {
 	template <typename T> struct Temporary;
 	
-	template <typename T> struct ValueHolder;
+	template <typename T> struct AsmValue;
 	template <typename T>
-	struct ValueHolder<const T*> {
+	struct AsmValue<const T*> {
 		Operand op;
-		ValueHolder() {}
-		ValueHolder(const ValueHolder<T*>& other) : op(other.op) {}
-		ValueHolder(const ValueHolder<const T*>& other) : op(other.op) {}
-		explicit ValueHolder(const Operand& op) : op(op) {}
+		AsmValue() {}
+		AsmValue(const AsmValue<T*>& other) : op(other.op) {}
+		AsmValue(const AsmValue<const T*>& other) : op(other.op) {}
+		explicit AsmValue(const Operand& op) : op(op) {}
 		operator const Operand&() const { return op; }
 		operator const Register&() const { ASSERT(!op.is_memory()); return op.reg; }
 		bool is_valid() const { return op.is_valid(); }
 	};
 	template <typename T>
-	struct ValueHolder {
+	struct AsmValue {
 		Operand op;
-		ValueHolder() {}
-		ValueHolder(const ValueHolder<T>& other) : op(other.op) {}
-		explicit ValueHolder(const Operand& op) : op(op) {}
+		AsmValue() {}
+		AsmValue(const AsmValue<T>& other) : op(other.op) {}
+		explicit AsmValue(const Operand& op) : op(op) {}
 		operator const Operand&() const { return op; }
 		operator const Register&() const { ASSERT(!op.is_memory()); return op.reg; }
 		bool is_valid() const { return op.is_valid(); }
 	};
 	
 	template <typename R, typename... Args>
-	struct Call {
+	struct AsmCall {
 		typedef R(*FunctionType)(Args...);
 		
 		Codegen::Function* caller;
 		FunctionType callee;
 		
-		Call(Codegen::Function* caller, FunctionType callee) : caller(caller), callee(callee) {}
-		Call(const Call<R, Args...>& other) : caller(other.caller), callee(other.callee) {}
-		Call(Call<R,Args...>&& other) : caller(other.caller), callee(other.callee) {}
+		AsmCall(Codegen::Function* caller, FunctionType callee) : caller(caller), callee(callee) {}
+		AsmCall(const AsmCall<R, Args...>& other) : caller(other.caller), callee(other.callee) {}
+		AsmCall(AsmCall<R,Args...>&& other) : caller(other.caller), callee(other.callee) {}
 		
 		template <int I, typename T>
 		void set_arg(T val);
 		template <int I>
 		void set_arg(int32_t);
 		template <int I, typename T>
-		void set_arg(const ValueHolder<T>& val);
+		void set_arg(const AsmValue<T>& val);
 		template <int I, typename T>
 		void set_arg(const Temporary<T>& tmp);
 		template <int I>
 		void clear_arg();
 		
-		ValueHolder<R> call();
+		AsmValue<R> call();
 	};
 	
 	template <typename T>
 	struct Alloca {
-		Alloca(Asm& a, const ValueHolder<T*>& target, size_t num_elements)
+		Alloca(Asm& a, const AsmValue<T*>& target, size_t num_elements)
 			: a(a), size(num_elements*sizeof(T))
 		{
 			if (size) {
@@ -90,7 +90,7 @@ namespace snow {
 	struct Temporary {
 		Temporary(Codegen::Function& f);
 		~Temporary();
-		operator ValueHolder<T>() const;
+		operator AsmValue<T>() const;
 		operator Operand() const;
 		
 		Codegen::Function& f;
@@ -160,7 +160,7 @@ namespace snow {
 		std::vector<int> temporaries_freelist;
 		int alloc_temporary();
 		void free_temporary(int);
-		ValueHolder<VALUE> temporary(int);
+		AsmValue<VALUE> temporary(int);
 		
 		bool compile_function_body(const ASTNode* body_seq);
 		void materialize_at(byte* destination);
@@ -168,11 +168,11 @@ namespace snow {
 		bool compile_ast_node(const ASTNode* node);
 		bool compile_assignment(const ASTNode* assign);
 		bool compile_call(const ASTNode* call);
-		void compile_call(const ValueHolder<VALUE>& functor, const ValueHolder<VALUE>& self, size_t num_args, const ValueHolder<VALUE*>& args_ptr, size_t num_names = 0, const ValueHolder<Symbol*>& names_ptr = ValueHolder<Symbol*>());
-		void compile_method_call(const ValueHolder<VALUE>& self, Symbol method_name, size_t num_args, const ValueHolder<VALUE*>& args_ptr, size_t num_names = 0, const ValueHolder<Symbol*>& names_ptr = ValueHolder<Symbol*>());
-		void compile_get_method_inline_cache(const ValueHolder<VALUE>& self, Symbol name, const ValueHolder<MethodType>& out_type, const ValueHolder<VALUE>& out_method);
-		void compile_get_index_of_field_inline_cache(const ValueHolder<VALUE>& self, Symbol name, const ValueHolder<int32_t>& target, bool can_define = false);
-		ValueHolder<VALUE*> compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
+		void compile_call(const AsmValue<VALUE>& functor, const AsmValue<VALUE>& self, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
+		void compile_method_call(const AsmValue<VALUE>& self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
+		void compile_get_method_inline_cache(const AsmValue<VALUE>& self, Symbol name, const AsmValue<MethodType>& out_type, const AsmValue<VALUE>& out_method);
+		void compile_get_index_of_field_inline_cache(const AsmValue<VALUE>& self, Symbol name, const AsmValue<int32_t>& target, bool can_define = false);
+		AsmValue<VALUE*> compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
 		Function* compile_function(const ASTNode* function);
 		bool perform_inlining(void* callee);
 		void call_direct(void* callee);
@@ -181,27 +181,27 @@ namespace snow {
 		void compile_alloca(size_t num_bytes, const Operand& out_ptr);
 		
 		template <typename R, typename... Args>
-		Call<R, Args...> call(R(*callee)(Args...)) {
-			return Call<R, Args...>(this, callee);
+		AsmCall<R, Args...> call(R(*callee)(Args...)) {
+			return AsmCall<R, Args...>(this, callee);
 		}
 		
-		ValueHolder<CallFrame*> get_call_frame() const {
-			return ValueHolder<CallFrame*>(REG_CALL_FRAME);
+		AsmValue<CallFrame*> get_call_frame() const {
+			return AsmValue<CallFrame*>(REG_CALL_FRAME);
 		}
 		
-		ValueHolder<MethodCacheLine*> get_method_cache() const {
-			return ValueHolder<MethodCacheLine*>(REG_METHOD_CACHE);
+		AsmValue<MethodCacheLine*> get_method_cache() const {
+			return AsmValue<MethodCacheLine*>(REG_METHOD_CACHE);
 		}
 		
-		ValueHolder<InstanceVariableCacheLine*> get_ivar_cache() const {
-			return ValueHolder<InstanceVariableCacheLine*>(REG_IVAR_CACHE);
+		AsmValue<InstanceVariableCacheLine*> get_ivar_cache() const {
+			return AsmValue<InstanceVariableCacheLine*>(REG_IVAR_CACHE);
 		}
 	};
 	
 	
 	template <typename R, typename... Args>
 	template <int I, typename T>
-	void Call<R, Args...>::set_arg(T val) {
+	void AsmCall<R, Args...>::set_arg(T val) {
 		std::tuple<Args...> args;
 		std::get<I>(args) = val; // type check
 		caller->movq(val, REG_ARGS[I]);
@@ -209,7 +209,7 @@ namespace snow {
 	
 	template <typename R, typename... Args>
 	template <int I>
-	void Call<R, Args...>::set_arg(int32_t val) {
+	void AsmCall<R, Args...>::set_arg(int32_t val) {
 		std::tuple<Args...> args;
 		std::get<I>(args) = val; // type check
 		caller->movl(val, REG_ARGS[I]);
@@ -217,28 +217,28 @@ namespace snow {
 	
 	template <typename R, typename... Args>
 	template <int I, typename T>
-	void Call<R, Args...>::set_arg(const ValueHolder<T>& val) {
-		std::tuple<ValueHolder<Args>...> args;
+	void AsmCall<R, Args...>::set_arg(const AsmValue<T>& val) {
+		std::tuple<AsmValue<Args>...> args;
 		std::get<I>(args) = val; // type check
 		caller->movq(val, REG_ARGS[I]);
 	}
 	
 	template <typename R, typename... Args>
 	template <int I, typename T>
-	void Call<R, Args...>::set_arg(const Temporary<T>& tmp) {
-		set_arg<I>(ValueHolder<T>((Operand)tmp));
+	void AsmCall<R, Args...>::set_arg(const Temporary<T>& tmp) {
+		set_arg<I>(AsmValue<T>((Operand)tmp));
 	}
 	
 	template <typename R, typename... Args>
 	template <int I>
-	void Call<R, Args...>::clear_arg() {
+	void AsmCall<R, Args...>::clear_arg() {
 		caller->xorq(REG_ARGS[I], REG_ARGS[I]);
 	}
 	
 	template <typename R, typename... Args>
-	ValueHolder<R> Call<R, Args...>::call() {
+	AsmValue<R> AsmCall<R, Args...>::call() {
 		caller->call_direct((void*)callee);
-		return ValueHolder<R>(REG_RETURN);
+		return AsmValue<R>(REG_RETURN);
 	}
 
 	template <typename T>
@@ -257,8 +257,8 @@ namespace snow {
 	}
 	
 	template <typename T>
-	Temporary<T>::operator ValueHolder<T>() const {
-		return ValueHolder<T>(f.temporary(idx));
+	Temporary<T>::operator AsmValue<T>() const {
+		return AsmValue<T>(f.temporary(idx));
 	}
 }
 
