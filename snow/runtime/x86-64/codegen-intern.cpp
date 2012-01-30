@@ -1,6 +1,10 @@
 #include "codegen-intern.hpp"
 #include "../ccall-bindings.hpp"
 
+#include "snow/exception.hpp"
+
+#include <memory>
+
 namespace snow {
 	inline int Codegen::Function::alloc_temporary() {
 		if (temporaries_freelist.size()) {
@@ -19,7 +23,7 @@ namespace snow {
 		return AsmValue<VALUE>(address(RBP, -(idx+1)*sizeof(VALUE)));
 	}
 	
-	bool Codegen::Function::compile_function_body(const ASTNode* body_seq) {
+	AsmValue<VALUE> Codegen::Function::compile_function_body(const ASTNode* body_seq) {
 		pushq(RBP);
 		movq(RSP, RBP);
 		size_t stack_size_offset1 = subq(PLACEHOLDER_IMM32, RSP);
@@ -42,10 +46,11 @@ namespace snow {
 		auto ivar_cache = c2.call();
 		movq(ivar_cache, REG_IVAR_CACHE);
 		
-		xorq(REG_RETURN, REG_RETURN); // always clear return register, so empty functions return nil.
+		AsmValue<VALUE> result(REG_RETURN);
+		clear(result); // always clear return register, so empty functions return nil.
 		return_label = label();
 		
-		if (!compile_ast_node(body_seq)) return false;
+		result = compile_ast_node(body_seq);
 		
 		// Restore preserved registers and return
 		bind_label(return_label);
@@ -63,26 +68,29 @@ namespace snow {
 			code()[stack_size_offset1+i] = reinterpret_cast<byte*>(&stack_size)[i];
 		}
 		
-		return true;
+		return result;
 	}
 	
-	bool Codegen::Function::compile_ast_node(const ASTNode* node) {
+	AsmValue<VALUE> Codegen::Function::compile_ast_node(const ASTNode* node) {
 		switch (node->type) {
 			case ASTNodeTypeSequence: {
+				AsmValue<VALUE> result(REG_RETURN);
 				for (const ASTNode* x = node->sequence.head; x; x = x->next) {
-					if (!compile_ast_node(x)) return false;
+					auto r = compile_ast_node(x);
+					if (x->next == NULL) {
+						movq(r, result);
+					}
 				}
-				return true;
+				return result;
 			}
 			case ASTNodeTypeLiteral: {
-				uint64_t imm = (uint64_t)node->literal.value;
-				movq(imm, REG_RETURN);
-				return true;
+				AsmValue<VALUE> result(REG_ARGS[0]);
+				uintptr_t imm = (uintptr_t)node->literal.value;
+				movq(imm, result);
+				return result;
 			}
 			case ASTNodeTypeClosure: {
 				Function* f = compile_function(node);
-				if (!f) return false;
-				
 				auto c_env = call(ccall::call_frame_environment);
 				c_env.set_arg<0>(get_call_frame());
 				auto env = c_env.call();
@@ -94,65 +102,66 @@ namespace snow {
 				auto c_func = call(ccall::create_function_for_descriptor);
 				c_func.set_arg<0>(desc);
 				c_func.set_arg<1>(env);
-				c_func.call();
-				return true;
+				return c_func.call();
 			}
 			case ASTNodeTypeReturn: {
+				AsmValue<VALUE> result(REG_RETURN);
 				if (node->return_expr.value) {
-					if (!compile_ast_node(node->return_expr.value)) return false;
+					auto r = compile_ast_node(node->return_expr.value);
+					movq(r, result);
 				}
 				jmp(return_label);
-				return true;
+				return result;
 			}
 			case ASTNodeTypeIdentifier: {
-				Operand local_addr = compile_get_address_for_local(REG_ARGS[2], node->identifier.name, false);
-				if (local_addr.is_valid()) {
-					movq(local_addr, REG_RETURN);
+				auto local = compile_get_address_for_local(REG_ARGS[2], node->identifier.name, false);
+				if (local.is_valid()) {
+					return local;
 				} else {
 					auto c_local_missing = call(ccall::local_missing);
 					c_local_missing.set_arg<0>(get_call_frame());
 					c_local_missing.set_arg<1>(node->identifier.name);
-					c_local_missing.call();
+					return c_local_missing.call();
 				}
-				return true;
 			}
 			case ASTNodeTypeSelf: {
-				movq(address(REG_CALL_FRAME, UNSAFE_OFFSET_OF(CallFrame, self)), REG_RETURN);
-				return true;
+				auto addr = address(get_call_frame(), UNSAFE_OFFSET_OF(CallFrame, self));
+				return AsmValue<VALUE>(addr);
 			}
 			case ASTNodeTypeHere: {
-				movq(REG_CALL_FRAME, REG_RETURN);
-				return true;
+				auto c_env = call(ccall::call_frame_environment);
+				c_env.set_arg<0>(get_call_frame());
+				return c_env.call();
 			}
 			case ASTNodeTypeIt: {
 				auto c_it = call(ccall::call_frame_get_it);
 				c_it.set_arg<0>(get_call_frame());
-				c_it.call();
-				return true;
+				return c_it.call();
 			}
 			case ASTNodeTypeAssign: {
 				return compile_assignment(node);
 			}
 			case ASTNodeTypeMethod: {
-				if (!compile_ast_node(node->method.object)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				auto object = compile_ast_node(node->method.object);
 				Temporary<VALUE> self(*this);
-				movq(result, self);
+				movq(object, self);
 				
 				AsmValue<MethodType> method_type(RAX);
 				AsmValue<VALUE> method(REG_ARGS[0]);
-				compile_get_method_inline_cache(result, node->method.name, method_type, method);
+				compile_get_method_inline_cache(object, node->method.name, method_type, method);
 				Label* get_method = label();
 				Label* after = label();
 				
 				cmpb(MethodTypeFunction, method_type);
 				j(CC_EQUAL, get_method);
+				AsmValue<VALUE> result(REG_RETURN);
 				
 				{
 					// get property
 					AsmValue<VALUE*> args(REG_ARGS[3]);
 					xorq(args, args); // no args!
-					compile_call(method, self, 0, args);
+					auto r = compile_call(method, self, 0, args);
+					movq(r, result);
 					jmp(after);
 				}
 				
@@ -162,34 +171,36 @@ namespace snow {
 					auto c_create_method_proxy = call(ccall::create_method_proxy);
 					c_create_method_proxy.set_arg<0>(self);
 					c_create_method_proxy.set_arg<1>(method);
-					c_create_method_proxy.call();
+					auto r = c_create_method_proxy.call();
+					movq(r, result);
 					// jmp(after);
 				}
 				
 				bind_label(after);
-				return true;
+				return result;
 			}
 			case ASTNodeTypeInstanceVariable: {
-				if (!compile_ast_node(node->method.object)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				auto object = compile_ast_node(node->method.object);
 				Temporary<VALUE> self(*this);
-				movq(result, self);
+				if (object.is_memory()) {
+					movq(object, REG_ARGS[0]);
+					object.op = REG_ARGS[0];
+				}
+				movq(object, self);
 				AsmValue<int32_t> idx(REG_ARGS[1]);
-				compile_get_index_of_field_inline_cache(result, node->instance_variable.name, idx);
+				compile_get_index_of_field_inline_cache(object, node->instance_variable.name, idx);
 				auto c_object_get_ivar_by_index = call(ccall::object_get_instance_variable_by_index);
 				c_object_get_ivar_by_index.set_arg<0>(self);
 				c_object_get_ivar_by_index.set_arg<1>(idx);
-				c_object_get_ivar_by_index.call();
-				return true;
+				return c_object_get_ivar_by_index.call();
 			}
 			case ASTNodeTypeCall: {
 				return compile_call(node);
 			}
 			case ASTNodeTypeAssociation: {
-				if (!compile_ast_node(node->association.object)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				auto object = compile_ast_node(node->association.object);
 				Temporary<VALUE> self(*this);
-				movq(result, self);
+				movq(object, self);
 				
 				size_t num_args = node->association.args->sequence.length;
 				Temporary<VALUE*> args_ptr(*this);
@@ -197,69 +208,76 @@ namespace snow {
 				
 				size_t i = 0;
 				for (ASTNode* x = node->association.args->sequence.head; x; x = x->next) {
-					if (!compile_ast_node(x)) return false;
+					auto result = compile_ast_node(x);
 					movq(args_ptr, REG_SCRATCH[0]);
+					if (result.is_memory()) {
+						movq(result, REG_SCRATCH[1]);
+						result.op = REG_SCRATCH[1];
+					}
 					movq(result, address(REG_SCRATCH[0], sizeof(VALUE) * i++));
 				}
-				compile_method_call(self, snow::sym("get"), num_args, args_ptr);
-				return true;
+				return compile_method_call(self, snow::sym("get"), num_args, args_ptr);
 			}
 			case ASTNodeTypeAnd: {
 				Label* left_true = label();
 				Label* after = label();
 				
-				if (!compile_ast_node(node->logic_and.left)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
-				movq(result, REG_PRESERVED_SCRATCH[0]);
+				auto left = compile_ast_node(node->logic_and.left);
+				AsmValue<VALUE> preserve_left(REG_PRESERVED_SCRATCH[0]);
+				movq(left, preserve_left);
 				auto c_is_truthy = call(snow::is_truthy);
-				c_is_truthy.set_arg<0>(result);
+				c_is_truthy.set_arg<0>(left);
 				auto truthy = c_is_truthy.call();
 				cmpq(0, truthy);
 				j(CC_NOT_EQUAL, left_true);
-				movq(REG_PRESERVED_SCRATCH[0], REG_RETURN);
+				AsmValue<VALUE> result(REG_RETURN);
+				movq(preserve_left, result);
 				jmp(after);
 				
 				bind_label(left_true);
-				if (!compile_ast_node(node->logic_and.right)) return false;
+				auto r = compile_ast_node(node->logic_and.right);
+				movq(r, result);
 
 				bind_label(after);
-				return true;
+				return result;
 			}
 			case ASTNodeTypeOr: {
 				Label* left_false = label();
 				Label* after = label();
 				
-				if (!compile_ast_node(node->logic_or.left)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
-				movq(result, REG_PRESERVED_SCRATCH[0]);
+				auto left = compile_ast_node(node->logic_or.left);
+				AsmValue<VALUE> preserve_left(REG_PRESERVED_SCRATCH[0]);
+				movq(left, preserve_left);
 				auto c_is_truthy = call(snow::is_truthy);
-				c_is_truthy.set_arg<0>(result);
+				c_is_truthy.set_arg<0>(left);
 				auto truthy = c_is_truthy.call();
 				cmpq(0, truthy);
 				j(CC_EQUAL, left_false);
-				movq(REG_PRESERVED_SCRATCH[0], result);
+				AsmValue<VALUE> result(REG_RETURN);
+				movq(preserve_left, result);
 				jmp(after);
 				
 				bind_label(left_false);
-				if (!compile_ast_node(node->logic_or.right)) return false;
+				auto r = compile_ast_node(node->logic_or.right);
+				movq(r, result);
 
 				bind_label(after);
-				return true;
+				return result;
 			}
 			case ASTNodeTypeXor: {
 				Label* equal_truth = label();
 				Label* after = label();
 				Label* left_is_true = label();
 				
-				if (!compile_ast_node(node->logic_xor.left)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				auto left = compile_ast_node(node->logic_xor.left);
 				Temporary<VALUE> left_value(*this);
-				movq(result, left_value); // save left value
+				movq(left, left_value); // save left value
 				
-				if (!compile_ast_node(node->logic_xor.right)) return false;
-				movq(result, REG_PRESERVED_SCRATCH[0]); // save right value in caller-preserved register
+				auto right = compile_ast_node(node->logic_xor.right);
+				AsmValue<VALUE> preserve_right(REG_PRESERVED_SCRATCH[0]);
+				movq(right, preserve_right);
 				auto c_is_truthy1 = call(snow::is_truthy);
-				c_is_truthy1.set_arg<0>(result);
+				c_is_truthy1.set_arg<0>(right);
 				auto truthy1 = c_is_truthy1.call();
 				Temporary<bool> right_truth(*this);
 				movq(truthy1, right_truth);
@@ -270,7 +288,8 @@ namespace snow {
 				j(CC_EQUAL, equal_truth);
 				cmpq(0, truthy2); // compare left truth to zero
 				j(CC_NOT_EQUAL, left_is_true);
-				movq(REG_PRESERVED_SCRATCH[0], result); // previously saved right value
+				AsmValue<VALUE> result(REG_RETURN);
+				movq(preserve_right, result); // previously saved right value
 				jmp(after);
 				
 				bind_label(left_is_true);
@@ -281,86 +300,92 @@ namespace snow {
 				movq((uintptr_t)SN_FALSE, result);
 				
 				bind_label(after);
-				return true;
+				return result;
 			}
 			case ASTNodeTypeNot: {
 				Label* truth = label();
 				Label* after = label();
 				
-				if (!compile_ast_node(node->logic_not.expr)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				auto result = compile_ast_node(node->logic_not.expr);
 				auto c_is_truthy = call(snow::is_truthy);
 				c_is_truthy.set_arg<0>(result);
 				auto truthy = c_is_truthy.call();
 				cmpq(0, truthy);
 				j(CC_NOT_EQUAL, truth);
-				movq((uintptr_t)SN_TRUE, result);
+				AsmValue<VALUE> ret(REG_RETURN);
+				movq((uintptr_t)SN_TRUE, ret);
 				jmp(after);
 				
 				bind_label(truth);
-				movq((uintptr_t)SN_FALSE, result);
+				movq((uintptr_t)SN_FALSE, ret);
 				
 				bind_label(after);
-				return true;
+				return ret;
 			}
 			case ASTNodeTypeLoop: {
 				Label* cond = label();
 				Label* after = label();
 				
 				bind_label(cond);
-				if (!compile_ast_node(node->loop.cond)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				AsmValue<VALUE> ret(REG_RETURN);
+				auto result = compile_ast_node(node->loop.cond);
+				movq(result, ret);
 				auto c_is_truthy = call(snow::is_truthy);
 				c_is_truthy.set_arg<0>(result);
 				auto truthy = c_is_truthy.call();
 				cmpq(0, truthy);
 				j(CC_EQUAL, after);
 				
-				if (!compile_ast_node(node->loop.body)) return false;
+				auto body_result = compile_ast_node(node->loop.body);
+				movq(body_result, ret);
 				jmp(cond);
 				
 				bind_label(after);
-				return true;
+				return ret;
 			}
 			case ASTNodeTypeBreak: {
-				// TODO!
-				return true;
+				throw_exception_with_description("Codegen: Not implemented: break");
+				return AsmValue<VALUE>();
 			}
 			case ASTNodeTypeContinue: {
 				// TODO!
-				return true;
+				throw_exception_with_description("Codegen: Not implemented: continue");
+				return AsmValue<VALUE>();
 			}
 			case ASTNodeTypeIfElse: {
 				Label* else_body = label();
 				Label* after = label();
 				
-				if (!compile_ast_node(node->if_else.cond)) return false;
-				AsmValue<VALUE> result(REG_RETURN);
+				AsmValue<VALUE> ret(REG_RETURN);
+				auto cond = compile_ast_node(node->if_else.cond);
+				movq(cond, ret);
 				auto c_is_truthy = call(snow::is_truthy);
-				c_is_truthy.set_arg<0>(result);
+				c_is_truthy.set_arg<0>(cond);
 				auto truthy = c_is_truthy.call();
 				cmpq(0, truthy);
 				j(CC_EQUAL, else_body);
-				if (!compile_ast_node(node->if_else.body)) return false;
+				auto body_result = compile_ast_node(node->if_else.body);
+				movq(body_result, ret);
 				
 				if (node->if_else.else_body) {
 					jmp(after);
 					bind_label(else_body);
-					if (!compile_ast_node(node->if_else.else_body)) return false;
+					auto else_result = compile_ast_node(node->if_else.else_body);
+					movq(else_result, ret);
 				} else {
 					bind_label(else_body);
 				}
 				bind_label(after);
-				return true;
+				return ret;
 			}
 			default: {
-				fprintf(stderr, "CODEGEN: Inappropriate AST node in tree (type %d).\n", node->type);
-				return false;
+				throw_exception_with_description("Codegen error: Inappropriate AST node in tree (type %@).", node->type);
+				return AsmValue<VALUE>(); // unreachable
 			}
 		}
 	}
 	
-	bool Codegen::Function::compile_assignment(const ASTNode* node) {
+	AsmValue<VALUE> Codegen::Function::compile_assignment(const ASTNode* node) {
 		ASSERT(node->assign.value->type == ASTNodeTypeSequence);
 		ASSERT(node->assign.target->type == ASTNodeTypeSequence);
 		
@@ -379,9 +404,15 @@ namespace snow {
 		i = 0;
 		for (ASTNode* x = node->assign.value->sequence.head; x; x = x->next) {
 			// TODO: Assignment name
-			if (!compile_ast_node(x)) return false;
-			movq(REG_RETURN, values[i++]);
+			auto r = compile_ast_node(x);
+			if (r.is_memory()) {
+				movq(r, REG_SCRATCH[0]);
+				r.op = REG_SCRATCH[0];
+			}
+			movq(r, values[i++]);
 		}
+		
+		AsmValue<VALUE> ret(REG_RETURN);
 		
 		// assign values to targets
 		for (size_t i = 0; i < num_targets; ++i) {
@@ -410,30 +441,41 @@ namespace snow {
 					Temporary<VALUE*> args_ptr(*this);
 					Alloca<VALUE> _1(*this, args_ptr, num_args);
 					
+					auto reg_args_ptr = REG_SCRATCH[0];
+					auto reg_load = REG_SCRATCH[1];
+					
 					size_t j = 0;
 					for (ASTNode* x = target->association.args->sequence.head; x; x = x->next) {
-						if (!compile_ast_node(x)) return false;
-						movq(args_ptr, REG_ARGS[3]);
-						movq(REG_RETURN, address(REG_ARGS[3], sizeof(VALUE) * j++));
+						auto r = compile_ast_node(x);
+						movq(args_ptr, reg_args_ptr);
+						if (r.is_memory()) {
+							movq(r, reg_load);
+							r.op = reg_load;
+						}
+						movq(r, address(reg_args_ptr, sizeof(VALUE) * j++));
 					}
-					if (!j) movq(args_ptr, REG_ARGS[3]); // if j != 0, args_ptr is already in RCX from above
+					if (!j) movq(args_ptr, reg_args_ptr); // if j != 0, args_ptr is already in reg_args_ptr from above
 					if (i < num_values)
-						movq(values[i], REG_ARGS[2]);
+						movq(values[i], reg_load);
 					else
-						movq((uint64_t)SN_NIL, REG_ARGS[2]);
-					movq(REG_ARGS[2], address(REG_ARGS[3], sizeof(VALUE) * j));
+						movq((uint64_t)SN_NIL, reg_load);
+					movq(reg_load, address(reg_args_ptr, sizeof(VALUE) * j));
 					
-					if (!compile_ast_node(target->association.object)) return false;
-					compile_method_call(AsmValue<VALUE>(REG_RETURN), snow::sym("set"), num_args, args_ptr);
+					auto object = compile_ast_node(target->association.object);
+					auto r = compile_method_call(object, snow::sym("set"), num_args, args_ptr);
+					movq(r, ret);
 					break;
 				}
 				case ASTNodeTypeInstanceVariable: {
-					if (!compile_ast_node(target->instance_variable.object)) return false;
-					AsmValue<VALUE> result(REG_RETURN);
+					auto object = compile_ast_node(target->instance_variable.object);
+					if (object.is_memory()) {
+						movq(object, REG_ARGS[0]);
+						object.op = REG_ARGS[0];
+					}
 					Temporary<VALUE> obj(*this);
-					movq(result, obj);
+					movq(object, obj);
 					AsmValue<int32_t> idx(REG_ARGS[1]);
-					compile_get_index_of_field_inline_cache(result, target->instance_variable.name, idx, true);
+					compile_get_index_of_field_inline_cache(object, target->instance_variable.name, idx, true);
 					
 					auto c_object_set_ivar_by_index = call(ccall::object_set_instance_variable_by_index);
 					c_object_set_ivar_by_index.set_arg<0>(obj);
@@ -442,39 +484,42 @@ namespace snow {
 						c_object_set_ivar_by_index.set_arg<2>(values[i]);
 					else
 						c_object_set_ivar_by_index.clear_arg<2>();
-					c_object_set_ivar_by_index.call();
+					auto r = c_object_set_ivar_by_index.call();
+					movq(r, ret);
 					break;
 				}
 				case ASTNodeTypeIdentifier: {
-					AsmValue<VALUE*> local_addr = compile_get_address_for_local(REG_SCRATCH[0], target->identifier.name, true);
+					auto local_addr = compile_get_address_for_local(REG_SCRATCH[0], target->identifier.name, true);
 					ASSERT(local_addr.is_valid());
-					movq(values[i], REG_RETURN);
-					movq(REG_RETURN, local_addr);
+					AsmValue<VALUE> val(REG_RETURN);
+					movq(values[i], val);
+					movq(val, local_addr);
+					movq(val, ret);
 					break;
 				}
 				case ASTNodeTypeMethod: {
-					if (!compile_ast_node(target->method.object)) return false;
-					AsmValue<VALUE> result(REG_RETURN);
+					auto object = compile_ast_node(target->method.object);
 					auto c_object_set = call(ccall::object_set_property_or_define_method);
-					c_object_set.set_arg<0>(result);
+					c_object_set.set_arg<0>(object);
 					c_object_set.set_arg<1>(target->method.name);
 					if (i <= num_values)
 						c_object_set.set_arg<2>(values[i]);
 					else
 						c_object_set.clear_arg<2>();
-					c_object_set.call();
+					auto r = c_object_set.call();
+					movq(r, ret);
 				}
 				default:
-					fprintf(stderr, "CODEGEN: Invalid target for assignment! (type=%d)", target->type);
-					return false;
+					throw_exception_with_description("Codegen: Invalid target for assignment. (type: %@)", target->type);
+					return AsmValue<VALUE>(); // unreachable
 			}
 		}
-		return true;
+		return ret;
 	}
 	
 	Codegen::Function* Codegen::Function::compile_function(const ASTNode* function) {
 		ASSERT(function->type == ASTNodeTypeClosure);
-		Function* f = new Function(codegen);
+		std::unique_ptr<Codegen::Function> f(new Function(codegen));
 		f->parent = this;
 		if (function->closure.parameters) {
 			f->param_names.reserve(function->closure.parameters->sequence.length);
@@ -484,15 +529,13 @@ namespace snow {
 				f->local_names.push_back(x->parameter.name);
 			}
 		}
-		if (!f->compile_function_body(function->closure.body)) {
-			delete f;
-			return NULL;
-		}
-		codegen._functions.push_back(f);
-		return f;
+		f->compile_function_body(function->closure.body);
+		Function* final_function = f.release();
+		codegen._functions.push_back(final_function);
+		return final_function;
 	}
 	
-	AsmValue<VALUE*> Codegen::Function::compile_get_address_for_local(const Register& reg, Symbol name, bool can_define) {
+	AsmValue<VALUE> Codegen::Function::compile_get_address_for_local(const Register& reg, Symbol name, bool can_define) {
 		// Look for locals
 		Function* f = this;
 		int32_t level = 0;
@@ -510,7 +553,7 @@ namespace snow {
 				c_get_locals.set_arg<0>(get_call_frame());
 				auto locals = c_get_locals.call();
 				movq(locals, reg);
-				return AsmValue<VALUE*>(address(reg, index * sizeof(Value)));
+				return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
 			} else {
 				// local in parent scope
 				auto c_get_locals = call(snow::get_locals_from_higher_lexical_scope);
@@ -518,14 +561,14 @@ namespace snow {
 				c_get_locals.set_arg<1>(level);
 				auto locals = c_get_locals.call();
 				movq(locals, reg);
-				return AsmValue<VALUE*>(address(reg, index * sizeof(Value)));
+				return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
 			}
 		}
 		
 		// Look for module globals.
 		ssize_t global_idx = index_of(codegen.module_globals, name);
 		if (global_idx >= 0) {
-			return AsmValue<VALUE*>(global(global_idx));
+			return AsmValue<VALUE>(global(global_idx));
 		}
 		
 		if (can_define) {
@@ -537,18 +580,18 @@ namespace snow {
 				c_get_locals.set_arg<0>(get_call_frame());
 				auto locals = c_get_locals.call();
 				movq(locals, reg);
-				return AsmValue<VALUE*>(address(reg, index * sizeof(Value)));
+				return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
 			} else {
 				global_idx = codegen.module_globals.size();
 				codegen.module_globals.push_back(name);
-				return AsmValue<VALUE*>(global(global_idx));
+				return AsmValue<VALUE>(global(global_idx));
 			}
 		} else {
-			return AsmValue<VALUE*>(); // Invalid operand.
+			return AsmValue<VALUE>(); // Invalid operand.
 		}
 	}
 	
-	bool Codegen::Function::compile_call(const ASTNode* node) {
+	AsmValue<VALUE> Codegen::Function::compile_call(const ASTNode* node) {
 		std::vector<std::pair<const ASTNode*, int> > args;
 		std::vector<Symbol> names;
 		
@@ -587,9 +630,13 @@ namespace snow {
 		for (size_t i = 0; i < args.size(); ++i) {
 			const ASTNode* x = args[i].first;
 			int idx = args[i].second;
-			if (!compile_ast_node(x)) return false;
+			auto r = compile_ast_node(x);
 			movq(args_ptr, REG_SCRATCH[0]);
-			movq(REG_RETURN, address(REG_SCRATCH[0], sizeof(VALUE) * idx));
+			if (r.is_memory()) {
+				movq(r, REG_SCRATCH[1]);
+				r.op = REG_SCRATCH[1];
+			}
+			movq(r, address(REG_SCRATCH[0], sizeof(VALUE) * idx));
 		}
 		
 		// Create name list.
@@ -601,20 +648,17 @@ namespace snow {
 		}
 		
 		if (node->call.object->type == ASTNodeTypeMethod) {
-			if (!compile_ast_node(node->call.object->method.object)) return false;
-			AsmValue<VALUE> result(REG_RETURN);
-			compile_method_call(result, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
+			auto object = compile_ast_node(node->call.object->method.object);
+			return compile_method_call(object, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
 		} else {
-			if (!compile_ast_node(node->call.object)) return false;
-			AsmValue<VALUE> result(REG_RETURN);
+			auto functor = compile_ast_node(node->call.object);
 			AsmValue<VALUE> self(REG_ARGS[1]);
-			xorq(self, self); // self = NULL
-			compile_call(result, self, args.size(), args_ptr, names.size(), names_ptr);
+			clear(self); // self = NULL
+			return compile_call(functor, self, args.size(), args_ptr, names.size(), names_ptr);
 		}
-		return true;
 	}
 	
-	void Codegen::Function::compile_call(const AsmValue<VALUE>& functor, const AsmValue<VALUE>& self, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names, const AsmValue<Symbol*>& names_ptr) {
+	AsmValue<VALUE> Codegen::Function::compile_call(const AsmValue<VALUE>& functor, const AsmValue<VALUE>& self, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names, const AsmValue<Symbol*>& names_ptr) {
 		if (num_names) {
 			ASSERT(num_args >= num_names);
 			auto c_call = call(ccall::call_with_named_arguments);
@@ -624,7 +668,7 @@ namespace snow {
 			c_call.set_arg<3>(names_ptr);
 			c_call.set_arg<4>(num_args);
 			c_call.set_arg<5>(args_ptr);
-			c_call.call();
+			return c_call.call();
 		} else {
 			auto c_call = call(ccall::call);
 			c_call.set_arg<0>(functor);
@@ -634,11 +678,11 @@ namespace snow {
 			else
 				c_call.clear_arg<2>();
 			c_call.set_arg<3>(args_ptr);
-			c_call.call();
+			return c_call.call();
 		}
 	}
 	
-	void Codegen::Function::compile_method_call(const AsmValue<VALUE>& in_self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names, const AsmValue<Symbol*>& names_ptr) {
+	AsmValue<VALUE> Codegen::Function::compile_method_call(const AsmValue<VALUE>& in_self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names, const AsmValue<Symbol*>& names_ptr) {
 		ASSERT(args_ptr.op.is_memory());
 		if (num_names) ASSERT(names_ptr.op.is_memory());
 		
@@ -647,7 +691,7 @@ namespace snow {
 		
 		AsmValue<VALUE> method(REG_ARGS[0]);
 		AsmValue<MethodType> type(REG_ARGS[4]);
-		compile_get_method_inline_cache(in_self, method_name, type, method);
+		compile_get_method_inline_cache(self, method_name, type, method);
 		auto c_call = call(ccall::call_method);
 		c_call.set_arg<0>(method);
 		c_call.set_arg<1>(self);
@@ -655,7 +699,7 @@ namespace snow {
 		c_call.set_arg<3>(args_ptr);
 		c_call.set_arg<4>(type);
 		c_call.set_arg<5>(method_name);
-		c_call.call();
+		return c_call.call();
 	}
 	
 	void Codegen::Function::compile_get_method_inline_cache(const AsmValue<VALUE>& object, Symbol name, const AsmValue<MethodType>& out_type, const AsmValue<VALUE>& out_method_getter) {

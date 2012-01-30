@@ -25,6 +25,7 @@ namespace snow {
 		operator const Operand&() const { return op; }
 		operator const Register&() const { ASSERT(!op.is_memory()); return op.reg; }
 		bool is_valid() const { return op.is_valid(); }
+		bool is_memory() const { return op.is_memory(); }
 	};
 	template <typename T>
 	struct AsmValue {
@@ -35,6 +36,7 @@ namespace snow {
 		operator const Operand&() const { return op; }
 		operator const Register&() const { ASSERT(!op.is_memory()); return op.reg; }
 		bool is_valid() const { return op.is_valid(); }
+		bool is_memory() const { return op.is_memory(); }
 	};
 	
 	template <typename R, typename... Args>
@@ -162,17 +164,17 @@ namespace snow {
 		void free_temporary(int);
 		AsmValue<VALUE> temporary(int);
 		
-		bool compile_function_body(const ASTNode* body_seq);
+		AsmValue<VALUE> compile_function_body(const ASTNode* body_seq);
 		void materialize_at(byte* destination);
 		
-		bool compile_ast_node(const ASTNode* node);
-		bool compile_assignment(const ASTNode* assign);
-		bool compile_call(const ASTNode* call);
-		void compile_call(const AsmValue<VALUE>& functor, const AsmValue<VALUE>& self, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
-		void compile_method_call(const AsmValue<VALUE>& self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
+		AsmValue<VALUE> compile_ast_node(const ASTNode* node);
+		AsmValue<VALUE> compile_assignment(const ASTNode* assign);
+		AsmValue<VALUE> compile_call(const ASTNode* call);
+		AsmValue<VALUE> compile_call(const AsmValue<VALUE>& functor, const AsmValue<VALUE>& self, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
+		AsmValue<VALUE> compile_method_call(const AsmValue<VALUE>& self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
 		void compile_get_method_inline_cache(const AsmValue<VALUE>& self, Symbol name, const AsmValue<MethodType>& out_type, const AsmValue<VALUE>& out_method);
 		void compile_get_index_of_field_inline_cache(const AsmValue<VALUE>& self, Symbol name, const AsmValue<int32_t>& target, bool can_define = false);
-		AsmValue<VALUE*> compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
+		AsmValue<VALUE> compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
 		Function* compile_function(const ASTNode* function);
 		bool perform_inlining(void* callee);
 		void call_direct(void* callee);
@@ -195,6 +197,12 @@ namespace snow {
 		
 		AsmValue<InstanceVariableCacheLine*> get_ivar_cache() const {
 			return AsmValue<InstanceVariableCacheLine*>(REG_IVAR_CACHE);
+		}
+		
+		template <typename T>
+		void clear(const AsmValue<T>& v) {
+			ASSERT(!v.is_memory());
+			xorq(v, v);
 		}
 	};
 	

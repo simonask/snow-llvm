@@ -12,7 +12,7 @@ namespace snow {
 	static const Register REG_CALL_FRAME   = R12;
 	static const Register REG_METHOD_CACHE = R13;
 	static const Register REG_IVAR_CACHE   = R14;
-	static const Register REG_SCRATCH[]    = { R10, R11 };
+	static const Register REG_SCRATCH[]    = { R10, R11, RDI, RSI, RDX, RCX, R8, R9, RAX };
 	static const Register REG_PRESERVED_SCRATCH[] = { RBX, R15 };
 }
 

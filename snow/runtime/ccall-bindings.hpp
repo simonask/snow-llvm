@@ -51,7 +51,7 @@ namespace snow {
 			snow::array_push(array, value);
 		}
 		
-		Object* create_function_for_descriptor(const FunctionDescriptor* descriptor, VALUE definition_environment) {
+		VALUE create_function_for_descriptor(const FunctionDescriptor* descriptor, VALUE definition_environment) {
 			return snow::create_function_for_descriptor(descriptor, definition_environment);
 		}
 		

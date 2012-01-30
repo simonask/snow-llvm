@@ -20,7 +20,8 @@ namespace snow {
 		Function* function = new Function(*this);
 		_functions.push_back(function);
 		_entry = function;
-		return function->compile_function_body(ast->_root);
+		function->compile_function_body(ast->_root);
+		return true;
 	}
 	
 	size_t Codegen::compiled_size() const {
