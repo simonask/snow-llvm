@@ -7,6 +7,7 @@
 struct SnObject;
 
 #define countof(X) (sizeof(X)/sizeof(X[0]))
+#define UNSAFE_OFFSET_OF(TYPE, FIELD) (size_t)(&((const TYPE*)NULL)->FIELD)
 
 #ifdef DEBUG
 #define DEBUG_PRINT(fmt, ...) snow_printf(fmt, __VA_ARGS__, NULL)
