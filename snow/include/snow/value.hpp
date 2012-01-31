@@ -58,7 +58,9 @@ namespace snow {
 	public:
 		Value() : value_(NULL) {}
 		Value(VALUE val) : value_(NULL) { assign(val); }
+        struct Null;
 		explicit Value(const Value& other) : value_(other.value_) {}
+        Value& operator=(Null* null) { value_ = nullptr; return *this; }
 		Value& operator=(const Value& other) { value_ = other.value_; return *this; }
 		VALUE value() const { return value_; }
 		operator VALUE() const { return value_; }
