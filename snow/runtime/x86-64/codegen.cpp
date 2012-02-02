@@ -33,6 +33,42 @@ namespace snow {
 		return accum;
 	}
 	
+	size_t Codegen::materialize_function_descriptor(Function* f, byte* destination, size_t offset) {
+		f->materialized_descriptor_offset = offset;
+			
+		FunctionDescriptor* descriptor = (FunctionDescriptor*)(destination + offset);
+		offset += sizeof(FunctionDescriptor);
+			
+		descriptor->ptr = 0; // linked later
+		descriptor->name = f->name;
+		descriptor->return_type = AnyType;
+		size_t num_params = f->param_names.size();
+		descriptor->num_params = num_params;
+		descriptor->param_types = (ValueType*)(destination + offset);
+		offset += sizeof(ValueType) * num_params;
+		descriptor->param_names = (Symbol*)(destination + offset);
+		offset += sizeof(Symbol) * num_params;
+		for (size_t j = 0; j < num_params; ++j) {
+			descriptor->param_types[j] = AnyType; // TODO
+			descriptor->param_names[j] = f->param_names[j];
+		}
+			
+		size_t num_locals = f->local_names.size();
+		descriptor->num_locals = num_locals;
+		descriptor->local_names = (Symbol*)(destination + offset);
+		offset += sizeof(Symbol) * num_locals;
+		for (size_t j = 0; j < num_locals; ++j) {
+			descriptor->local_names[j] = f->local_names[j];
+		}
+			
+		descriptor->num_variable_references = 0; // TODO
+		descriptor->variable_references = NULL;
+			
+		descriptor->num_method_calls = f->num_method_calls;
+		descriptor->num_instance_variable_accesses = f->num_instance_variable_accesses;
+		return offset;
+	}
+	
 	size_t Codegen::materialize_at(byte* destination) {
 		size_t offset = 0;
 		
@@ -43,38 +79,7 @@ namespace snow {
 		// materialize function descriptors
 		for (size_t i = 0; i < _functions.size(); ++i) {
 			Function* f = _functions[i];
-			f->materialized_descriptor_offset = offset;
-			
-			FunctionDescriptor* descriptor = (FunctionDescriptor*)(destination + offset);
-			offset += sizeof(FunctionDescriptor);
-			
-			descriptor->ptr = 0; // linked later
-			descriptor->name = f->name;
-			descriptor->return_type = AnyType;
-			size_t num_params = f->param_names.size();
-			descriptor->num_params = num_params;
-			descriptor->param_types = (ValueType*)(destination + offset);
-			offset += sizeof(ValueType) * num_params;
-			descriptor->param_names = (Symbol*)(destination + offset);
-			offset += sizeof(Symbol) * num_params;
-			for (size_t j = 0; j < num_params; ++j) {
-				descriptor->param_types[j] = AnyType; // TODO
-				descriptor->param_names[j] = f->param_names[j];
-			}
-			
-			size_t num_locals = f->local_names.size();
-			descriptor->num_locals = num_locals;
-			descriptor->local_names = (Symbol*)(destination + offset);
-			offset += sizeof(Symbol) * num_locals;
-			for (size_t j = 0; j < num_locals; ++j) {
-				descriptor->local_names[j] = f->local_names[j];
-			}
-			
-			descriptor->num_variable_references = 0; // TODO
-			descriptor->variable_references = NULL;
-			
-			descriptor->num_method_calls = f->num_method_calls;
-			descriptor->num_instance_variable_accesses = f->num_instance_variable_accesses;
+			offset = materialize_function_descriptor(f, destination, offset);
 		}
 		
 		std::vector<Function::FunctionDescriptorReference> descriptor_references;

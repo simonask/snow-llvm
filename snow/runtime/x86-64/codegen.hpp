@@ -28,6 +28,8 @@ namespace snow {
 		friend class Function;
 		Function* _entry;
 		std::vector<Function*> _functions;
+		
+		size_t materialize_function_descriptor(Function* f, byte* destination, size_t offset);
 	};
 }
 
