@@ -39,9 +39,8 @@ namespace snow {
 		snow::string_copy_to(str, buffer, sz);
 		buffer[sz] = '\0';
 		
+		#if defined(DEBUG)
 		fprintf(stderr, "SNOW: Throwing exception: %s\n", buffer);
-		#if DEBUG
-		TRAP();
 		#endif
 		throw snow::Exception(ex);
 	}
