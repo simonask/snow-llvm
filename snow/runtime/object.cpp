@@ -141,6 +141,7 @@ namespace snow {
 		static Value* root = NULL;
 		if (!root) {
 			ObjectPtr<Class> cls = create_class(snow::sym("Object"), NULL);
+			root = gc_create_root(cls);
 			SN_DEFINE_METHOD(cls, "inspect", object_inspect);
 			SN_DEFINE_METHOD(cls, "to_string", object_inspect);
 			SN_DEFINE_METHOD(cls, "instance_eval", object_instance_eval);
@@ -152,7 +153,6 @@ namespace snow {
 			//SN_DEFINE_METHOD(cls, "set_missing_property", object_set_missing_property);
 			SN_DEFINE_PROPERTY(cls, "class", object_get_class, NULL);
 			SN_DEFINE_PROPERTY(cls, "object_id", object_get_object_id, NULL);
-			root = gc_create_root(cls);
 		}
 		return *root;
 	}
