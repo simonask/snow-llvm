@@ -32,6 +32,7 @@ namespace snow {
 	};
 	
 	ObjectPtr<Function> create_function_for_descriptor(const FunctionDescriptor* descriptor, ObjectPtr<Environment> definition_frame);
+	ObjectPtr<Function> create_function_for_module_entry(const FunctionDescriptor* descriptor, AnyObjectPtr module);
 }
 
 #endif /* end of include guard: FUNCTION_INTERNAL_HPP_U4QUBRPT */

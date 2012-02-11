@@ -8,6 +8,7 @@
 #include "snow/class.hpp"
 #include "snow/exception.hpp"
 #include "snow/array.hpp"
+#include "snow/module.hpp"
 #include "inline-cache.hpp"
 
 namespace snow {
@@ -17,6 +18,7 @@ namespace snow {
 		Value** variable_references;
 		MethodCacheLine* method_cache_lines; // size = descriptor->num_method_calls;
 		InstanceVariableCacheLine* instance_variable_cache_lines; // size = descriptor->num_instance_variable_accesses;
+		AnyObjectPtr module;
 		
 		Function() : descriptor(NULL), variable_references(NULL), method_cache_lines(NULL), instance_variable_cache_lines(NULL) {}
 		~Function() {
@@ -76,16 +78,32 @@ namespace snow {
 		ObjectPtr<Function> function = create_object(get_function_class(), 0, NULL);
 		function->descriptor = descriptor;
 		function->definition_scope = definition_scope;
-		if (descriptor->num_variable_references) {
-			function->variable_references = new Value*[descriptor->num_variable_references];
-			// TODO: Set up references
-		}
 		if (descriptor->num_method_calls) {
 			function->method_cache_lines = new MethodCacheLine[descriptor->num_method_calls];
 		}
 		if (descriptor->num_instance_variable_accesses) {
 			function->instance_variable_cache_lines = new InstanceVariableCacheLine[descriptor->num_instance_variable_accesses];
 		}
+		if (definition_scope != NULL) {
+			function->module = definition_scope->function->module;
+		} else {
+			function->module = get_global_module();
+		}
+		
+		return function;
+	}
+	
+	ObjectPtr<Function> create_function_for_module_entry(const FunctionDescriptor* descriptor, AnyObjectPtr module) {
+		ASSERT(module != NULL);
+		ObjectPtr<Function> function = create_object(get_function_class(), 0, NULL);
+		function->descriptor = descriptor;
+		if (descriptor->num_method_calls) {
+			function->method_cache_lines = new MethodCacheLine[descriptor->num_method_calls];
+		}
+		if (descriptor->num_instance_variable_accesses) {
+			function->instance_variable_cache_lines = new InstanceVariableCacheLine[descriptor->num_instance_variable_accesses];
+		}
+		function->module = module;
 		return function;
 	}
 	
@@ -239,7 +257,8 @@ namespace snow {
 	Value function_call(ObjectPtr<Function> function, CallFrame* frame) {
 		const SnArguments* args = frame->args;
 		// Allocate locals
-		size_t num_locals = function->descriptor->num_locals;
+		const FunctionDescriptor* descriptor = function->descriptor;
+		size_t num_locals = descriptor->num_locals;
 		SN_STACK_ARRAY(Value, locals, num_locals);
 		// initialize call frame for use with this function
 		frame->function = function;
@@ -252,8 +271,7 @@ namespace snow {
 
 		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
-		FunctionPtr fptr = function->descriptor->ptr;
-		return fptr(frame, frame->self, args->size ? args->data[0] : NULL);
+		return descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
 	}
 	
 	Symbol function_get_name(ObjectPtr<const Function> function) {
@@ -274,6 +292,10 @@ namespace snow {
 	
 	InstanceVariableCacheLine* function_get_instance_variable_cache_lines(ObjectPtr<const Function> function) {
 		return function->instance_variable_cache_lines;
+	}
+	
+	AnyObjectPtr function_get_module(ObjectPtr<const Function> function) {
+		return function->module;
 	}
 	
 	static VALUE method_proxy_call(const CallFrame* here, VALUE self, VALUE it) {

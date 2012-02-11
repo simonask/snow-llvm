@@ -47,6 +47,7 @@ namespace snow {
 	ObjectPtr<Environment> function_get_definition_scope(ObjectPtr<const Function> function);
 	MethodCacheLine* function_get_method_cache_lines(ObjectPtr<const Function> function);
 	InstanceVariableCacheLine* function_get_instance_variable_cache_lines(ObjectPtr<const Function> function);
+	AnyObjectPtr function_get_module(ObjectPtr<const Function> function);
 	
 	// Convenience for currying `self`.
 	AnyObjectPtr create_method_proxy(Value self, Value method);

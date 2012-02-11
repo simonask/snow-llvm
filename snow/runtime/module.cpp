@@ -171,7 +171,7 @@ namespace snow {
 				snow::CodeModule* code = snow::get_code_manager()->compile_ast(ast, m->source.c_str(), get_module_name(path).c_str());
 				if (code) {
 					get_module_list()->push_back(m);
-					m->entry = snow::create_function_for_descriptor(code->entry, NULL);
+					m->entry = snow::create_function_for_module_entry(code->entry, mod);
 
 					// Call module entry
 					static SnArguments args = {}; // zero arguments
