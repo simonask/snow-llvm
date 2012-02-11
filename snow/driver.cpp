@@ -18,6 +18,6 @@ int main (int argc, char* const* argv) {
 	}
 	catch (...) {
 		fprintf(stderr, "Unknown exception caught, aborting!\n");
-		abort();
+		throw;
 	}
 }
