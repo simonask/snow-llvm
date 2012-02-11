@@ -69,7 +69,20 @@ namespace snow {
 			return snow::call_with_named_arguments(functor, self, num_names, names, num_args, vargs);
 		}
 		
+		VALUE set_global(CallFrame* frame, Symbol name, VALUE val) {
+			AnyObjectPtr module = function_get_module(frame->function);
+			object_set_instance_variable(module, name, val);
+			return val;
+		}
+		
+		VALUE get_global(CallFrame* frame, Symbol name) {
+			AnyObjectPtr module = function_get_module(frame->function);
+			return object_get_instance_variable(module, name);
+		}
+		
 		VALUE local_missing(CallFrame* here, Symbol name) {
+			VALUE gl = get_global(here, name);
+			if (gl != NULL) return gl;
 			return snow::local_missing(here, name);
 		}
 		

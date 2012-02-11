@@ -5,6 +5,7 @@
 #include "asm.hpp"
 
 namespace snow {
+namespace x86_64 {
 	// Define calling convention. TODO: Define for Win32 as well.
 	static const Register REG_RETURN       = RAX;
 	static const Register REG_ARGS[]       = { RDI, RSI, RDX, RCX, R8, R9 };
@@ -14,6 +15,7 @@ namespace snow {
 	static const Register REG_IVAR_CACHE   = R14;
 	static const Register REG_SCRATCH[]    = { R10, R11, RDI, RSI, RDX, RCX, R8, R9, RAX };
 	static const Register REG_PRESERVED_SCRATCH[] = { RBX, R15 };
+}
 }
 
 #endif /* end of include guard: CCONV_HPP_8CIXGM8Q */

@@ -6,6 +6,7 @@
 #include <memory>
 
 namespace snow {
+namespace x86_64 {
 	inline int Codegen::Function::alloc_temporary() {
 		if (temporaries_freelist.size()) {
 			int tmp = temporaries_freelist.back();
@@ -24,9 +25,11 @@ namespace snow {
 	}
 	
 	AsmValue<VALUE> Codegen::Function::compile_function_body(const ASTNode* body_seq) {
+		materialized_code_offset = get_current_offset();
 		pushq(RBP);
 		movq(RSP, RBP);
-		size_t stack_size_offset1 = subq(PLACEHOLDER_IMM32, RSP);
+		Fixup& stack_size_offset = subq(RSP);
+		stack_size_offset.type = CodeBuffer::FixupAbsolute;
 		
 		// Back up preserved registers
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
@@ -48,12 +51,12 @@ namespace snow {
 		
 		AsmValue<VALUE> result(REG_RETURN);
 		clear(result); // always clear return register, so empty functions return nil.
-		return_label = label();
+		return_label = &declare_label("return");
 		
 		result = compile_ast_node(body_seq);
 		
 		// Restore preserved registers and return
-		bind_label(return_label);
+		label(*return_label);
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
 			popq(REG_PRESERVE[countof(REG_PRESERVE)-i-1]);
 		}
@@ -64,12 +67,24 @@ namespace snow {
 		int stack_size = (num_temporaries) * sizeof(VALUE);
 		size_t pad = stack_size % 16;
 		if (pad != 8) stack_size += 8;
-		for (size_t i = 0; i < 4; ++i) {
-			code()[stack_size_offset1+i] = reinterpret_cast<byte*>(&stack_size)[i];
-		}
+		stack_size_offset.value = stack_size;
 		
 		return result;
 	}
+	
+	/*void Codegen::Function::emit_eh_table() {
+		size_t fstart = 0;
+		size_t fend = get_current_offset();
+		
+		while ((get_current_offset() % 4) != 0) emit(0x90);
+		
+		size_t cie_start = get_current_offset();
+		size_t cie_length_offset = cie_start;
+		emit_immediate(PLACEHOLDER_IMM32, 4); // size
+		emit(dwarf::DW_CIE_VERSION);          // version
+		emit('z');
+		emit('R');
+	}*/
 	
 	AsmValue<VALUE> Codegen::Function::compile_ast_node(const ASTNode* node) {
 		switch (node->type) {
@@ -94,11 +109,10 @@ namespace snow {
 				auto c_env = call(ccall::call_frame_environment);
 				c_env.set_arg<0>(get_call_frame());
 				auto env = c_env.call();
-				FunctionDescriptorReference ref;
 				AsmValue<const FunctionDescriptor*> desc(REG_ARGS[0]);
-				ref.offset = movq(PLACEHOLDER_IMM64, REG_ARGS[0]);
-				ref.function = f;
-				function_descriptor_references.push_back(ref);
+				Fixup& fixup = movq(desc); // TODO: Use RIP-relative
+				fixup.type = CodeBuffer::FixupAbsolute;
+				function_descriptor_references.emplace_back(fixup, f);
 				auto c_func = call(ccall::create_function_for_descriptor);
 				c_func.set_arg<0>(desc);
 				c_func.set_arg<1>(env);
@@ -110,7 +124,7 @@ namespace snow {
 					auto r = compile_ast_node(node->return_expr.value);
 					movq(r, result);
 				}
-				jmp(return_label);
+				jmp(*return_label);
 				return result;
 			}
 			case ASTNodeTypeIdentifier: {
@@ -149,8 +163,8 @@ namespace snow {
 				AsmValue<MethodType> method_type(RAX);
 				AsmValue<VALUE> method(REG_ARGS[0]);
 				compile_get_method_inline_cache(object, node->method.name, method_type, method);
-				Label* get_method = label();
-				Label* after = label();
+				Label& get_method = declare_label("get_method");
+				Label& after = declare_label("after_get_method");
 				
 				cmpb(MethodTypeFunction, method_type);
 				j(CC_EQUAL, get_method);
@@ -167,7 +181,7 @@ namespace snow {
 				
 				{
 					// get method proxy wrapper
-					bind_label(get_method);
+					label(get_method);
 					auto c_create_method_proxy = call(ccall::create_method_proxy);
 					c_create_method_proxy.set_arg<0>(self);
 					c_create_method_proxy.set_arg<1>(method);
@@ -176,7 +190,7 @@ namespace snow {
 					// jmp(after);
 				}
 				
-				bind_label(after);
+				label(after);
 				return result;
 			}
 			case ASTNodeTypeInstanceVariable: {
@@ -219,8 +233,8 @@ namespace snow {
 				return compile_method_call(self, snow::sym("get"), num_args, args_ptr);
 			}
 			case ASTNodeTypeAnd: {
-				Label* left_true = label();
-				Label* after = label();
+				Label& left_true = declare_label();
+				Label& after = declare_label();
 				
 				auto left = compile_ast_node(node->logic_and.left);
 				AsmValue<VALUE> preserve_left(REG_PRESERVED_SCRATCH[0]);
@@ -234,16 +248,16 @@ namespace snow {
 				movq(preserve_left, result);
 				jmp(after);
 				
-				bind_label(left_true);
+				label(left_true);
 				auto r = compile_ast_node(node->logic_and.right);
 				movq(r, result);
 
-				bind_label(after);
+				label(after);
 				return result;
 			}
 			case ASTNodeTypeOr: {
-				Label* left_false = label();
-				Label* after = label();
+				Label& left_false = declare_label("or_left_is_false");
+				Label& after = declare_label("or_after");
 				
 				auto left = compile_ast_node(node->logic_or.left);
 				AsmValue<VALUE> preserve_left(REG_PRESERVED_SCRATCH[0]);
@@ -257,17 +271,17 @@ namespace snow {
 				movq(preserve_left, result);
 				jmp(after);
 				
-				bind_label(left_false);
+				label(left_false);
 				auto r = compile_ast_node(node->logic_or.right);
 				movq(r, result);
 
-				bind_label(after);
+				label(after);
 				return result;
 			}
 			case ASTNodeTypeXor: {
-				Label* equal_truth = label();
-				Label* after = label();
-				Label* left_is_true = label();
+				Label& equal_truth = declare_label("xor_equal_truth");
+				Label& after = declare_label("xor_after");
+				Label& left_is_true = declare_label("xor_left_is_true");
 				
 				auto left = compile_ast_node(node->logic_xor.left);
 				Temporary<VALUE> left_value(*this);
@@ -292,19 +306,19 @@ namespace snow {
 				movq(preserve_right, result); // previously saved right value
 				jmp(after);
 				
-				bind_label(left_is_true);
+				label(left_is_true);
 				movq(left_value, result);
 				jmp(after);
 				
-				bind_label(equal_truth);
+				label(equal_truth);
 				movq((uintptr_t)SN_FALSE, result);
 				
-				bind_label(after);
+				label(after);
 				return result;
 			}
 			case ASTNodeTypeNot: {
-				Label* truth = label();
-				Label* after = label();
+				Label& truth = declare_label("not_truth");
+				Label& after = declare_label("not_after");
 				
 				auto result = compile_ast_node(node->logic_not.expr);
 				auto c_is_truthy = call(snow::is_truthy);
@@ -316,17 +330,17 @@ namespace snow {
 				movq((uintptr_t)SN_TRUE, ret);
 				jmp(after);
 				
-				bind_label(truth);
+				label(truth);
 				movq((uintptr_t)SN_FALSE, ret);
 				
-				bind_label(after);
+				label(after);
 				return ret;
 			}
 			case ASTNodeTypeLoop: {
-				Label* cond = label();
-				Label* after = label();
+				Label& cond = declare_label("loop_cond");
+				Label& after = declare_label("loop_after");
 				
-				bind_label(cond);
+				label(cond);
 				AsmValue<VALUE> ret(REG_RETURN);
 				auto result = compile_ast_node(node->loop.cond);
 				movq(result, ret);
@@ -340,7 +354,7 @@ namespace snow {
 				movq(body_result, ret);
 				jmp(cond);
 				
-				bind_label(after);
+				label(after);
 				return ret;
 			}
 			case ASTNodeTypeBreak: {
@@ -353,8 +367,8 @@ namespace snow {
 				return AsmValue<VALUE>();
 			}
 			case ASTNodeTypeIfElse: {
-				Label* else_body = label();
-				Label* after = label();
+				Label& else_body = declare_label("if_else_body");
+				Label& after = declare_label("if_after");
 				
 				AsmValue<VALUE> ret(REG_RETURN);
 				auto cond = compile_ast_node(node->if_else.cond);
@@ -369,13 +383,13 @@ namespace snow {
 				
 				if (node->if_else.else_body) {
 					jmp(after);
-					bind_label(else_body);
+					label(else_body);
 					auto else_result = compile_ast_node(node->if_else.else_body);
 					movq(else_result, ret);
 				} else {
-					bind_label(else_body);
+					label(else_body);
 				}
-				bind_label(after);
+				label(after);
 				return ret;
 			}
 			default: {
@@ -419,7 +433,7 @@ namespace snow {
 			// If this is the last target, and there are several remaining
 			// values, put the rest of them in an array, and assign that.
 			if (i == num_targets-1 && num_values > num_targets) {
-				size_t num_remaining = num_values - num_targets + 1;
+				uint64_t num_remaining = num_values - num_targets + 1;
 				auto c_create_array_with_size = call(ccall::create_array_with_size);
 				c_create_array_with_size.set_arg<0>(num_remaining);
 				auto array_r = c_create_array_with_size.call();
@@ -490,11 +504,23 @@ namespace snow {
 				}
 				case ASTNodeTypeIdentifier: {
 					auto local_addr = compile_get_address_for_local(REG_SCRATCH[0], target->identifier.name, true);
-					ASSERT(local_addr.is_valid());
-					AsmValue<VALUE> val(REG_RETURN);
-					movq(values[i], val);
-					movq(val, local_addr);
-					movq(val, ret);
+					if (local_addr.is_valid()) {
+						AsmValue<VALUE> val(REG_RETURN);
+						movq(values[i], val);
+						movq(val, local_addr);
+						movq(val, ret);
+					} else {
+						// we can define a global!
+						int32_t idx = index_of(codegen.module_globals, target->identifier.name);
+						if (idx < 0) {
+							codegen.module_globals.push_back(target->identifier.name);
+						}
+						auto c_set_global = call(ccall::set_global);
+						c_set_global.set_arg<0>(get_call_frame());
+						c_set_global.set_arg<1>(target->identifier.name);
+						c_set_global.set_arg<2>(values[i]);
+						movq(c_set_global.call(), ret);
+					}
 					break;
 				}
 				case ASTNodeTypeMethod: {
@@ -530,6 +556,7 @@ namespace snow {
 			}
 		}
 		f->compile_function_body(function->closure.body);
+		f->compile_function_descriptor();
 		Function* final_function = f.release();
 		codegen._functions.push_back(final_function);
 		return final_function;
@@ -568,27 +595,22 @@ namespace snow {
 		// Look for module globals.
 		ssize_t global_idx = index_of(codegen.module_globals, name);
 		if (global_idx >= 0) {
-			return AsmValue<VALUE>(global(global_idx));
+			// a module-level variable was found, but we can't find the address of those,
+			// but we also don't want to define a local in this scope, so return invalid operand.
+			return AsmValue<VALUE>();
 		}
 		
-		if (can_define) {
-			if (parent) {
-				// if we're not in module global scope, define a regular local
-				index = local_names.size();
-				local_names.push_back(name);
-				auto c_get_locals = call(ccall::call_frame_get_locals);
-				c_get_locals.set_arg<0>(get_call_frame());
-				auto locals = c_get_locals.call();
-				movq(locals, reg);
-				return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
-			} else {
-				global_idx = codegen.module_globals.size();
-				codegen.module_globals.push_back(name);
-				return AsmValue<VALUE>(global(global_idx));
-			}
-		} else {
-			return AsmValue<VALUE>(); // Invalid operand.
+		if (can_define && parent != NULL) {
+			// if we're not in module global scope, define a regular local
+			index = local_names.size();
+			local_names.push_back(name);
+			auto c_get_locals = call(ccall::call_frame_get_locals);
+			c_get_locals.set_arg<0>(get_call_frame());
+			auto locals = c_get_locals.call();
+			movq(locals, reg);
+			return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
 		}
+		return AsmValue<VALUE>(); // Invalid operand.
 	}
 	
 	AsmValue<VALUE> Codegen::Function::compile_call(const ASTNode* node) {
@@ -766,7 +788,7 @@ namespace snow {
 				// val != NULL && val != SN_NIL && val != SN_FALSE;
 				auto input = REG_ARGS[0];
 				auto scratch = REG_SCRATCH[0];
-				Label* done = label();
+				Label& done = declare_label("is_truthy_after");
 				
 				movq(input, scratch);
 				orq((uintptr_t)SN_NIL, scratch);
@@ -775,7 +797,7 @@ namespace snow {
 				j(CC_EQUAL, done);
 				cmpq((uintptr_t)SN_FALSE, input);
 				setb(CC_NOT_EQUAL, REG_RETURN);
-				bind_label(done);
+				label(done);
 				
 				return true;
 			}
@@ -783,25 +805,73 @@ namespace snow {
 		return false;
 	}
 	
-	void Codegen::Function::call_direct(void* callee) {
+	void Codegen::Function::call_or_inline(void* callee) {
 		if (!perform_inlining(callee)) {
-			DirectCall dc;
-			dc.offset = Asm::call(0);
-			dc.callee = callee;
-			direct_calls.push_back(dc);
+			Asm::call(callee);
 		}
 	}
 	
-	void Codegen::Function::call_indirect(void* callee) {
-		movq((uintptr_t)callee, REG_SCRATCH[0]);
-		Asm::call(REG_SCRATCH[0]);
+	void Codegen::Function::materialize_at(byte* destination, size_t max_size) {
+		render_at(destination, max_size);
+		materialized_descriptor = reinterpret_cast<FunctionDescriptor*>(destination + materialized_descriptor_offset);
+		materialized_code = destination + materialized_code_offset;
 	}
 	
-	void Codegen::Function::materialize_at(byte* destination) {
-		link_labels();
+	void Codegen::Function::compile_function_descriptor() {
+		/*
+		struct FunctionDescriptor {
+			FunctionPtr ptr;
+			Symbol name;
+			ValueType return_type;
+			size_t num_params;
+			ValueType* param_types;
+			Symbol* param_names;
+			Symbol* local_names;
+			uint32_t num_locals; // num_locals >= num_params (locals include arguments)
+			size_t num_variable_references;
+			VariableReference* variable_references;
+
+			// for inline cache management
+			size_t num_method_calls;
+			size_t num_instance_variable_accesses;
+		};
+		*/
 		
-		for (size_t i = 0; i < code().size(); ++i) {
-			destination[i] = code()[i];
+		align_to(8);
+		materialized_descriptor_offset = get_current_offset();
+		auto fixup_function_ptr = emit_pointer_to_offset();
+		emit_u64(name);
+		emit_u32(AnyType);
+		emit_u64(param_names.size());
+		auto fixup_param_types_ptr = emit_pointer_to_offset();
+		auto fixup_param_names_ptr = emit_pointer_to_offset();
+		auto fixup_local_names_ptr = emit_pointer_to_offset();
+		emit_u32(local_names.size());
+		emit_u64(0); // num_variable_references (unused!)
+		emit_u64(0); // variable_references (unused!)
+		emit_u64(num_method_calls);
+		emit_u64(num_instance_variable_accesses);
+		
+		align_to(8);
+		
+		fixup_param_names_ptr.value = get_current_offset();
+		for (auto it = param_names.begin(); it != param_names.end(); ++it) {
+			emit_u64(*it);
 		}
+		
+		fixup_local_names_ptr.value = get_current_offset();
+		for (auto it = local_names.begin(); it != local_names.end(); ++it) {
+			emit_u64(*it);
+		}
+		
+		fixup_param_types_ptr.value = get_current_offset();
+		for (auto it = param_names.begin(); it != param_names.end(); ++it) {
+			emit_u32(AnyType);
+		}
+		
+		align_to(8);
+		
+		fixup_function_ptr.value = materialized_code_offset; // Code is at the beginning of the buffer.
 	}
+}
 }

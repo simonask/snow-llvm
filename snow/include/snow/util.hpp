@@ -6,6 +6,7 @@
 #include "snow/value.hpp"
 #include "snow/gc.hpp"
 #include <new>
+#include <type_traits>
 
 namespace snow {
 	template <typename T>
@@ -171,6 +172,35 @@ namespace snow {
 	template <bool COND> struct StaticAssertion;
 	template <> struct StaticAssertion<true> { static const int RESULT = 1; };
 	#define SN_STATIC_ASSERT(COND) enum { _SN_STATIC_ASSERTION__ ## __LINE__ = snow::StaticAssertion<(bool)(COND)>::RESULT };
+	
+	template <bool Condition, typename T = void>
+	struct EnableIfImpl { typedef T Type; };
+	template <typename T>
+	struct EnableIfImpl<false, T> {};
+	template <class Condition, typename T = void>
+	struct EnableIf : public EnableIfImpl<Condition::value, T> {};
+	#define SN_ENABLE_MEMBER_IF(COND) template <typename EnableIf<COND, int>::Type = 0>
+	
+	
+	template <typename Owner, typename T>
+	struct ReadOnly {
+		template <typename... Args>
+		explicit ReadOnly(Args... args) : value_(args...) {}
+		
+		operator const T&() const { return value_; }
+		const T* operator&() const { return &value_; }
+	private:
+		T value_;
+		friend Owner;
+		template <typename U>
+		auto operator=(const U& x) -> decltype(value_=x) { return value_ = x; }
+		//operator T&() { return value_; }
+		T* operator&() { return &value_; }
+		T* operator->() { return &value_; }
+		
+		T& operator++() { return ++value_; }
+		T operator++(int) { return value_++; }
+	};
 }
 
 #endif /* end of include guard: UTIL_HPP_A83WWPWN */

@@ -184,10 +184,6 @@ namespace snow {
 					};
 					Value result = function_call(m->entry, &frame);
 					object_set_instance_variable(mod, snow::sym("__module_value__"), result);
-					// Import module globals
-					for (size_t i = 0; i < code->num_globals; ++i) {
-						object_set_instance_variable(mod, code->global_names[i], code->globals[i]);
-					}
 					return m;
 				}
 			}

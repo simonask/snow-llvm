@@ -14,7 +14,7 @@ namespace snow {
 		bool operator==(const VariableReference& other) const { return level == other.level && index == other.index; }
 	};
 	
-	struct FunctionDescriptor {
+	struct SN_PACKED FunctionDescriptor {
 		FunctionPtr ptr;
 		Symbol name;
 		ValueType return_type;

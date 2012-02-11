@@ -16,12 +16,12 @@ namespace snow {
 	public:
 		CodeModule* compile_ast(const ASTBase* ast, const char* source, const char* module_name)
 		{
-			CodegenSettings settings = {
+			x86_64::CodegenSettings settings = {
 				.use_inline_cache = true,
 				.perform_inlining = true,
 			};
 			
-			Codegen codegen(settings);
+			x86_64::Codegen codegen(settings);
 			if (codegen.compile_ast(ast)) {
 				CodeModule* mod = new CodeModule(module_name);
 				mod->code_size = codegen.compiled_size();
