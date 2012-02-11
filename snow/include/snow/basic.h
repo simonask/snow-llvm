@@ -14,6 +14,7 @@
 #define NO_INLINE __attribute__((noinline))
 #define HIDDEN __attribute__((visibility("hidden")))
 #define SENTINEL __attribute__((sentinel))
+#define SN_PACKED __attribute__((packed))
 
 #ifndef byte
 typedef unsigned char byte;
