@@ -184,6 +184,7 @@ namespace snow {
 		static const Register R13 = {5, 1};
 		static const Register R14 = {6, 1};
 		static const Register R15 = {7, 1};
+		static const Register RIP = {8, 0}; // invalid for regular operations
 		
 		class Asm : public CodeBuffer {
 		public:

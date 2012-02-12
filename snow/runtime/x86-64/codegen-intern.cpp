@@ -1,5 +1,6 @@
 #include "codegen-intern.hpp"
 #include "../ccall-bindings.hpp"
+#include "dwarf.hpp"
 
 #include "snow/exception.hpp"
 
@@ -69,22 +70,13 @@ namespace x86_64 {
 		if (pad != 8) stack_size += 8;
 		stack_size_offset.value = stack_size;
 		
+		materialized_code_length = get_current_offset() - materialized_code_offset;
+		
+		compile_function_descriptor();
+		compile_eh_frame();
+		
 		return result;
 	}
-	
-	/*void Codegen::Function::emit_eh_table() {
-		size_t fstart = 0;
-		size_t fend = get_current_offset();
-		
-		while ((get_current_offset() % 4) != 0) emit(0x90);
-		
-		size_t cie_start = get_current_offset();
-		size_t cie_length_offset = cie_start;
-		emit_immediate(PLACEHOLDER_IMM32, 4); // size
-		emit(dwarf::DW_CIE_VERSION);          // version
-		emit('z');
-		emit('R');
-	}*/
 	
 	AsmValue<VALUE> Codegen::Function::compile_ast_node(const ASTNode* node) {
 		switch (node->type) {
@@ -556,7 +548,6 @@ namespace x86_64 {
 			}
 		}
 		f->compile_function_body(function->closure.body);
-		f->compile_function_descriptor();
 		Function* final_function = f.release();
 		codegen._functions.push_back(final_function);
 		return final_function;
@@ -815,6 +806,7 @@ namespace x86_64 {
 		render_at(destination, max_size);
 		materialized_descriptor = reinterpret_cast<FunctionDescriptor*>(destination + materialized_descriptor_offset);
 		materialized_code = destination + materialized_code_offset;
+		materialized_eh_frame = destination + materialized_eh_frame_offset;
 	}
 	
 	void Codegen::Function::compile_function_descriptor() {
@@ -872,6 +864,92 @@ namespace x86_64 {
 		align_to(8);
 		
 		fixup_function_ptr.value = materialized_code_offset; // Code is at the beginning of the buffer.
+	}
+	
+	void Codegen::Function::compile_eh_frame() {
+		static const int stack_growth = -(int)sizeof(void*);
+		
+		// Emit Exception Table
+		align_to(4);
+		size_t eh_table_offset = get_current_offset();
+		// Snow doesn't support syntactic try/catch, so we just need the bare minimum.
+		emit_u8(dwarf::DW_EH_PE_omit); // LPStart format
+		emit_u8(dwarf::DW_EH_PE_omit); // TType format
+		emit_u8(dwarf::DW_EH_PE_omit); // Call-site format
+		
+		// Emit CIE
+		align_to(4);
+		size_t cie_offset = get_current_offset();
+		Fixup& cie_length = emit_u32();
+		Fixup& cie_begin_ptr = emit_u32();
+		emit_u8(dwarf::DW_CIE_VERSION);
+		// personality:
+		emit_u8('z');
+		emit_u8('R');
+		emit_u8(0);
+		emit_uleb128(1);              // code align
+		emit_sleb128(stack_growth);   // data align = stack growth direction
+		emit_u8(dwarf::reg(RIP));     // return address register
+		emit_uleb128(1);              // ?? augmentation size?
+		emit_uleb128(dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4);
+		
+		// Emit CIE frame moves
+		// move: [rsp+8] -> CFA  // initial state of the frame pointer is rsp+stackgrowth
+		emit_u8(dwarf::DW_CFA_def_cfa);
+		emit_uleb128(dwarf::reg(RSP));
+		emit_uleb128(-stack_growth);
+		// move: rip -> [rsp+8]  // return address
+		emit_u8(dwarf::DW_CFA_offset_extended_sf);
+		emit_uleb128(dwarf::reg(RIP));
+		emit_uleb128(stack_growth);
+		
+		// Fixup CIE header
+		align_to(sizeof(void*), dwarf::DW_CFA_nop);
+		cie_length.type = FixupAbsolute;
+		cie_length.value = get_current_offset() - cie_begin_ptr.position;
+		
+		// Emit Exception Handling frame
+		materialized_eh_frame_offset = get_current_offset();
+		Fixup& eh_frame_length = emit_u32();
+		size_t eh_frame_begin_ptr = get_current_offset();
+		emit_s32(eh_frame_begin_ptr - cie_offset);    // FDE CIE offset
+		emit_s32((ssize_t)materialized_code_offset - get_current_offset());  // FDE function start
+		emit_s32(materialized_code_length);           // FDE function length
+		emit_uleb128(0);                              // number of landing pads = 0
+		
+		// Emit the location of callee saved registers in this frame
+		// pushq %rbp
+		emit_u8(dwarf::DW_CFA_advance_loc1);
+		emit_u8(1);
+		emit_u8(dwarf::DW_CFA_def_cfa_offset);
+		emit_uleb128(16);
+		emit_u8(dwarf::DW_CFA_offset_extended_sf);
+		emit_uleb128(dwarf::reg(RBP));
+		emit_sleb128(-16);
+		// movq %rsp, %rbp
+		emit_u8(dwarf::DW_CFA_advance_loc1);
+		emit_u8(3);
+		emit_u8(dwarf::DW_CFA_def_cfa_register);
+		emit_uleb128(dwarf::reg(RBP));
+		// all the preserved registers
+		emit_u8(dwarf::DW_CFA_advance_loc1);
+		emit_u8(9);
+		for (int i = 0; i < countof(REG_PRESERVE); ++i) {
+			int reg_offset = -56 + i * sizeof(void*);
+			emit_u8(dwarf::DW_CFA_offset_extended_sf);
+			emit_uleb128(dwarf::reg(REG_PRESERVE[i]));
+			emit_sleb128(reg_offset);
+		}
+		
+		// Fixup EH frame header
+		align_to(sizeof(void*), dwarf::DW_CFA_nop);
+		eh_frame_length.type = FixupAbsolute;
+		eh_frame_length.value = (int)get_current_offset() - materialized_eh_frame_offset;
+		
+		// LLVM does this, not sure why:
+		// Double zeroes for the unwind runtime.
+		emit_u64(0);
+		emit_u64(0);
 	}
 }
 }

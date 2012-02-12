@@ -15,6 +15,11 @@
 #include <algorithm>
 #include <tuple>
 
+extern "C" {
+	void __register_frame(void*);
+	void __deregister_frame(void*);
+}
+
 namespace snow {
 namespace x86_64 {
 	bool Codegen::compile_ast(const ASTBase* ast) {
@@ -22,7 +27,6 @@ namespace x86_64 {
 		_functions.push_back(function);
 		_entry = function;
 		function->compile_function_body(ast->_root);
-		function->compile_function_descriptor();
 		return true;
 	}
 	
@@ -50,7 +54,13 @@ namespace x86_64 {
 			size_t sz = (*it)->compiled_size();
 			(*it)->fixup_function_references(function_descriptors);
 			(*it)->materialize_at(destination + offset, sz);
-			offset += (*it)->compiled_size();
+			offset += sz;
+		}
+		
+		// Register exception handling frames
+		for (auto it = _functions.begin(); it != _functions.end(); ++it) {
+			byte* frame = (*it)->materialized_eh_frame;
+			__register_frame(frame);
 		}
 	}
 	

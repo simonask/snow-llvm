@@ -145,6 +145,9 @@ namespace x86_64 {
 		ReadOnly<Function, const FunctionDescriptor*> materialized_descriptor;
 		ReadOnly<Function, size_t> materialized_code_offset;
 		ReadOnly<Function, byte*>  materialized_code;
+		ReadOnly<Function, size_t> materialized_code_length;
+		ReadOnly<Function, size_t> materialized_eh_frame_offset;
+		ReadOnly<Function, byte*>  materialized_eh_frame;
 		
 		// Function descriptor information
 		ReadOnly<Function, Function*> parent;
@@ -172,6 +175,7 @@ namespace x86_64 {
 		Function* compile_function(const ASTNode* function);
 		AsmValue<VALUE> compile_function_body(const ASTNode* body_seq);
 		void compile_function_descriptor();
+		void compile_eh_frame();
 		void fixup_function_references(const std::map<Codegen::Function*, byte*>& function_descriptors);
 		
 		// Compilation (private API)
