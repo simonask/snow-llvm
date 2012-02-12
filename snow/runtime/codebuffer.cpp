@@ -33,7 +33,8 @@ namespace snow {
 			}
 			#endif
 			
-			memcpy(location + it->position, &value, it->size);
+			byte* src = reinterpret_cast<byte*>(&value);
+			std::copy(src, src + it->size, location + it->position);
 		}
 	}
 }
