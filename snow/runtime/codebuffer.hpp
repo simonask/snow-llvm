@@ -18,8 +18,10 @@ namespace snow {
 		
 		void emit_u8(byte b) { buffer.push_back(b); }
 		void emit_u32(uint32_t);
+		void emit_s32(int32_t);
 		void emit_u64(uint64_t);
 		void emit_uleb128(uint64_t);
+		void emit_sleb128(int64_t);
 		void align_to(size_t alignment, byte padding = 0x00);
 		
 		enum FixupType {
@@ -61,6 +63,12 @@ namespace snow {
 			emit_u8(p[i]);
 	}
 	
+	inline void CodeBuffer::emit_s32(int32_t n) {
+		byte* p = reinterpret_cast<byte*>(&n);
+		for (size_t i = 0; i < sizeof(n); ++i)
+			emit_u8(p[i]);
+	}
+	
 	inline void CodeBuffer::emit_u64(uint64_t n) {
 		byte* p = reinterpret_cast<byte*>(&n);
 		for (size_t i = 0; i < sizeof(n); ++i)
@@ -74,6 +82,18 @@ namespace snow {
 			if (n) b |= 0x80;
 			emit_u8(b);
 		} while (n);
+	}
+	
+	inline void CodeBuffer::emit_sleb128(int64_t n) {
+		int sign = n >> (8*sizeof(n) - 1);
+		bool more;
+		do {
+			byte b = (byte)(n & 0x7f);
+			n >>= 7;
+			more = n != sign || ((b ^ sign) & 0x40) != 0;
+			if (more) b |= 0x80;
+			emit_u8(b);
+		} while (more);
 	}
 	
 	inline void CodeBuffer::align_to(size_t alignment, byte padding) {
