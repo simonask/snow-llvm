@@ -140,14 +140,30 @@ namespace x86_64 {
 		
 		// Materialization (public)
 		void materialize_at(byte* destination, size_t max_size);
-		size_t compiled_size() const { return size(); }
+		size_t compiled_size() const { return size() + eh.buffer.size(); }
 		ReadOnly<Function, size_t> materialized_descriptor_offset;
 		ReadOnly<Function, const FunctionDescriptor*> materialized_descriptor;
 		ReadOnly<Function, size_t> materialized_code_offset;
 		ReadOnly<Function, byte*>  materialized_code;
 		ReadOnly<Function, size_t> materialized_code_length;
-		ReadOnly<Function, size_t> materialized_eh_frame_offset;
-		ReadOnly<Function, byte*>  materialized_eh_frame;
+		
+		// Exception handling info
+		struct {
+			CodeBuffer buffer;
+			Fixup* fde_cie_pointer;
+			Fixup* fde_function_pointer;
+			Fixup* fde_function_length;
+			ReadOnly<Function, size_t> materialized_eh_offset;
+			ReadOnly<Function, size_t> fde_cie_offset;
+			ReadOnly<Function, byte*>  materialized_fde_cie;
+			ReadOnly<Function, size_t> eh_frame_offset;
+			ReadOnly<Function, byte*>  materialized_eh_frame;
+			size_t last_label_offset;
+		} eh;
+		void eh_label();
+		void emit_eh_cie();
+		void emit_eh_define_location(Register reg, ssize_t offset);
+		void emit_eh_define_cfa(Register reg, size_t offset);
 		
 		// Function descriptor information
 		ReadOnly<Function, Function*> parent;

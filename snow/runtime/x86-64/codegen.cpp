@@ -4,6 +4,7 @@
 #include "../function-internal.hpp"
 #include "../inline-cache.hpp"
 #include "../internal.h"
+#include "eh-frame.hpp"
 
 #include "snow/snow.hpp"
 #include "snow/array.hpp"
@@ -14,11 +15,6 @@
 #include <map>
 #include <algorithm>
 #include <tuple>
-
-extern "C" {
-	void __register_frame(void*);
-	void __deregister_frame(void*);
-}
 
 namespace snow {
 namespace x86_64 {
@@ -59,8 +55,8 @@ namespace x86_64 {
 		
 		// Register exception handling frames
 		for (auto it = _functions.begin(); it != _functions.end(); ++it) {
-			byte* frame = (*it)->materialized_eh_frame;
-			__register_frame(frame);
+			byte* frame = (*it)->eh.materialized_eh_frame;
+			snow::register_frame(frame);
 		}
 	}
 	

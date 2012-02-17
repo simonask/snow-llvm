@@ -22,20 +22,59 @@ namespace x86_64 {
 	}
 	
 	inline AsmValue<VALUE> Codegen::Function::temporary(int idx) {
-		return AsmValue<VALUE>(address(RBP, -(idx+1)*sizeof(VALUE)));
+		return AsmValue<VALUE>(address(RBP, -(countof(REG_PRESERVE)+idx+1)*sizeof(VALUE)));
 	}
 	
 	AsmValue<VALUE> Codegen::Function::compile_function_body(const ASTNode* body_seq) {
-		materialized_code_offset = get_current_offset();
-		pushq(RBP);
-		movq(RSP, RBP);
-		Fixup& stack_size_offset = subq(RSP);
-		stack_size_offset.type = CodeBuffer::FixupAbsolute;
+		/*
+			STACK LAYOUT:
+			
+			return address
+			caller %rbp            <-- %rbp
+			<preserved registers>
+			<temporaries>
+			<allocas>              <-- %rsp
+		*/
 		
-		// Back up preserved registers
+		materialized_code_offset = get_current_offset();
+		
+		// Emit basic exception handling info, so everything is set up when we start keeping track
+		// of the frame pointers.
+		eh.last_label_offset = materialized_code_offset;
+		emit_eh_cie();
+		
+		// Emit the beginning of the eh_frame structure.
+		eh.eh_frame_offset = eh.buffer.size();
+		Fixup& eh_frame_length = eh.buffer.emit_relative_s32();
+		eh_frame_length.displacement = -4;               // FDE length does not include the length field itself
+		eh.fde_cie_pointer = &eh.buffer.emit_u32();      // FDE CIE offset
+		eh.fde_function_pointer = &eh.buffer.emit_u64(); // FDE function offset (calculated in materialize_at)
+		eh.fde_function_length  = &eh.buffer.emit_u64(); // FDE function length
+		eh.buffer.emit_uleb128(0);                       // length of FDE augmentation data??
+		
+		pushq(RBP);
+		eh_label();
+		eh.buffer.emit_u8(dwarf::DW_CFA_def_cfa_offset);
+		eh.buffer.emit_uleb128(-STACK_GROWTH*2); // CFA is %rsp+8, but pushq(%rbp) subtracts from %rsp, so we must compensate to make CFA <- %rsp+16.
+		emit_eh_define_location(RBP, 2);
+		
+		movq(RSP, RBP);
+		eh_label();
+		eh.buffer.emit_u8(dwarf::DW_CFA_def_cfa_register);  // we are about to allocate the stack frame from %rsp, and %rbp is the base pointer now, so redefine CFA in terms of %rbp.
+		eh.buffer.emit_uleb128(dwarf::reg(RBP));
+		
+		// Back up preserved registers before allocating the stack frame
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
 			pushq(REG_PRESERVE[i]);
 		}
+		eh_label();
+		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
+			emit_eh_define_location(REG_PRESERVE[i], i+1); // CFA is %rbp
+		}
+		
+		// Allocate the stack frame (temporaries)
+		Fixup& stack_size_offset = subq(RSP);
+		stack_size_offset.type = CodeBuffer::FixupAbsolute;
 		
 		// Set up function environment
 		movq(REG_ARGS[0], REG_CALL_FRAME);
@@ -56,6 +95,14 @@ namespace x86_64 {
 		
 		result = compile_ast_node(body_seq);
 		
+		// Deallocate stack frame.
+		// We have to do this because we save preserved registers *before* allocating the stack frame.
+		// Alternatively, we would have to fix up the generated DWARF code to be able to access the preserved
+		// registers in terms of [%rbp+(size_of_stack_frame)+i]. Not impossible; not trivial (because DWARF
+		// uses variable-length LEB128 encoding for DW_CFA_def_cfa_offset).
+		Fixup& stack_size_offset2 = addq(RSP);
+		stack_size_offset2.type = CodeBuffer::FixupAbsolute;
+		
 		// Restore preserved registers and return
 		label(*return_label);
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
@@ -64,16 +111,26 @@ namespace x86_64 {
 		leave();
 		ret();
 		
-		// set stack size
+		// Fix up stack size
 		int stack_size = (num_temporaries) * sizeof(VALUE);
 		size_t pad = stack_size % 16;
 		if (pad != 8) stack_size += 8;
 		stack_size_offset.value = stack_size;
+		stack_size_offset2.value = stack_size;
 		
 		materialized_code_length = get_current_offset() - materialized_code_offset;
-		
+		align_to(sizeof(void*));
 		compile_function_descriptor();
-		compile_eh_frame();
+		align_to(sizeof(void*));
+		eh.materialized_eh_offset = get_current_offset();
+		
+		// Fixup EH frame header
+		eh.buffer.align_to(sizeof(void*), dwarf::DW_CFA_nop);
+		eh_frame_length.value = eh.buffer.size();
+		// LLVM does this, not sure why:
+		// Double zeroes for the unwind runtime.
+		eh.buffer.emit_u64(0);
+		eh.buffer.emit_u64(0); 
 		
 		return result;
 	}
@@ -803,10 +860,22 @@ namespace x86_64 {
 	}
 	
 	void Codegen::Function::materialize_at(byte* destination, size_t max_size) {
-		render_at(destination, max_size);
-		materialized_descriptor = reinterpret_cast<FunctionDescriptor*>(destination + materialized_descriptor_offset);
+		// Fix up eh_frame values:
+		eh.fde_cie_pointer->type = FixupAbsolute;
+		eh.fde_cie_pointer->value = eh.fde_cie_pointer->position - eh.fde_cie_offset; // weird DWARF-way of referring to CIE: the number of bytes to subtract from the current position in order to find the CIE.
+		eh.fde_function_pointer->type = FixupAbsolute;
+		byte* eh_frame_fde_pointer = destination + eh.materialized_eh_offset + eh.fde_function_pointer->position;
 		materialized_code = destination + materialized_code_offset;
-		materialized_eh_frame = destination + materialized_eh_frame_offset;
+		eh.fde_function_pointer->value = materialized_code - eh_frame_fde_pointer;
+		eh.fde_function_length->type = FixupAbsolute;
+		eh.fde_function_length->value = materialized_code_length;
+		
+		// Render:
+		render_at(destination, max_size);
+		eh.buffer.render_at(destination + eh.materialized_eh_offset, max_size - eh.materialized_eh_offset);
+		materialized_descriptor = reinterpret_cast<FunctionDescriptor*>(destination + materialized_descriptor_offset);
+		eh.materialized_eh_frame = destination + eh.materialized_eh_offset + eh.eh_frame_offset;
+		eh.materialized_fde_cie = destination + eh.materialized_eh_offset + eh.fde_cie_offset;
 	}
 	
 	void Codegen::Function::compile_function_descriptor() {
@@ -829,22 +898,22 @@ namespace x86_64 {
 		};
 		*/
 		
-		align_to(8);
+		align_to(sizeof(void*));
 		materialized_descriptor_offset = get_current_offset();
-		auto fixup_function_ptr = emit_pointer_to_offset();
+		Fixup& fixup_function_ptr = emit_pointer_to_offset();
 		emit_u64(name);
 		emit_u32(AnyType);
 		emit_u64(param_names.size());
-		auto fixup_param_types_ptr = emit_pointer_to_offset();
-		auto fixup_param_names_ptr = emit_pointer_to_offset();
-		auto fixup_local_names_ptr = emit_pointer_to_offset();
+		Fixup& fixup_param_types_ptr = emit_pointer_to_offset();
+		Fixup& fixup_param_names_ptr = emit_pointer_to_offset();
+		Fixup& fixup_local_names_ptr = emit_pointer_to_offset();
 		emit_u32(local_names.size());
 		emit_u64(0); // num_variable_references (unused!)
 		emit_u64(0); // variable_references (unused!)
 		emit_u64(num_method_calls);
 		emit_u64(num_instance_variable_accesses);
 		
-		align_to(8);
+		align_to(sizeof(void*));
 		
 		fixup_param_names_ptr.value = get_current_offset();
 		for (auto it = param_names.begin(); it != param_names.end(); ++it) {
@@ -861,95 +930,67 @@ namespace x86_64 {
 			emit_u32(AnyType);
 		}
 		
-		align_to(8);
+		align_to(sizeof(void*));
 		
 		fixup_function_ptr.value = materialized_code_offset; // Code is at the beginning of the buffer.
 	}
 	
-	void Codegen::Function::compile_eh_frame() {
-		static const int stack_growth = -(int)sizeof(void*);
-		
-		// Emit Exception Table
-		align_to(4);
-		size_t eh_table_offset = get_current_offset();
-		// Snow doesn't support syntactic try/catch, so we just need the bare minimum.
-		emit_u8(dwarf::DW_EH_PE_omit); // LPStart format
-		emit_u8(dwarf::DW_EH_PE_omit); // TType format
-		emit_u8(dwarf::DW_EH_PE_omit); // Call-site format
-		
-		// Emit CIE
-		align_to(4);
-		size_t cie_offset = get_current_offset();
-		Fixup& cie_length = emit_u32();
-		Fixup& cie_begin_ptr = emit_u32();
-		emit_u8(dwarf::DW_CIE_VERSION);
-		// personality:
-		emit_u8('z');
-		emit_u8('R');
-		emit_u8(0);
-		emit_uleb128(1);              // code align
-		emit_sleb128(stack_growth);   // data align = stack growth direction
-		emit_u8(dwarf::reg(RIP));     // return address register
-		emit_uleb128(1);              // ?? augmentation size?
-		emit_uleb128(dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4);
-		
-		// Emit CIE frame moves
-		// move: [rsp+8] -> CFA  // initial state of the frame pointer is rsp+stackgrowth
-		emit_u8(dwarf::DW_CFA_def_cfa);
-		emit_uleb128(dwarf::reg(RSP));
-		emit_uleb128(-stack_growth);
-		// move: rip -> [rsp+8]  // return address
-		emit_u8(dwarf::DW_CFA_offset_extended_sf);
-		emit_uleb128(dwarf::reg(RIP));
-		emit_uleb128(stack_growth);
-		
-		// Fixup CIE header
-		align_to(sizeof(void*), dwarf::DW_CFA_nop);
-		cie_length.type = FixupAbsolute;
-		cie_length.value = get_current_offset() - cie_begin_ptr.position;
-		
-		// Emit Exception Handling frame
-		materialized_eh_frame_offset = get_current_offset();
-		Fixup& eh_frame_length = emit_u32();
-		size_t eh_frame_begin_ptr = get_current_offset();
-		emit_s32(eh_frame_begin_ptr - cie_offset);    // FDE CIE offset
-		emit_s32((ssize_t)materialized_code_offset - get_current_offset());  // FDE function start
-		emit_s32(materialized_code_length);           // FDE function length
-		emit_uleb128(0);                              // number of landing pads = 0
-		
-		// Emit the location of callee saved registers in this frame
-		// pushq %rbp
-		emit_u8(dwarf::DW_CFA_advance_loc1);
-		emit_u8(1);
-		emit_u8(dwarf::DW_CFA_def_cfa_offset);
-		emit_uleb128(16);
-		emit_u8(dwarf::DW_CFA_offset_extended_sf);
-		emit_uleb128(dwarf::reg(RBP));
-		emit_sleb128(-16);
-		// movq %rsp, %rbp
-		emit_u8(dwarf::DW_CFA_advance_loc1);
-		emit_u8(3);
-		emit_u8(dwarf::DW_CFA_def_cfa_register);
-		emit_uleb128(dwarf::reg(RBP));
-		// all the preserved registers
-		emit_u8(dwarf::DW_CFA_advance_loc1);
-		emit_u8(9);
-		for (int i = 0; i < countof(REG_PRESERVE); ++i) {
-			int reg_offset = -56 + i * sizeof(void*);
-			emit_u8(dwarf::DW_CFA_offset_extended_sf);
-			emit_uleb128(dwarf::reg(REG_PRESERVE[i]));
-			emit_sleb128(reg_offset);
+	void Codegen::Function::eh_label() {
+		int32_t diff = get_current_offset() - eh.last_label_offset;
+		if (diff != 0) {
+			if (diff < 64) {
+				eh.buffer.emit_u8(dwarf::DW_CFA_advance_loc + diff);
+			} else if (diff < 256) {
+				eh.buffer.emit_u8(dwarf::DW_CFA_advance_loc1);
+				eh.buffer.emit_u8(diff);
+			} else {
+				eh.buffer.emit_u8(dwarf::DW_CFA_advance_loc4);
+				eh.buffer.emit_s32(diff);
+			}
 		}
+	}
+	
+	void Codegen::Function::emit_eh_cie() {
+		// Emit CIE header
+		eh.buffer.align_to(4);
+		Fixup& cie_length = eh.buffer.emit_relative_s32();
+		eh.fde_cie_offset = cie_length.position;
+		eh.buffer.emit_u32(dwarf::DW_CIE_ID);
+		eh.buffer.emit_u8(dwarf::DW_CIE_VERSION);
+		// personality: (none for now)
+		eh.buffer.emit_u8('z');
+		eh.buffer.emit_u8('R');
+		eh.buffer.emit_u8(0);
+		eh.buffer.emit_uleb128(1);            // code alignment
+		eh.buffer.emit_sleb128(STACK_GROWTH); // data alignment = stack growth direction
+		eh.buffer.emit_u8(dwarf::reg(RIP));   // return address register
+		eh.buffer.emit_uleb128(0);            // augmentation size ('z')
+		eh.buffer.emit_uleb128(dwarf::DW_EH_PE_absptr | dwarf::DW_EH_PE_pcrel); // FDE encoding ('R')
 		
-		// Fixup EH frame header
-		align_to(sizeof(void*), dwarf::DW_CFA_nop);
-		eh_frame_length.type = FixupAbsolute;
-		eh_frame_length.value = (int)get_current_offset() - materialized_eh_frame_offset;
+		// Emit CIE frame moves (standard C calling convention)
+		emit_eh_define_cfa(RSP, -STACK_GROWTH);     // CFA  <- %rsp+8
+		emit_eh_define_location(RIP, 1);            // %rip <- [CFA-8] == [%rsp]
 		
-		// LLVM does this, not sure why:
-		// Double zeroes for the unwind runtime.
-		emit_u64(0);
-		emit_u64(0);
+		eh.buffer.align_to(sizeof(void*), dwarf::DW_CFA_nop);
+		cie_length.value = eh.buffer.size();
+		cie_length.displacement = -4; // cie_length does not include the length itself
+	}
+	
+	void Codegen::Function::emit_eh_define_location(Register reg, ssize_t offset) {
+		if (offset < 0) {
+			eh.buffer.emit_u8(dwarf::DW_CFA_offset_extended_sf);
+			eh.buffer.emit_uleb128(dwarf::reg(reg));
+			eh.buffer.emit_sleb128(offset);
+		} else {
+			eh.buffer.emit_u8(dwarf::DW_CFA_offset + dwarf::reg(reg));
+			eh.buffer.emit_uleb128(offset);
+		}
+	}
+	
+	void Codegen::Function::emit_eh_define_cfa(Register reg, size_t offset) {
+		eh.buffer.emit_u8(dwarf::DW_CFA_def_cfa);
+		eh.buffer.emit_uleb128(dwarf::reg(reg));
+		eh.buffer.emit_uleb128(offset);
 	}
 }
 }
