@@ -7,6 +7,7 @@
 namespace snow {
 namespace x86_64 {
 	// Define calling convention. TODO: Define for Win32 as well.
+	static const int STACK_GROWTH          = -(int)sizeof(void*);
 	static const Register REG_RETURN       = RAX;
 	static const Register REG_ARGS[]       = { RDI, RSI, RDX, RCX, R8, R9 };
 	static const Register REG_PRESERVE[]   = { RBX, R12, R13, R14, R15 };
