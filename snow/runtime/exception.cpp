@@ -1,9 +1,11 @@
 #include "snow/exception.hpp"
 #include "snow/str.hpp"
 #include "snow/snow.hpp"
+#include "codemanager.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <libunwind.h>
+#include <cxxabi.h>
 
 namespace snow {
 	namespace {
@@ -45,9 +47,30 @@ namespace snow {
 			unw_get_reg(&cursor, UNW_REG_SP, &sp);
 			++n;
 			if (n < skip) continue;
-			printf("ip = %lx, sp = %lx\n", (long)ip, (long)sp);
+			
+			SourceFile file;
+			SourceLocation location;
+			if (CodeManager::get()->find_source_location_from_instruction_pointer((void*)ip, file, location)) {
+				printf("(SNOW)  %p   %s:%d (col %d)", (void*)ip, file.path.c_str(), location.line, location.column);
+			} else {
+				char name_buffer[1024];
+				unw_word_t offset;
+				if (unw_get_proc_name(&cursor, name_buffer, 1024, &offset) == 0) {
+					// Try to demangle C++ name
+					int status;
+					char* demangled = abi::__cxa_demangle(name_buffer, NULL, NULL, &status);
+					if (status == 0) {
+						printf("(C++)   %p   %s + %llu", (void*)ip, demangled, (uint64_t)offset);
+						::free(demangled);
+					} else {
+						printf("(C)     %p   %s + %llu", (void*)ip, name_buffer, (uint64_t)offset);
+					}
+				} else {
+					printf("        %p", (void*)ip);
+				}
+			}
+			printf("\n");
 		}
-		printf("ip = %lx\n", (long)ip);
 	}
 
 	void throw_exception(Value ex) {
@@ -63,7 +86,7 @@ namespace snow {
 		fprintf(stderr, "SNOW: Throwing exception: %s\n", buffer);
 		#endif
 		
-		//display_stack_trace(1);
+		display_stack_trace(1);
 		
 		throw snow::Exception(ex);
 	}
