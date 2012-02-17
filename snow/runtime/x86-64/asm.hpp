@@ -202,7 +202,7 @@ namespace snow {
 			void addl(Operand source, Operand target);
 			void addq(uint32_t immediate, Operand target);
 			void addq(Operand source, Operand target);
-			Fixup& addq(Operand target);
+			Fixup& addq(Operand target, bool single_byte = false);
 			void subl(uint32_t immediate, Operand target);
 			void subl(Operand source, Operand target);
 			void subq(uint32_t immediate, Operand target);
@@ -351,6 +351,16 @@ namespace snow {
 	
 		inline void Asm::addq(Operand source, Operand target) {
 			choose_and_emit_instruction(0x01, 0x03, source, target, true);
+		}
+		
+		inline CodeBuffer::Fixup& Asm::addq(Operand target, bool single_byte) {
+			if (single_byte) {
+				emit_instruction(0x83, opcode_ext(0), target, true);
+				return emit_imm8();
+			} else {
+				emit_instruction(0x81, opcode_ext(0), target, true);
+				return emit_imm32();
+			}
 		}
 	
 		inline void Asm::subl(uint32_t immediate, Operand target) {
