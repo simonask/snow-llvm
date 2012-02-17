@@ -49,6 +49,7 @@ namespace snow {
 		Fixup& emit_pointer_to_offset(size_t offset = 0);
 		Fixup& emit_offset_to_pointer_s32(uintptr_t ptr, ssize_t displacement = 0);
 		Fixup& emit_offset_to_pointer_s64(uintptr_t ptr, ssize_t displacement = 0);
+		Fixup& emit_current_offset_from_u32(size_t abs_offset = 0, ssize_t displacement = 0);
 	private:
 		size_t max_alignment; // for error checking
 		Storage buffer;
@@ -147,6 +148,13 @@ namespace snow {
 	inline CodeBuffer::Fixup& CodeBuffer::emit_offset_to_pointer_s64(uintptr_t ptr, ssize_t disp) {
 		fixups.emplace_back(FixupOffsetToPointer, size(), sizeof(int64_t), disp, (ssize_t)ptr);
 		emit_u64(0);
+		return fixups.back();
+	}
+	
+	inline CodeBuffer::Fixup& CodeBuffer::emit_current_offset_from_u32(size_t abs_offset, ssize_t displacement) {
+		ssize_t diff = (ssize_t)size() - (ssize_t)abs_offset;
+		fixups.emplace_back(FixupAbsolute, size(), sizeof(uint32_t), displacement, diff);
+		emit_u32(0);
 		return fixups.back();
 	}
 }
