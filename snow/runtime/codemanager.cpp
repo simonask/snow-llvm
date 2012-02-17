@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <algorithm>
 #include <sys/mman.h>
 
 namespace snow {
@@ -42,7 +43,34 @@ namespace snow {
 		return manager;
 	}
 	
-	bool find_source_location_from_instruction_pointer(void* ip, SourceFile& out_file, SourceLocation& out_location) {
+	bool CodeManager::find_source_location_from_instruction_pointer(void* ip, SourceFile& out_file, SourceLocation& out_location) {
+		byte* p = (byte*)ip;
+		for (const std::unique_ptr<CodeModule>& module: _modules) {
+			byte* end = module->memory + module->size;
+			if (p >= module->memory && p < end) {
+				size_t offset = p - module->memory;
+				
+				struct CompareOffsets {
+					bool operator()(const SourceLocation& a, const SourceLocation& b) {
+						return a.code_offset < b.code_offset;
+					}
+					bool operator()(const SourceLocation& a, uint32_t offset) {
+						return a.code_offset < offset;
+					}
+				};
+				auto begin = module->locations.begin();
+				auto end   = module->locations.end();
+				if (begin != end) {
+					auto location = std::lower_bound(begin, end, offset, CompareOffsets());
+					// lower_bound finds the first element that is *not* less than offset, which is exactly one past the one we need.
+					--location;
+					out_file = module->source_file;
+					out_location = *location;
+					return true;
+				}
+				return false;
+			}
+		}
 		return false;
 	}
 }
