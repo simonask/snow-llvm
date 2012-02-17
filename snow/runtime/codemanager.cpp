@@ -1,0 +1,48 @@
+#include "codemanager.hpp"
+#include "x86-64/codegen.hpp"
+
+#include <vector>
+#include <memory>
+#include <sys/mman.h>
+
+namespace snow {
+	CodeModule::~CodeModule() {
+		if (memory) {
+			munmap(memory, size);
+		}
+	}
+
+	CodeModule* CodeManager::compile_ast(const ASTBase* ast, const char* source, const char* module_name)
+	{
+		x86_64::CodegenSettings settings = {
+			.use_inline_cache = true,
+			.perform_inlining = true,
+		};
+		
+		x86_64::Codegen codegen(settings);
+		if (codegen.compile_ast(ast)) {
+			std::unique_ptr<CodeModule> mod(new CodeModule);
+			mod->size = codegen.compiled_size();
+			
+			mod->memory = (byte*)mmap(NULL, mod->size, PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+			codegen.materialize_at((byte*)mod->memory);
+			mprotect(mod->memory, mod->size, PROT_WRITE|PROT_EXEC);
+			mod->entry = (const FunctionDescriptor*)(mod->memory + codegen.get_offset_for_entry_descriptor());
+
+			CodeModule* ret = mod.get();
+			_modules.push_back(std::move(mod));
+			return ret;
+		}
+		return NULL;
+	}
+	
+	CodeManager* CodeManager::get() {
+		static CodeManager* manager = NULL;
+		if (!manager) manager = new CodeManager;
+		return manager;
+	}
+	
+	bool find_source_location_from_instruction_pointer(void* ip, SourceFile& out_file, SourceLocation& out_location) {
+		return false;
+	}
+}

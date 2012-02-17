@@ -168,7 +168,7 @@ namespace snow {
 
 			struct ASTBase* ast = snow::parse(m->source.c_str());
 			if (ast) {
-				snow::CodeModule* code = snow::get_code_manager()->compile_ast(ast, m->source.c_str(), get_module_name(path).c_str());
+				snow::CodeModule* code = CodeManager::get()->compile_ast(ast, m->source.c_str(), get_module_name(path).c_str());
 				if (code) {
 					get_module_list()->push_back(m);
 					m->entry = snow::create_function_for_module_entry(code->entry, mod);
