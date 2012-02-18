@@ -126,10 +126,12 @@ namespace snow {
 		}
 		
 		MethodCacheLine* call_frame_get_method_cache_lines(const CallFrame* frame) {
+			ASSERT(frame);
 			return function_get_method_cache_lines(frame->function);
 		}
 		
 		InstanceVariableCacheLine* call_frame_get_instance_variable_cache_lines(const CallFrame* frame) {
+			ASSERT(frame);
 			return function_get_instance_variable_cache_lines(frame->function);
 		}
 	}
