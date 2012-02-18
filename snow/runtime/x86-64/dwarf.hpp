@@ -68,13 +68,7 @@ namespace snow {
 		};
 		
 		inline byte reg(Register r) {
-			static Register regs_in_dwarf_order[] = { RAX, RDX, RCX, RBX, RSI, RDI, RBP, RSP, R8, R9, R10, R11, R12, R13, R14, R15, RIP };
-			for (size_t i = 0; i < countof(regs_in_dwarf_order); ++i) {
-				if (regs_in_dwarf_order[i] == r)
-					return i;
-			}
-			ASSERT(false); // invalid register
-			return 0xff;
+			return x86_64::regnum(r);
 		}
 	}
 }

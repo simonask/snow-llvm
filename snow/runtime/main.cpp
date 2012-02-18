@@ -62,8 +62,10 @@ static void interactive_prompt()
 				buffer[sz] = '\0';
 				printf("=> %s\n", buffer);
 			}
-			catch (const snow::Exception& ex) {
-				fprintf(stderr, "ERROR: Unhandled exception: %p\n", ex.value.value());
+			catch (snow::ExceptionPtr ex) {
+				StringPtr backtrace = exception_get_internal_backtrace(ex);
+				StringPtr error_message = format_string("ERROR: Unhandled exception: %@\n\nBacktrace:\n%@\n", ex, backtrace);
+				string_puts(error_message);
 			}
 			catch (...) {
 				fprintf(stderr, "ERROR: Unhandled C++ exception, rethrowing!\n");

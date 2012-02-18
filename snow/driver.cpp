@@ -12,8 +12,8 @@ int main (int argc, char* const* argv) {
 		snow::finish();
 		return n;
 	}
-	catch (const snow::Exception& ex) {
-		fprintf(stderr, "Caught Snow exception %p\n", ex.value.value());
+	catch (snow::ExceptionPtr ex) {
+		fprintf(stderr, "Caught Snow exception %p\n", ex.value());
 		abort();
 	}
 	catch (...) {

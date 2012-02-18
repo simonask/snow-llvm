@@ -1,10 +1,12 @@
 #include "codemanager.hpp"
 #include "x86-64/codegen.hpp"
+#include "x86-64/cconv.hpp"
 
 #include <vector>
 #include <memory>
 #include <algorithm>
 #include <sys/mman.h>
+#include <libunwind.h>
 
 namespace snow {
 	CodeModule::~CodeModule() {
@@ -45,7 +47,7 @@ namespace snow {
 		return manager;
 	}
 	
-	bool CodeManager::find_source_location_from_instruction_pointer(void* ip, SourceFile& out_file, SourceLocation& out_location) {
+	bool CodeManager::find_source_location_from_instruction_pointer(void* ip, const SourceFile*& out_file, const SourceLocation*& out_location) {
 		byte* p = (byte*)ip;
 		for (const std::unique_ptr<CodeModule>& module: _modules) {
 			byte* end = module->memory + module->size;
@@ -68,13 +70,19 @@ namespace snow {
 						// lower_bound finds the first element that is *not* less than offset, which is exactly one past the one we need.
 						--location;
 					}
-					out_file = module->source_file;
-					out_location = *location;
+					out_file = &module->source_file;
+					out_location = &*location;
 					return true;
 				}
 				return false;
 			}
 		}
 		return false;
+	}
+	
+	const CallFrame* CodeManager::find_call_frame(unw_cursor_t* cursor) {
+		unw_word_t frame;
+		unw_get_reg(cursor, x86_64::regnum(x86_64::REG_CALL_FRAME), &frame);
+		return (const CallFrame*)frame;
 	}
 }

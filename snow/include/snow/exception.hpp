@@ -4,15 +4,23 @@
 
 #include "snow/value.hpp"
 #include "snow/str-format.hpp"
+#include "snow/objectptr.hpp"
 
 namespace snow {
-	struct Exception {
-		Value value;
-		Exception(Value v) : value(v) {}
-	};
+	struct Exception;
+	typedef ObjectPtr<Exception> ExceptionPtr;
+	typedef ObjectPtr<const Exception> ExceptionConstPtr;
 	
+	ExceptionPtr create_exception(const std::string& message);
+	ExceptionPtr create_exception_with_message(Value message);
+	StringPtr exception_get_internal_backtrace(ExceptionConstPtr exception);
+	StringPtr exception_get_backtrace(ExceptionConstPtr exception);
+	
+	struct Class;
+	ObjectPtr<Class> get_exception_class();
+	
+	void throw_exception(Value exception);
 	Value try_catch_ensure(Value try_f, Value catch_f, Value ensure_f);
-	void throw_exception(Value ex);
 	
 	template <typename... Args>
 	void throw_exception_with_description(const char* fmt, Args... args) {
