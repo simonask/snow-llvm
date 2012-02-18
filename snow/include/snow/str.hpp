@@ -31,6 +31,7 @@ namespace snow {
 	size_t string_copy_to(StringConstPtr str, char* buffer, size_t max);
 	size_t string_copy_to(StringConstPtr str, std::stringstream& buffer);
 	ObjectPtr<Array> string_split(StringConstPtr str, StringConstPtr separator);
+	void string_puts(StringConstPtr str);
 	
 	size_t string_size(StringConstPtr str);
 	size_t string_length(StringConstPtr str);

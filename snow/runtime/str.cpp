@@ -206,6 +206,11 @@ namespace snow {
 	size_t string_length(StringConstPtr str) {
 		return str->length;
 	}
+	
+	void string_puts(StringConstPtr str) {
+		fwrite(str->data, 1, str->size, stdout);
+		fwrite("\n", 1, 1, stdout);
+	}
 
 	namespace bindings {
 		static VALUE string_inspect(const CallFrame* here, VALUE self, VALUE it) {
