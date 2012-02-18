@@ -28,7 +28,7 @@ namespace snow {
 			mod->size = codegen.compiled_size();
 			
 			mod->memory = (byte*)mmap(NULL, mod->size, PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-			codegen.materialize_at((byte*)mod->memory);
+			codegen.materialize_in(*mod);
 			mprotect(mod->memory, mod->size, PROT_WRITE|PROT_EXEC);
 			mod->entry = (const FunctionDescriptor*)(mod->memory + codegen.get_offset_for_entry_descriptor());
 

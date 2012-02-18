@@ -77,6 +77,18 @@ namespace snow {
 			bool is_bound() const { return offset >= 0; }
 		};
 		
+		struct LabelReference {
+			CodeBuffer::Fixup& fixup;
+			const Label& label;
+			LabelReference(CodeBuffer::Fixup& fixup, const Label& label) : fixup(fixup), label(label) {}
+			
+			void bind() {
+				ASSERT(label.is_bound());
+				fixup.value = label.offset;
+				ASSERT(fixup.value != 0);
+			}
+		};
+		
 		enum OperandType : char {
 			OP_INVALID = -1,
 			OP_REGISTER,
@@ -156,17 +168,6 @@ namespace snow {
 			bool is_memory() const { return (type == OP_ADDRESS) || (type == OP_SIB) || (type == OP_RIP_RELATIVE); }
 		};
 		
-		struct LabelReference {
-			CodeBuffer::Fixup& fixup;
-			const Label& label;
-			LabelReference(CodeBuffer::Fixup& fixup, const Label& label) : fixup(fixup), label(label) {}
-			
-			void bind() {
-				ASSERT(label.is_bound());
-				fixup.value = label.offset;
-			}
-		};
-		
 		static const Register INVALID_REGISTER = {Register::INVALID, 0};
 		static const Register RAX = {0, 0};
 		static const Register RCX = {1, 0};
@@ -192,6 +193,7 @@ namespace snow {
 			
 			Label& declare_label(const char* name = NULL);
 			void label(Label&);
+			void bind_label_references();
 			Operand address(Register reg, int32_t disp = 0) const;
 			Operand address_disp8(Register reg) const;
 			Operand address_disp32(Register reg) const;
@@ -248,6 +250,8 @@ namespace snow {
 			void leave();
 			void int3();
 			void nop();
+			
+			size_t alloca_total; // used to keep track of how much memory is allocated by alloca at any given time.
 		private:
 			std::list<Label> labels;
 			std::list<LabelReference> label_references;
@@ -270,7 +274,6 @@ namespace snow {
 			void emit_label_reference(const Label& label, int32_t adjust = 0);
 			byte rex_for_operands(Register reg, Operand rm) const;
 			Register opcode_ext(byte ext) const;
-			void bind_label_references();
 		};
 		
 		inline Operand Asm::address(Register reg, int32_t disp) const {
@@ -728,6 +731,7 @@ namespace snow {
 		
 		inline void Asm::bind_label_references() {
 			for (auto it = label_references.begin(); it != label_references.end(); ++it) {
+				ASSERT(it->label.offset != 0); // it's always wrong to jmp to the beginning of a Snow function.
 				it->bind();
 			}
 		}

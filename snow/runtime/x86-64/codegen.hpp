@@ -7,6 +7,8 @@
 #include <vector>
 
 namespace snow {
+	struct CodeModule;
+	
 namespace x86_64 {
 	struct CodegenSettings {
 		bool use_inline_cache;
@@ -18,7 +20,7 @@ namespace x86_64 {
 		Codegen(const CodegenSettings& settings) : _settings(settings) {}
 		bool compile_ast(const ASTBase* ast);
 		size_t compiled_size() const;
-		void materialize_at(byte* destination);
+		void materialize_in(CodeModule& module);
 		size_t get_offset_for_entry_descriptor() const;
 		
 		class Function;

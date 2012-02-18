@@ -9,6 +9,7 @@
 #include "snow/class.hpp"
 #include "snow/function.hpp"
 #include "../function-internal.hpp"
+#include "../codemanager.hpp"
 
 #include <tuple>
 #include <map>
@@ -78,12 +79,14 @@ namespace x86_64 {
 				if (pad) size += 16 - pad;
 				a.subq(size, RSP);
 				a.movq(RSP, target);
+				a.alloca_total += size;
 			}
 		}
 		
 		~Alloca() {
 			if (size) {
 				a.addq(size, RSP);
+				a.alloca_total -= size;
 			}
 		}
 		
@@ -175,6 +178,10 @@ namespace x86_64 {
 		ReadOnly<Function, size_t>    num_method_calls;
 		ReadOnly<Function, size_t>    num_instance_variable_accesses;
 		
+		// Debug information
+		std::vector<SourceLocation>   source_locations;
+		void record_source_location(const ASTNode* node);
+		
 		// Internal consistency
 		Label* return_label;
 		struct FunctionDescriptorReference { CodeBuffer::Fixup& fixup; Function* function; FunctionDescriptorReference(CodeBuffer::Fixup& fixup, Function* function) : fixup(fixup), function(function) {} };
@@ -189,7 +196,7 @@ namespace x86_64 {
 		
 		// Compilation (public API)
 		Function* compile_function(const ASTNode* function);
-		AsmValue<VALUE> compile_function_body(const ASTNode* body_seq);
+		AsmValue<VALUE> compile_function_body(const ASTNode* function, const ASTNode* body_seq);
 		void compile_function_descriptor();
 		void compile_eh_frame();
 		void fixup_function_references(const std::map<Codegen::Function*, byte*>& function_descriptors);

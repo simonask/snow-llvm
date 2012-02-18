@@ -25,7 +25,9 @@ namespace x86_64 {
 		return AsmValue<VALUE>(address(RBP, -(countof(REG_PRESERVE)+idx+1)*sizeof(VALUE)));
 	}
 	
-	AsmValue<VALUE> Codegen::Function::compile_function_body(const ASTNode* body_seq) {
+	AsmValue<VALUE> Codegen::Function::compile_function_body(const ASTNode* function_node, const ASTNode* body_seq) {
+		if (function_node != NULL)
+			record_source_location(function_node);
 		/*
 			STACK LAYOUT:
 			
@@ -52,7 +54,8 @@ namespace x86_64 {
 		eh.fde_function_length  = &eh.buffer.emit_u64(); // FDE function length
 		eh.buffer.emit_uleb128(0);                       // length of FDE augmentation data??
 		
-		pushq(RBP);
+		size_t current_stack_frame_size = 8; // rip
+		pushq(RBP); current_stack_frame_size += 8;
 		eh_label();
 		eh.buffer.emit_u8(dwarf::DW_CFA_def_cfa_offset);
 		eh.buffer.emit_uleb128(-STACK_GROWTH*2); // CFA is %rsp+8, but pushq(%rbp) subtracts from %rsp, so we must compensate to make CFA <- %rsp+16.
@@ -66,6 +69,7 @@ namespace x86_64 {
 		// Back up preserved registers before allocating the stack frame
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
 			pushq(REG_PRESERVE[i]);
+			current_stack_frame_size += 8;
 		}
 		eh_label();
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
@@ -95,6 +99,7 @@ namespace x86_64 {
 		
 		result = compile_ast_node(body_seq);
 		
+		label(*return_label);
 		// Deallocate stack frame.
 		// We have to do this because we save preserved registers *before* allocating the stack frame.
 		// Alternatively, we would have to fix up the generated DWARF code to be able to access the preserved
@@ -104,19 +109,20 @@ namespace x86_64 {
 		stack_size_offset2.type = CodeBuffer::FixupAbsolute;
 		
 		// Restore preserved registers and return
-		label(*return_label);
 		for (size_t i = 0; i < countof(REG_PRESERVE); ++i) {
 			popq(REG_PRESERVE[countof(REG_PRESERVE)-i-1]);
 		}
-		leave();
+		leave();		
 		ret();
 		
 		// Fix up stack size
-		int stack_size = (num_temporaries) * sizeof(VALUE);
-		size_t pad = stack_size % 16;
-		if (pad != 8) stack_size += 8;
-		stack_size_offset.value = stack_size;
-		stack_size_offset2.value = stack_size;
+		size_t temporary_alloc = num_temporaries * sizeof(VALUE);
+		current_stack_frame_size += temporary_alloc;
+		if (current_stack_frame_size % 16 != 0) {
+			temporary_alloc += sizeof(VALUE); // allocate an extra temporary to align the stack
+		}
+		stack_size_offset.value = temporary_alloc;
+		stack_size_offset2.value = temporary_alloc;
 		
 		materialized_code_length = get_current_offset() - materialized_code_offset;
 		align_to(sizeof(void*));
@@ -136,6 +142,8 @@ namespace x86_64 {
 	}
 	
 	AsmValue<VALUE> Codegen::Function::compile_ast_node(const ASTNode* node) {
+		record_source_location(node);
+		
 		switch (node->type) {
 			case ASTNodeTypeSequence: {
 				AsmValue<VALUE> result(REG_RETURN);
@@ -171,8 +179,10 @@ namespace x86_64 {
 				AsmValue<VALUE> result(REG_RETURN);
 				if (node->return_expr.value) {
 					auto r = compile_ast_node(node->return_expr.value);
+					record_source_location(node);
 					movq(r, result);
 				}
+				addq(alloca_total, RSP);
 				jmp(*return_label);
 				return result;
 			}
@@ -206,6 +216,7 @@ namespace x86_64 {
 			}
 			case ASTNodeTypeMethod: {
 				auto object = compile_ast_node(node->method.object);
+				record_source_location(node);
 				Temporary<VALUE> self(*this);
 				movq(object, self);
 				
@@ -244,6 +255,7 @@ namespace x86_64 {
 			}
 			case ASTNodeTypeInstanceVariable: {
 				auto object = compile_ast_node(node->method.object);
+				record_source_location(node);
 				Temporary<VALUE> self(*this);
 				if (object.is_memory()) {
 					movq(object, REG_ARGS[0]);
@@ -262,6 +274,7 @@ namespace x86_64 {
 			}
 			case ASTNodeTypeAssociation: {
 				auto object = compile_ast_node(node->association.object);
+				record_source_location(node);
 				Temporary<VALUE> self(*this);
 				movq(object, self);
 				
@@ -286,6 +299,7 @@ namespace x86_64 {
 				Label& after = declare_label();
 				
 				auto left = compile_ast_node(node->logic_and.left);
+				record_source_location(node);
 				AsmValue<VALUE> preserve_left(REG_PRESERVED_SCRATCH[0]);
 				movq(left, preserve_left);
 				auto c_is_truthy = call(snow::is_truthy);
@@ -299,6 +313,7 @@ namespace x86_64 {
 				
 				label(left_true);
 				auto r = compile_ast_node(node->logic_and.right);
+				record_source_location(node);
 				movq(r, result);
 
 				label(after);
@@ -309,6 +324,7 @@ namespace x86_64 {
 				Label& after = declare_label("or_after");
 				
 				auto left = compile_ast_node(node->logic_or.left);
+				record_source_location(node);
 				AsmValue<VALUE> preserve_left(REG_PRESERVED_SCRATCH[0]);
 				movq(left, preserve_left);
 				auto c_is_truthy = call(snow::is_truthy);
@@ -322,6 +338,7 @@ namespace x86_64 {
 				
 				label(left_false);
 				auto r = compile_ast_node(node->logic_or.right);
+				record_source_location(node);
 				movq(r, result);
 
 				label(after);
@@ -333,10 +350,12 @@ namespace x86_64 {
 				Label& left_is_true = declare_label("xor_left_is_true");
 				
 				auto left = compile_ast_node(node->logic_xor.left);
+				record_source_location(node);
 				Temporary<VALUE> left_value(*this);
 				movq(left, left_value); // save left value
 				
 				auto right = compile_ast_node(node->logic_xor.right);
+				record_source_location(node);
 				AsmValue<VALUE> preserve_right(REG_PRESERVED_SCRATCH[0]);
 				movq(right, preserve_right);
 				auto c_is_truthy1 = call(snow::is_truthy);
@@ -370,6 +389,7 @@ namespace x86_64 {
 				Label& after = declare_label("not_after");
 				
 				auto result = compile_ast_node(node->logic_not.expr);
+				record_source_location(node);
 				auto c_is_truthy = call(snow::is_truthy);
 				c_is_truthy.set_arg<0>(result);
 				auto truthy = c_is_truthy.call();
@@ -392,6 +412,7 @@ namespace x86_64 {
 				label(cond);
 				AsmValue<VALUE> ret(REG_RETURN);
 				auto result = compile_ast_node(node->loop.cond);
+				record_source_location(node);
 				movq(result, ret);
 				auto c_is_truthy = call(snow::is_truthy);
 				c_is_truthy.set_arg<0>(result);
@@ -400,6 +421,7 @@ namespace x86_64 {
 				j(CC_EQUAL, after);
 				
 				auto body_result = compile_ast_node(node->loop.body);
+				record_source_location(node);
 				movq(body_result, ret);
 				jmp(cond);
 				
@@ -421,6 +443,7 @@ namespace x86_64 {
 				
 				AsmValue<VALUE> ret(REG_RETURN);
 				auto cond = compile_ast_node(node->if_else.cond);
+				record_source_location(node);
 				movq(cond, ret);
 				auto c_is_truthy = call(snow::is_truthy);
 				c_is_truthy.set_arg<0>(cond);
@@ -428,12 +451,14 @@ namespace x86_64 {
 				cmpq(0, truthy);
 				j(CC_EQUAL, else_body);
 				auto body_result = compile_ast_node(node->if_else.body);
+				record_source_location(node);
 				movq(body_result, ret);
 				
 				if (node->if_else.else_body) {
 					jmp(after);
 					label(else_body);
 					auto else_result = compile_ast_node(node->if_else.else_body);
+					record_source_location(node);
 					movq(else_result, ret);
 				} else {
 					label(else_body);
@@ -525,12 +550,14 @@ namespace x86_64 {
 					movq(reg_load, address(reg_args_ptr, sizeof(VALUE) * j));
 					
 					auto object = compile_ast_node(target->association.object);
+					record_source_location(target);
 					auto r = compile_method_call(object, snow::sym("set"), num_args, args_ptr);
 					movq(r, ret);
 					break;
 				}
 				case ASTNodeTypeInstanceVariable: {
 					auto object = compile_ast_node(target->instance_variable.object);
+					record_source_location(target);
 					if (object.is_memory()) {
 						movq(object, REG_ARGS[0]);
 						object.op = REG_ARGS[0];
@@ -552,6 +579,7 @@ namespace x86_64 {
 					break;
 				}
 				case ASTNodeTypeIdentifier: {
+					record_source_location(target);
 					auto local_addr = compile_get_address_for_local(REG_SCRATCH[0], target->identifier.name, true);
 					if (local_addr.is_valid()) {
 						AsmValue<VALUE> val(REG_RETURN);
@@ -574,6 +602,7 @@ namespace x86_64 {
 				}
 				case ASTNodeTypeMethod: {
 					auto object = compile_ast_node(target->method.object);
+					record_source_location(target);
 					auto c_object_set = call(ccall::object_set_property_or_define_method);
 					c_object_set.set_arg<0>(object);
 					c_object_set.set_arg<1>(target->method.name);
@@ -604,7 +633,7 @@ namespace x86_64 {
 				f->local_names.push_back(x->parameter.name);
 			}
 		}
-		f->compile_function_body(function->closure.body);
+		f->compile_function_body(function, function->closure.body);
 		Function* final_function = f.release();
 		codegen._functions.push_back(final_function);
 		return final_function;
@@ -860,6 +889,8 @@ namespace x86_64 {
 	}
 	
 	void Codegen::Function::materialize_at(byte* destination, size_t max_size) {
+		bind_label_references();
+		
 		// Fix up eh_frame values:
 		eh.fde_cie_pointer->type = FixupAbsolute;
 		eh.fde_cie_pointer->value = eh.fde_cie_pointer->position - eh.fde_cie_offset; // weird DWARF-way of referring to CIE: the number of bytes to subtract from the current position in order to find the CIE.
@@ -991,6 +1022,30 @@ namespace x86_64 {
 		eh.buffer.emit_u8(dwarf::DW_CFA_def_cfa);
 		eh.buffer.emit_uleb128(dwarf::reg(reg));
 		eh.buffer.emit_uleb128(offset);
+	}
+	
+	void Codegen::Function::record_source_location(const ASTNode* node) {
+		size_t offset = get_current_offset();
+		ASSERT(offset <= UINT32_MAX);
+		SourceLocation location;
+		location.code_offset = offset;
+		location.line = node->line;
+		location.column = node->column;
+		
+		// Try to not record more locations than necessary.
+		if (source_locations.size()) {
+			SourceLocation& last = source_locations.back();
+			ASSERT(last.code_offset <= location.code_offset);
+			if (last.code_offset == offset) {
+				last = location;
+			} else if (last.line == location.line && last.column == location.line) {
+				// do nothing
+			} else {
+				source_locations.push_back(location);
+			}
+		} else {
+			source_locations.push_back(location);
+		}
 	}
 }
 }
