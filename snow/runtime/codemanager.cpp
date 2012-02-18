@@ -64,8 +64,10 @@ namespace snow {
 				auto end   = module->locations.end();
 				if (begin != end) {
 					auto location = std::lower_bound(begin, end, offset, CompareOffsets());
-					// lower_bound finds the first element that is *not* less than offset, which is exactly one past the one we need.
-					--location;
+					if (location != begin) {
+						// lower_bound finds the first element that is *not* less than offset, which is exactly one past the one we need.
+						--location;
+					}
 					out_file = module->source_file;
 					out_location = *location;
 					return true;
