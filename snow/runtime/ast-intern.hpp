@@ -4,6 +4,7 @@
 
 #include "snow/ast.hpp"
 #include "linkheap.hpp"
+#include "lexer.hpp"
 
 namespace snow {
 	class AST : public ASTBase {
@@ -16,37 +17,37 @@ namespace snow {
 
 		ASTNode* sequence(unsigned int n = 0, ...);
 		void sequence_push(ASTNode* seq, ASTNode* n);
-		ASTNode* literal(Value val);
-		ASTNode* closure(ASTNode* parameters, ASTNode* body);
-		ASTNode* parameter(Symbol name, ASTNode* id_type, ASTNode* default_value);
-		ASTNode* return_(ASTNode* value = NULL);
-		ASTNode* identifier(Symbol sym);
-		ASTNode* break_() { return create(ASTNodeTypeBreak); }
-		ASTNode* continue_() { return create(ASTNodeTypeContinue); }
-		ASTNode* self() { return create(ASTNodeTypeSelf); }
-		ASTNode* here() { return create(ASTNodeTypeHere); }
-		ASTNode* it() { return create(ASTNodeTypeIt); }
-		ASTNode* assign(ASTNode* target, ASTNode* value);
-		ASTNode* method(ASTNode* object, Symbol sym);
-		ASTNode* instance_variable(ASTNode* object, Symbol sym);
-		ASTNode* call(ASTNode* object, ASTNode* arguments);
-		ASTNode* association(ASTNode* object, ASTNode* arguments);
-		ASTNode* named_argument(Symbol name, ASTNode* expr);
-		ASTNode* logic_and(ASTNode* left, ASTNode* right);
-		ASTNode* logic_or(ASTNode* left, ASTNode* right);
-		ASTNode* logic_xor(ASTNode* left, ASTNode* right);
-		ASTNode* logic_not(ASTNode* expr);
-		ASTNode* loop(ASTNode* cond, ASTNode* body);
-		ASTNode* if_else(ASTNode* cond, ASTNode* body, ASTNode* else_body);
+		ASTNode* literal(const LexerLocation& loc, Value val);
+		ASTNode* closure(const LexerLocation& loc, ASTNode* parameters, ASTNode* body);
+		ASTNode* parameter(const LexerLocation& loc, Symbol name, ASTNode* id_type, ASTNode* default_value);
+		ASTNode* return_(const LexerLocation& loc, ASTNode* value = NULL);
+		ASTNode* identifier(const LexerLocation& loc, Symbol sym);
+		ASTNode* break_(const LexerLocation& loc) { return create(loc, ASTNodeTypeBreak); }
+		ASTNode* continue_(const LexerLocation& loc) { return create(loc, ASTNodeTypeContinue); }
+		ASTNode* self(const LexerLocation& loc) { return create(loc, ASTNodeTypeSelf); }
+		ASTNode* here(const LexerLocation& loc) { return create(loc, ASTNodeTypeHere); }
+		ASTNode* it(const LexerLocation& loc) { return create(loc, ASTNodeTypeIt); }
+		ASTNode* assign(const LexerLocation& loc, ASTNode* target, ASTNode* value);
+		ASTNode* method(const LexerLocation& loc, ASTNode* object, Symbol sym);
+		ASTNode* instance_variable(const LexerLocation& loc, ASTNode* object, Symbol sym);
+		ASTNode* call(const LexerLocation& loc, ASTNode* object, ASTNode* arguments);
+		ASTNode* association(const LexerLocation& loc, ASTNode* object, ASTNode* arguments);
+		ASTNode* named_argument(const LexerLocation& loc, Symbol name, ASTNode* expr);
+		ASTNode* logic_and(const LexerLocation& loc, ASTNode* left, ASTNode* right);
+		ASTNode* logic_or(const LexerLocation& loc, ASTNode* left, ASTNode* right);
+		ASTNode* logic_xor(const LexerLocation& loc, ASTNode* left, ASTNode* right);
+		ASTNode* logic_not(const LexerLocation& loc, ASTNode* expr);
+		ASTNode* loop(const LexerLocation& loc, ASTNode* cond, ASTNode* body);
+		ASTNode* if_else(const LexerLocation& loc, ASTNode* cond, ASTNode* body, ASTNode* else_body);
 	private:
 		LinkHeap<ASTNode> _heap;
 
-		ASTNode* create(ASTNodeType type);
+		ASTNode* create(const LexerLocation& loc, ASTNodeType type);
 		void print_r(ASTNode* n, int indent) const;
 	};
 
 	inline ASTNode* AST::sequence(unsigned int n, ...) {
-		ASTNode* seq = create(ASTNodeTypeSequence);
+		ASTNode* seq = create(LexerLocation(), ASTNodeTypeSequence);
 		seq->sequence.length = 0;
 		seq->sequence.head = seq->sequence.tail = NULL;
 		
@@ -67,122 +68,124 @@ namespace snow {
 		else { seq->sequence.tail->next = n; seq->sequence.tail = n; }
 	}
 	
-	inline ASTNode* AST::literal(Value val) {
-		ASTNode* n = create(ASTNodeTypeLiteral);
+	inline ASTNode* AST::literal(const LexerLocation& loc, Value val) {
+		ASTNode* n = create(loc, ASTNodeTypeLiteral);
 		n->literal.value = val;
 		return n;
 	}
 	
-	inline ASTNode* AST::closure(ASTNode* parameters, ASTNode* body) {
-		ASTNode* n = create(ASTNodeTypeClosure);
+	inline ASTNode* AST::closure(const LexerLocation& loc, ASTNode* parameters, ASTNode* body) {
+		ASTNode* n = create(loc, ASTNodeTypeClosure);
 		n->closure.parameters = parameters; n->closure.body = body;
 		return n;
 	}
 	
-	inline ASTNode* AST::parameter(Symbol name, ASTNode* id_type, ASTNode* default_value) {
-		ASTNode* n = create(ASTNodeTypeParameter);
+	inline ASTNode* AST::parameter(const LexerLocation& loc, Symbol name, ASTNode* id_type, ASTNode* default_value) {
+		ASTNode* n = create(loc, ASTNodeTypeParameter);
 		n->parameter.name = name;
 		n->parameter.id_type = id_type;
 		n->parameter.default_value = default_value;
 		return n;
 	}
 	
-	inline ASTNode* AST::return_(ASTNode* value) {
-		ASTNode* n = create(ASTNodeTypeReturn);
+	inline ASTNode* AST::return_(const LexerLocation& loc, ASTNode* value) {
+		ASTNode* n = create(loc, ASTNodeTypeReturn);
 		n->return_expr.value = value;
 		return n;
 	}
 	
-	inline ASTNode* AST::identifier(Symbol sym) {
-		ASTNode* n = create(ASTNodeTypeIdentifier);
+	inline ASTNode* AST::identifier(const LexerLocation& loc, Symbol sym) {
+		ASTNode* n = create(loc, ASTNodeTypeIdentifier);
 		n->identifier.name = sym;
 		return n;
 	}
 	
-	inline ASTNode* AST::assign(ASTNode* target, ASTNode* value) {
-		ASTNode* n = create(ASTNodeTypeAssign);
+	inline ASTNode* AST::assign(const LexerLocation& loc, ASTNode* target, ASTNode* value) {
+		ASTNode* n = create(loc, ASTNodeTypeAssign);
 		n->assign.target = target;
 		n->assign.value = value;
 		return n;
 	}
 	
-	inline ASTNode* AST::method(ASTNode* object, Symbol sym) {
-		ASTNode* n = create(ASTNodeTypeMethod);
+	inline ASTNode* AST::method(const LexerLocation& loc, ASTNode* object, Symbol sym) {
+		ASTNode* n = create(loc, ASTNodeTypeMethod);
 		n->method.object = object;
 		n->method.name = sym;
 		return n;
 	}
 	
-	inline ASTNode* AST::instance_variable(ASTNode* object, Symbol sym) {
-		ASTNode* n = create(ASTNodeTypeInstanceVariable);
+	inline ASTNode* AST::instance_variable(const LexerLocation& loc, ASTNode* object, Symbol sym) {
+		ASTNode* n = create(loc, ASTNodeTypeInstanceVariable);
 		n->instance_variable.object = object;
 		n->instance_variable.name = sym;
 		return n;
 	}
 	
-	inline ASTNode* AST::call(ASTNode* object, ASTNode* arguments) {
-		ASTNode* n = create(ASTNodeTypeCall);
+	inline ASTNode* AST::call(const LexerLocation& loc, ASTNode* object, ASTNode* arguments) {
+		ASTNode* n = create(loc, ASTNodeTypeCall);
 		n->call.object = object;
 		n->call.args = arguments;
 		return n;
 	}
 	
-	inline ASTNode* AST::association(ASTNode* object, ASTNode* arguments) {
-		ASTNode* n = create(ASTNodeTypeAssociation);
+	inline ASTNode* AST::association(const LexerLocation& loc, ASTNode* object, ASTNode* arguments) {
+		ASTNode* n = create(loc, ASTNodeTypeAssociation);
 		n->association.object = object;
 		n->association.args = arguments;
 		return n;
 	}
 	
-	inline ASTNode* AST::named_argument(Symbol name, ASTNode* expr) {
-		ASTNode* n = create(ASTNodeTypeNamedArgument);
+	inline ASTNode* AST::named_argument(const LexerLocation& loc, Symbol name, ASTNode* expr) {
+		ASTNode* n = create(loc, ASTNodeTypeNamedArgument);
 		n->named_argument.name = name;
 		n->named_argument.expr = expr;
 		return n;
 	}
 	
-	inline ASTNode* AST::logic_and(ASTNode* left, ASTNode* right) {
-		ASTNode* n = create(ASTNodeTypeAnd);
+	inline ASTNode* AST::logic_and(const LexerLocation& loc, ASTNode* left, ASTNode* right) {
+		ASTNode* n = create(loc, ASTNodeTypeAnd);
 		n->logic_and.left = left;
 		n->logic_and.right = right;
 		return n;
 	}
 	
-	inline ASTNode* AST::logic_or(ASTNode* left, ASTNode* right) {
-		ASTNode* n = logic_and(left, right); n->type = ASTNodeTypeOr;
+	inline ASTNode* AST::logic_or(const LexerLocation& loc, ASTNode* left, ASTNode* right) {
+		ASTNode* n = logic_and(loc, left, right); n->type = ASTNodeTypeOr;
 		return n;
 	}
 	
-	inline ASTNode* AST::logic_xor(ASTNode* left, ASTNode* right) {
-		ASTNode* n = logic_and(left, right); n->type = ASTNodeTypeXor;
+	inline ASTNode* AST::logic_xor(const LexerLocation& loc, ASTNode* left, ASTNode* right) {
+		ASTNode* n = logic_and(loc, left, right); n->type = ASTNodeTypeXor;
 		return n;
 	}
 	
-	inline ASTNode* AST::logic_not(ASTNode* expr) {
-		ASTNode* n = create(ASTNodeTypeNot);
+	inline ASTNode* AST::logic_not(const LexerLocation& loc, ASTNode* expr) {
+		ASTNode* n = create(loc, ASTNodeTypeNot);
 		n->logic_not.expr = expr;
 		return n;
 	}
 	
-	inline ASTNode* AST::loop(ASTNode* cond, ASTNode* body) {
-		ASTNode* n = create(ASTNodeTypeLoop);
+	inline ASTNode* AST::loop(const LexerLocation& loc, ASTNode* cond, ASTNode* body) {
+		ASTNode* n = create(loc, ASTNodeTypeLoop);
 		n->loop.cond = cond;
 		n->loop.body = body;
 		return n;
 	}
 	
-	inline ASTNode* AST::if_else(ASTNode* cond, ASTNode* body, ASTNode* else_body) {
-		ASTNode* n = create(ASTNodeTypeIfElse);
+	inline ASTNode* AST::if_else(const LexerLocation& loc, ASTNode* cond, ASTNode* body, ASTNode* else_body) {
+		ASTNode* n = create(loc, ASTNodeTypeIfElse);
 		n->if_else.cond = cond;
 		n->if_else.body = body;
 		n->if_else.else_body = else_body;
 		return n;
 	}
 
-	inline ASTNode* AST::create(ASTNodeType type) {
+	inline ASTNode* AST::create(const LexerLocation& loc, ASTNodeType type) {
 		ASTNode* n = _heap.alloc();
 		n->type = type;
 		n->next = NULL;
+		n->line = loc.line;
+		n->column = loc.column;
 		return n;
 	}
 	

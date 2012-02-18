@@ -13,7 +13,7 @@ namespace snow {
 		}
 	}
 
-	CodeModule* CodeManager::compile_ast(const ASTBase* ast, const char* source, const char* module_name)
+	CodeModule* CodeManager::compile_ast(const ASTBase* ast, const std::string& source, const std::string& path)
 	{
 		x86_64::CodegenSettings settings = {
 			.use_inline_cache = true,
@@ -23,6 +23,8 @@ namespace snow {
 		x86_64::Codegen codegen(settings);
 		if (codegen.compile_ast(ast)) {
 			std::unique_ptr<CodeModule> mod(new CodeModule);
+			mod->source_file.path = path;
+			mod->source_file.source = source;
 			mod->size = codegen.compiled_size();
 			
 			mod->memory = (byte*)mmap(NULL, mod->size, PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);

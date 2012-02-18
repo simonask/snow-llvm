@@ -15,7 +15,7 @@
 #include <vector>
 #include <utility>
 
-#define GET_TOKEN_SZ(SZ, TOKEN) char* SZ = (char*)alloca((TOKEN)->length+1); memcpy(SZ, (TOKEN)->begin, (TOKEN)->length); (SZ)[(TOKEN)->length] = '\0'
+#define GET_TOKEN_SZ(SZ, TOKEN) char* SZ = (char*)alloca((TOKEN)->length+1); memcpy(SZ, (TOKEN)->line_begin + (TOKEN)->location.column, (TOKEN)->length); (SZ)[(TOKEN)->length] = '\0'
 
 #define FIRST_MATCH(BLOCK) do BLOCK while(0)
 #define MATCH(RULE) { Pos p = pos; ASTNode* r = RULE(p); if (r) { result = r; pos = p; break; } }
@@ -23,8 +23,8 @@
 #define PARSER_DEBUG 0
 
 #if PARSER_DEBUG
-#define MATCH_FAILED() { fprintf(stderr, "DEBUG: FAIL '%s' (line %d, %s).\n", __func__, __LINE__, position_to_cstr(pos)); return NULL; }
-#define MATCH_SUCCESS(X) { fprintf(stderr, "DEBUG: MATCH '%s' (line %d, %s).\n", __func__, __LINE__, position_to_cstr(pos)); return X; }
+#define MATCH_FAILED() { fprintf(stderr, "DEBUG: FAIL '%s' (line %d, %s).\n", __func__, __LINE__, position_to_cstr(_path, pos)); return NULL; }
+#define MATCH_SUCCESS(X) { fprintf(stderr, "DEBUG: MATCH '%s' (line %d, %s).\n", __func__, __LINE__, position_to_cstr(_path, pos)); return X; }
 #else
 #define MATCH_FAILED() { return NULL; }
 #define MATCH_SUCCESS(X) { return X; }
@@ -34,8 +34,9 @@ namespace snow {
 	class Parser {
 	public:
 		typedef Lexer::iterator Pos;
+		const std::string& _path;
 		
-		Parser(Pos pos) : _pos(pos), _error_message(NULL) {}
+		Parser(const std::string& path, Pos pos) : _path(path), _pos(pos), _error_message(NULL) {}
 		~Parser() { free(_error_message); }
 		
 		AST* parse();
@@ -150,12 +151,10 @@ namespace snow {
 	}
 	
 	
-	static inline const char* position_to_cstr(const Parser::Pos& pos) {
+	static inline const char* position_to_cstr(const std::string& path, const Parser::Pos& pos) {
 		static char* data = NULL;
 		free(data);
-		int lineno = pos->line_number;
-		int column = (int)(pos->begin - pos->line_begin);
-		asprintf(&data, "stdin:%d:%d:%s", lineno, column, get_token_name(pos->type));
+		asprintf(&data, "%s:%d:%d (%s)", path.c_str(), pos->location.line, pos->location.column, get_token_name(pos->type));
 		return data;
 	}
 	
@@ -171,9 +170,8 @@ namespace snow {
 			ast->set_root(seq);
 			return ast;
 		} else {
-			long col = _error_pos->begin - _error_pos->line_begin;
-			
-			fprintf(stderr, "PARSER ERROR at line %d col %ld: %s\n", _error_pos->line_number, col, _error_message);
+			long col = _error_pos->location.column;
+			fprintf(stderr, "PARSER ERROR at line %d col %ld: %s\n", _error_pos->location.line, col, _error_message);
 			
 			// print context:
 			const char* p = _error_pos->line_begin;
@@ -266,12 +264,12 @@ namespace snow {
 			return := RETURN operand;
 		*/
 		ASTNode* result = NULL;
-		if (pos->type == Token::BREAK) { result = ast->break_(); ++pos; }
-		else if (pos->type == Token::CONTINUE) { result = ast->continue_(); ++pos; }
+		if (pos->type == Token::BREAK) { result = ast->break_(pos->location); ++pos; }
+		else if (pos->type == Token::CONTINUE) { result = ast->continue_(pos->location); ++pos; }
 		else if (pos->type == Token::RETURN) {
 			++pos;
 			ASTNode* v = operand(pos);
-			result = ast->return_(v);
+			result = ast->return_(pos->location, v);
 		}
 		
 		if (result) {
@@ -342,8 +340,8 @@ namespace snow {
 			}
 			pos = p;
 			if (type == Token::LOG_NOT)
-				return ast->logic_not(a);
-			return ast->call(ast->method(a, snow::sym(data)), NULL);
+				return ast->logic_not(pos->location, a);
+			return ast->call(pos->location, ast->method(pos->location, a, snow::sym(data)), NULL);
 		}
 		return operand(pos);
 	}
@@ -352,8 +350,9 @@ namespace snow {
 		Pos p = pos;
 		ASTNode* lvs = lvalues(p);
 		if (lvs && p->type == Token::ASSIGN) {
+			Pos begin = p;
 			pos = ++p;
-			MATCH_SUCCESS(ast->assign(lvs, NULL));
+			MATCH_SUCCESS(ast->assign(begin->location, lvs, NULL));
 		}
 		MATCH_FAILED();
 	}
@@ -438,6 +437,7 @@ namespace snow {
 	ASTNode* Parser::postcondition(Pos& pos) {
 		Token::Type type = pos->type;
 		if (type == Token::IF || type == Token::UNLESS) {
+			Pos begin = pos;
 			++pos;
 			ASTNode* op = operation(pos);
 			if (!op) {
@@ -445,9 +445,9 @@ namespace snow {
 				MATCH_FAILED();
 			}
 			if (type == Token::UNLESS) {
-				op = ast->logic_not(op);
+				op = ast->logic_not(begin->location, op);
 			}
-			ASTNode* cond = ast->if_else(op, NULL, NULL);
+			ASTNode* cond = ast->if_else(begin->location, op, NULL, NULL);
 			MATCH_SUCCESS(cond);
 		}
 		MATCH_FAILED();
@@ -458,6 +458,7 @@ namespace snow {
 		*/
 		Token::Type type = pos->type;
 		if (type == Token::WHILE || type == Token::UNTIL) {
+			Pos begin = pos;
 			++pos;
 			ASTNode* op = operation(pos);
 			if (!op) {
@@ -465,9 +466,9 @@ namespace snow {
 				MATCH_FAILED();
 			}
 			if (type == Token::UNTIL) {
-				op = ast->logic_not(op);
+				op = ast->logic_not(begin->location, op);
 			}
-			MATCH_SUCCESS(ast->loop(op, NULL));
+			MATCH_SUCCESS(ast->loop(begin->location, op, NULL));
 		}
 		MATCH_FAILED();
 	}
@@ -483,25 +484,26 @@ namespace snow {
 		
 		while (pos->type == Token::IF || pos->type == Token::UNLESS) {
 			Token::Type type = pos->type;
+			Pos begin = pos;
 			ASTNode* condition = operation(++pos);
 			if (!condition) {
 				error(pos, "Expected expression for conditional, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
 			}
-			if (type == Token::UNLESS) { condition = ast->logic_not(condition); }
+			if (type == Token::UNLESS) { condition = ast->logic_not(begin->location, condition); }
 			
 			if (pos->type == Token::THEN || skip_end_of_statement(pos)) {
 				while (skip_end_of_statement(pos)); // skip additional ends
 				ASTNode* body = sequence(pos);
 				
 				if (pos->type == Token::END) {
-					*place_last_here = ast->if_else(condition, body, NULL);
+					*place_last_here = ast->if_else(begin->location, condition, body, NULL);
 					MATCH_SUCCESS(toplevel_condition);
 				} else if (pos->type == Token::ELSE) {
 					if ((pos+1)->type == Token::IF) {
 						++pos;
 						// else if: let's go again!
-						*place_last_here = ast->if_else(condition, body, NULL);
+						*place_last_here = ast->if_else(begin->location, condition, body, NULL);
 						place_last_here = &(*place_last_here)->if_else.else_body;
 					} else {
 						ASTNode* else_body = sequence(++pos);
@@ -511,7 +513,7 @@ namespace snow {
 						}
 						++pos;
 						
-						*place_last_here = ast->if_else(condition, body, else_body);
+						*place_last_here = ast->if_else(begin->location, condition, body, else_body);
 						MATCH_SUCCESS(toplevel_condition);
 					}
 				}
@@ -531,19 +533,20 @@ namespace snow {
 		*/
 		Token::Type type = pos->type;
 		if (type == Token::WHILE || type == Token::UNTIL) {
+			Pos begin = pos;
 			ASTNode* op = operation(++pos);
 			if (!op) {
 				error(pos, "Expected expression for loop condition, got %s.", get_token_name(pos->type));
 				MATCH_FAILED();
 			}
-			if (type == Token::UNTIL) { op = ast->logic_not(op); }
+			if (type == Token::UNTIL) { op = ast->logic_not(begin->location, op); }
 			
 			if (pos->type == Token::DO || skip_end_of_statement(pos)) {
 				while (skip_end_of_statement(pos)); // skip additional ends
 				ASTNode* body = sequence(pos);
 				if (pos->type == Token::END) {
 					++pos;
-					ASTNode* loop = ast->loop(op, body);
+					ASTNode* loop = ast->loop(begin->location, op, body);
 					MATCH_SUCCESS(loop);
 				} else {
 					error(pos, "Expected END, got %s.", get_token_name(pos->type));
@@ -594,6 +597,7 @@ namespace snow {
 	
 	ASTNode* Parser::instance_variable(Pos& pos){
 		if (pos->type == Token::DOLLAR) {
+			Pos begin = pos;
 			++pos;
 			ASTNode* id = identifier(pos);
 			if (!id) {
@@ -602,7 +606,7 @@ namespace snow {
 			}
 			Symbol sym = id->identifier.name;
 			ast->free(id);
-			MATCH_SUCCESS(ast->instance_variable(ast->self(), sym));
+			MATCH_SUCCESS(ast->instance_variable(begin->location, ast->self(begin->location), sym));
 		}
 		MATCH_FAILED();
 	}
@@ -614,10 +618,11 @@ namespace snow {
 		Pos p = pos;
 		ASTNode* result = atomic_expression(p);
 		if (!result && p->type == Token::DOT)
-			result = ast->self();
+			result = ast->self(p->location);
 		
 		bool keep_going = true;
 		while (keep_going) {
+			Pos begin = p;
 			switch (p->type) {
 				case Token::DOT: {
 					++p;
@@ -630,7 +635,7 @@ namespace snow {
 						}
 						Symbol sym = id->identifier.name;
 						ast->free(id);
-						result = ast->instance_variable(result, sym);
+						result = ast->instance_variable(begin->location, result, sym);
 					} else {
 						ASTNode* id = identifier(p);
 						if (!id) {
@@ -639,7 +644,7 @@ namespace snow {
 						}
 						Symbol sym = id->identifier.name;
 						ast->free(id);
-						result = ast->method(result, sym);
+						result = ast->method(begin->location, result, sym);
 					}
 					break;
 				}
@@ -652,14 +657,14 @@ namespace snow {
 						error(p, "Expected argument list for method call, got %s.", get_token_name(p->type));
 						MATCH_FAILED();
 					}
-					result = ast->call(result, arg_list);
+					result = ast->call(begin->location, result, arg_list);
 					break;
 				}
 				case Token::BRACKET_BEGIN: {
 					// either association, or closure call with parameters
 					ASTNode* block = closure(p);
 					if (block) {
-						result = ast->call(result, ast->sequence(1, block));
+						result = ast->call(begin->location, result, ast->sequence(1, block));
 						break;
 					}
 					ASTNode* assoc_key = association_key_list(p);
@@ -667,7 +672,7 @@ namespace snow {
 						error(p, "Expected closure call or dictionary key, got %s.", get_token_name(p->type));
 						MATCH_FAILED();
 					}
-					result = ast->association(result, assoc_key);
+					result = ast->association(begin->location, result, assoc_key);
 					break;
 				}
 				default: {
@@ -753,8 +758,9 @@ namespace snow {
 		if (expr) {
 			Symbol name = id->identifier.name;
 			ast->free(id);
+			Pos begin = pos;
 			pos = p;
-			MATCH_SUCCESS(ast->named_argument(name, expr));
+			MATCH_SUCCESS(ast->named_argument(begin->location, name, expr));
 		}
 		error(p, "Expected right-hand side for named argument, got %s.", get_token_name(p->type));
 		MATCH_FAILED();
@@ -808,8 +814,9 @@ namespace snow {
 			ASTNode* body = sequence(p);
 			if (p->type == Token::BRACE_END) {
 				++p;
+				Pos begin = pos;
 				pos = p;
-				MATCH_SUCCESS(ast->closure(params, body));
+				MATCH_SUCCESS(ast->closure(begin->location, params, body));
 			}
 			error(p, "Expected BRACE_END, got %s.", get_token_name(p->type));
 			MATCH_FAILED();
@@ -883,10 +890,11 @@ namespace snow {
 			}
 		}
 		
+		Pos begin = pos;
 		pos = p;
 		Symbol name = id->identifier.name;
 		ast->free(id);
-		MATCH_SUCCESS(ast->parameter(name, type_id, default_expr));
+		MATCH_SUCCESS(ast->parameter(begin->location, name, type_id, default_expr));
 	}
 	
 	ASTNode* Parser::identifier(Pos& pos) {
@@ -895,8 +903,9 @@ namespace snow {
 		*/
 		if (pos->type == Token::IDENTIFIER) {
 			GET_TOKEN_SZ(data, pos);
+			Pos begin = pos;
 			++pos;
-			MATCH_SUCCESS(ast->identifier(snow::sym(data)));
+			MATCH_SUCCESS(ast->identifier(begin->location, snow::sym(data)));
 		}
 		MATCH_FAILED();
 	}
@@ -905,28 +914,29 @@ namespace snow {
 		/*
 			literal := nil | true | false | INTEGER | FLOAT | DQSTRING | SQSTRING | symbol;
 		*/
+		Pos begin = pos;
 		switch (pos->type) {
-			case Token::NIL: { ++pos; MATCH_SUCCESS(ast->literal(SN_NIL)); }
-			case Token::TRUE: { ++pos; MATCH_SUCCESS(ast->literal(SN_TRUE)); }
-			case Token::FALSE: { ++pos; MATCH_SUCCESS(ast->literal(SN_FALSE)); }
+			case Token::NIL: { ++pos; MATCH_SUCCESS(ast->literal(begin->location, SN_NIL)); }
+			case Token::TRUE: { ++pos; MATCH_SUCCESS(ast->literal(begin->location, SN_TRUE)); }
+			case Token::FALSE: { ++pos; MATCH_SUCCESS(ast->literal(begin->location, SN_FALSE)); }
 			case Token::INTEGER: {
 				GET_TOKEN_SZ(data, pos);
 				long long n = atoll(data);
 				++pos;
-				MATCH_SUCCESS(ast->literal(integer_to_value(n)));
+				MATCH_SUCCESS(ast->literal(begin->location, integer_to_value(n)));
 			}
 			case Token::FLOAT: {
 				GET_TOKEN_SZ(data, pos);
 				float f = strtof(data, NULL);
 				++pos;
-				MATCH_SUCCESS(ast->literal(float_to_value(f)));
+				MATCH_SUCCESS(ast->literal(begin->location, float_to_value(f)));
 			}
 			case Token::DQSTRING:
 				// TODO: Interpolation, escapes
 			case Token::SQSTRING: {
-				ObjectPtr<String> str = create_string_with_size(pos->begin, pos->length);
+				ObjectPtr<String> str = create_string_with_size(pos->line_begin + pos->location.column, pos->length);
 				++pos;
-				MATCH_SUCCESS(ast->literal(str.value()));
+				MATCH_SUCCESS(ast->literal(begin->location, str.value()));
 			}
 			default:
 				return symbol(pos);
@@ -938,11 +948,12 @@ namespace snow {
 			symbol := '#' (identifier | SQSTRING | DQSTRING)
 		*/
 		
+		Pos begin = pos;
 		if (pos->type == Token::HASH) {
 			++pos;
 			ASTNode* id = identifier(pos);
 			if (id) {
-				ASTNode* sym = ast->literal(snow::symbol_to_value(id->identifier.name));
+				ASTNode* sym = ast->literal(begin->location, snow::symbol_to_value(id->identifier.name));
 				ast->free(id);
 				MATCH_SUCCESS(sym);
 			}
@@ -951,40 +962,43 @@ namespace snow {
 				// TODO: Run-time conversion
 				GET_TOKEN_SZ(data, pos);
 				++pos;
-				MATCH_SUCCESS(ast->literal(vsym(data)));
+				MATCH_SUCCESS(ast->literal(begin->location, vsym(data)));
 			}
 			
 			if (is_operator(pos->type)) {
 				GET_TOKEN_SZ(data, pos);
 				++pos;
-				MATCH_SUCCESS(ast->literal(vsym(data)));
+				MATCH_SUCCESS(ast->literal(begin->location, vsym(data)));
 			}
 			
-			MATCH_SUCCESS(ast->identifier(snow::sym("#")));
+			MATCH_SUCCESS(ast->identifier(begin->location, snow::sym("#")));
 		}
 		MATCH_FAILED();
 	}
 	
 	ASTNode* Parser::self(Pos& pos) {
 		if (pos->type == Token::SELF) {
+			Pos begin = pos;
 			++pos;
-			MATCH_SUCCESS(ast->self());
+			MATCH_SUCCESS(ast->self(begin->location));
 		}
 		MATCH_FAILED();
 	}
 	
 	ASTNode* Parser::it(Pos& pos) {
 		if (pos->type == Token::IT) {
+			Pos begin = pos;
 			++pos;
-			MATCH_SUCCESS(ast->it());
+			MATCH_SUCCESS(ast->it(begin->location));
 		}
 		MATCH_FAILED();
 	}
 	
 	ASTNode* Parser::here(Pos& pos) {
 		if (pos->type == Token::HERE) {
+			Pos begin = pos;
 			++pos;
-			MATCH_SUCCESS(ast->here());
+			MATCH_SUCCESS(ast->here(begin->location));
 		}
 		MATCH_FAILED();
 	}
@@ -1027,20 +1041,20 @@ namespace snow {
 	
 	ASTNode* Parser::reduce_operation(ASTNode* a, ASTNode* b, Pos op) {
 		switch (op->type) {
-			case Token::LOG_AND: return ast->logic_and(a, b);
-			case Token::LOG_OR:  return ast->logic_or(a, b);
-			case Token::LOG_XOR: return ast->logic_xor(a, b);
+			case Token::LOG_AND: return ast->logic_and(op->location, a, b);
+			case Token::LOG_OR:  return ast->logic_or(op->location, a, b);
+			case Token::LOG_XOR: return ast->logic_xor(op->location, a, b);
 			default: {
 				GET_TOKEN_SZ(op_str, op);
-				return ast->call(ast->method(a, snow::sym(op_str)), ast->sequence(1, b));
+				return ast->call(op->location, ast->method(op->location, a, snow::sym(op_str)), ast->sequence(1, b));
 			}
 		}
 	}
 	
-	ASTBase* parse(const char* buffer) {
-		Lexer l(buffer);
+	ASTBase* parse(const std::string& path, const std::string& source) {
+		Lexer l(path, source.c_str());
 		l.tokenize();
-		Parser parser(l.begin());
+		Parser parser(path, l.begin());
 		AST* ast = parser.parse();
 		//ast->print();
 		return ast;

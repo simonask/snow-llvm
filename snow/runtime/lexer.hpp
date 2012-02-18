@@ -5,11 +5,12 @@
 #include "snow/basic.h"
 #include "linkbuffer.hpp"
 
-#include <string.h>
+#include <string>
 
 namespace snow {
-	struct SourceLocation {
-		
+	struct LexerLocation {
+		uint32_t line;
+		uint32_t column;
 	};
 	
 	struct Token {
@@ -21,13 +22,15 @@ namespace snow {
 		};
 		
 		Type type;
-		const char* begin;
 		size_t length;
-		int line_number;
+		LexerLocation location;
 		const char* line_begin;
 		
-		Token(Type t, const char* begin, size_t len, int lineno, const char* line_begin) : type(t), begin(begin), length(len), line_number(lineno), line_begin(line_begin) {}
-		Token(const Token& other) : type(other.type), begin(other.begin), length(other.length), line_number(other.line_number), line_begin(other.line_begin) {}
+		Token(Type t, const char* begin, size_t len, int lineno, const char* line_begin) : type(t), length(len), line_begin(line_begin) {
+			location.line = lineno;
+			location.column = begin - line_begin;
+		}
+		Token(const Token& other) : type(other.type), length(other.length), location(other.location), line_begin(other.line_begin) {}
 	};
 	
 	inline const char* get_token_name(Token::Type t) {
@@ -41,8 +44,8 @@ namespace snow {
 	
 	class Lexer {
 	public:
-		Lexer(const char* input_stream, size_t length);
-		Lexer(const char* input_stream);
+		Lexer(const std::string& path, const char* input_stream, size_t length);
+		Lexer(const std::string& path, const char* input_stream);
 		
 		void tokenize();
 		
@@ -50,13 +53,14 @@ namespace snow {
 		iterator begin() { return _buffer.begin(); }
 		iterator end() { return _buffer.end(); }
 	private:
+		const std::string& _path;
 		const char* _input;
 		size_t _input_length;
 		LinkBuffer<Token> _buffer;
 	};
 	
-	inline Lexer::Lexer(const char* input_stream, size_t l) : _input(input_stream), _input_length(l) {}
-	inline Lexer::Lexer(const char* input_stream) : _input(input_stream), _input_length(_input ? strlen(_input) : 0) {}
+	inline Lexer::Lexer(const std::string& path, const char* input_stream, size_t l) : _path(path), _input(input_stream), _input_length(l) {}
+	inline Lexer::Lexer(const std::string& path, const char* input_stream) : _path(path), _input(input_stream), _input_length(_input ? strlen(_input) : 0) {}
 }
 
 #endif /* end of include guard: LEXER_HPP_S9CRBPS5 */

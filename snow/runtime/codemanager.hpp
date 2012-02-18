@@ -40,7 +40,7 @@ namespace snow {
 		
 		static CodeManager* get();
 		
-		CodeModule* compile_ast(const ASTBase* ast, const char* source, const char* module_name);
+		CodeModule* compile_ast(const ASTBase* ast, const std::string& source, const std::string& path);
 		ModuleInitFunc load_module(const char* path);
 		TestSuiteFunc load_test_suite(const char* path);
 		

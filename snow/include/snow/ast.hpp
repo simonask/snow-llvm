@@ -63,6 +63,8 @@ namespace snow {
 			struct { ASTNode *cond, *body; }             loop;
 			struct { ASTNode *cond, *body, *else_body; } if_else;
 		};
+		uint32_t line;
+		uint32_t column;
 	};
 
 }

@@ -329,21 +329,9 @@ namespace snow {
 				}
 			}
 			
-			fprintf(stderr, "Cannot tokenize (line %d col %ld): '%c'\n", current_line_number, p - current_line_begin, *p);
+			fprintf(stderr, "%s: Cannot tokenize (line %d col %ld): '%c'\n", _path.c_str(), current_line_number, p - current_line_begin, *p);
 			++p;
 		}
 		_buffer.push(Token(Token::END_OF_FILE, p, 0, current_line_number, current_line_begin));
-	}
-}
-
-CAPI void snow_lex(const char* src) {
-	printf("Tokenizing...\n");
-	snow::Lexer l(src);
-	l.tokenize();
-	for (snow::Lexer::iterator it = l.begin(); it != l.end(); ++it) {
-		char* str = (char*)alloca(it->length + 1);
-		memcpy(str, it->begin, it->length);
-		str[it->length] = '\0';
-		printf("TOKEN (%p): type=%s, string=(%p)\"%s\"\n", &*it, get_token_name(it->type), str, str);
 	}
 }
