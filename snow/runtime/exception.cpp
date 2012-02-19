@@ -3,12 +3,14 @@
 #include "snow/snow.hpp"
 #include "snow/class.hpp"
 #include "codemanager.hpp"
+#include "snow/numeric.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <libunwind.h>
 #include <cxxabi.h>
 #include <sstream>
 #include <iomanip>
+#include <fstream>
 
 namespace snow {
 	namespace {
@@ -101,6 +103,18 @@ namespace snow {
 			ExceptionPtr ex = self;
 			return value_to_string(ex->message);
 		}
+		
+		VALUE exception_get_source_excerpt(const CallFrame* here, VALUE self, VALUE it) {
+			return snow::exception_get_source_excerpt(self);
+		}
+		
+		VALUE exception_get_line(const CallFrame* here, VALUE self, VALUE it) {
+			return snow::exception_get_line(self);
+		}
+		
+		VALUE exception_get_column(const CallFrame* here, VALUE self, VALUE it) {
+			return snow::exception_get_column(self);
+		}
 	}
 	
 	ObjectPtr<Class> get_exception_class() {
@@ -111,6 +125,9 @@ namespace snow {
 			SN_DEFINE_PROPERTY(cls, "message", bindings::exception_get_message, NULL);
 			SN_DEFINE_PROPERTY(cls, "backtrace", bindings::exception_get_backtrace, NULL);
 			SN_DEFINE_PROPERTY(cls, "internal_backtrace", bindings::exception_get_internal_backtrace, NULL);
+			SN_DEFINE_PROPERTY(cls, "source_excerpt", bindings::exception_get_source_excerpt, NULL);
+			SN_DEFINE_PROPERTY(cls, "line", bindings::exception_get_line, NULL);
+			SN_DEFINE_PROPERTY(cls, "column", bindings::exception_get_column, NULL);
 			SN_DEFINE_METHOD(cls, "to_string", bindings::exception_to_string);
 			root = gc_create_root(cls);
 		}
@@ -189,16 +206,16 @@ namespace snow {
 		return points;
 	}
 	
+	using std::setw;
+	using std::setfill;
+	using std::setprecision;
+	using std::hex;
+	using std::dec;
+	using std::left;
+	using std::right;
+	
 	static StringPtr backtrace_to_string(const std::vector<TracePoint>& backtrace, bool omit_native) {
 		std::stringstream ss;
-		
-		using std::setw;
-		using std::setfill;
-		using std::setprecision;
-		using std::hex;
-		using std::dec;
-		using std::left;
-		using std::right;
 		
 		for (const TracePoint& point: backtrace) {
 			if (omit_native && point.type != TracePointTypeSnow)
@@ -215,7 +232,7 @@ namespace snow {
 					break;
 				}
 				case TracePointTypeSnow: {
-					ss << point.info->file->path << ":" << point.info->location->line << ":" << point.info->location->column;
+					ss << point.info->file->path << ":" << dec << point.info->location->line << ":" << point.info->location->column;
 					break;
 				}
 			}
@@ -245,5 +262,107 @@ namespace snow {
 	
 	StringPtr exception_get_backtrace(ExceptionConstPtr ex) {
 		return backtrace_to_string(ex->backtrace, true);
+	}
+	
+	StringPtr exception_get_source_excerpt(ExceptionConstPtr ex, size_t radius) {
+		static const size_t TAB_WIDTH = 4;
+		std::stringstream ss;
+		
+		const TracePoint* point = nullptr;
+		for (const TracePoint& p: ex->backtrace) {
+			if (p.type == TracePointTypeSnow) {
+				point = &p;
+				break;
+			}
+		}
+		if (point != nullptr) {
+			const SourceLocation& location = *point->info->location;
+			const SourceFile& file = *point->info->file;
+			
+			ssize_t begin_line = (ssize_t)location.line - (ssize_t)radius;
+			if (begin_line < 0) begin_line = 0;
+			ssize_t end_line = location.line;
+			
+			std::istringstream ifs(file.source);
+			std::string line;
+			size_t lineno = 1;
+			size_t adjusted_column = 0;
+			while (std::getline(ifs, line)) {
+				if (lineno >= begin_line && lineno <= end_line) {
+					// line number column
+					ss << setfill('0') << setw(6) << right << lineno;
+					ss << "    ";
+					size_t column = location.column;
+					for (size_t i = 0; i < line.size(); ++i) {
+						if (line[i] == '\t') {
+							for (size_t j = 0; j < TAB_WIDTH; ++j)
+								ss << ' ';
+							if (i < location.column) {
+								column += TAB_WIDTH-1;
+							}
+						} else {
+							ss << line[i];
+						}
+					}
+					if (line.back() != '\n')
+						ss << '\n';
+					if (lineno == location.line) {
+						adjusted_column = column;
+					}
+				}
+				++lineno;
+			}
+			
+			// print squiggly column indicator
+			for (size_t i = 0; i < adjusted_column+9; ++i) {
+				ss << '~';
+			}
+			ss << "^\n";
+		} else {
+			return nullptr;
+		}
+		
+		return create_string_with_size(ss.str().c_str(), ss.str().size());
+	}
+	
+	StringPtr exception_get_file(ExceptionConstPtr ex) {
+		const TracePoint* point = nullptr;
+		for (const TracePoint& p: ex->backtrace) {
+			if (p.type == TracePointTypeSnow) {
+				point = &p;
+				break;
+			}
+		}
+		if (point != nullptr) {
+			const std::string& path = point->info->file->path;
+			return create_string_with_size(path.c_str(), path.size());
+		}
+		return nullptr;
+	}
+	
+	Immediate exception_get_line(ExceptionConstPtr ex) {
+		const TracePoint* point = nullptr;
+		for (const TracePoint& p: ex->backtrace) {
+			if (p.type == TracePointTypeSnow) {
+				point = &p;
+				break;
+			}
+		}
+		if (point != nullptr)
+			return integer_to_value((int64_t)point->info->location->line);
+		return nullptr;
+	}
+	
+	Immediate exception_get_column(ExceptionConstPtr ex) {
+		const TracePoint* point = nullptr;
+		for (const TracePoint& p: ex->backtrace) {
+			if (p.type == TracePointTypeSnow) {
+				point = &p;
+				break;
+			}
+		}
+		if (point != nullptr)
+			return integer_to_value((int64_t)point->info->location->column);
+		return nullptr;
 	}
 }
