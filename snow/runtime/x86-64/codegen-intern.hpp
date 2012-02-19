@@ -188,7 +188,7 @@ namespace x86_64 {
 		std::list<FunctionDescriptorReference> function_descriptor_references;
 
 		// Stack temporary value management
-		int num_temporaries;
+		ReadOnly<Function, int> num_temporaries;
 		std::vector<int> temporaries_freelist;
 		int alloc_temporary();
 		void free_temporary(int);
