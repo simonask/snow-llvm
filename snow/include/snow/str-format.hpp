@@ -14,7 +14,10 @@ namespace snow {
 		size_t current_arg = 0;
 		for (const char* p = format; *p != '\0'; ++p) {
 			if (current_arg < num_strings && *p == '%' && *(p+1) == '@') {
-				string_copy_to(strings[current_arg++], buffer);
+				const ObjectPtr<String>& str = strings[current_arg++];
+				if (str != nullptr) {
+					string_copy_to(str, buffer);
+				}
 				++p; // skip @
 			} else {
 				buffer.put(*p);
