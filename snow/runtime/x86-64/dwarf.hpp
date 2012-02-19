@@ -4,6 +4,7 @@
 
 #include "../internal.h"
 #include "asm.hpp"
+#include "cconv.hpp"
 
 namespace snow {
 	namespace dwarf {
