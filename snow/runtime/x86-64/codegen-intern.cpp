@@ -232,10 +232,12 @@ namespace x86_64 {
 				
 				{
 					// get property
-					AsmValue<VALUE*> args(REG_ARGS[3]);
-					xorq(args, args); // no args!
-					auto r = compile_call(method, self, 0, args);
-					movq(r, result);
+					auto c_get_property = call(ccall::get_property);
+					c_get_property.set_arg<0>(method);
+					c_get_property.set_arg<1>(self);
+					c_get_property.set_arg<2>(node->method.name);
+					c_get_property.set_arg<3>(method_type);
+					movq(c_get_property.call(), result);
 					jmp(after);
 				}
 				

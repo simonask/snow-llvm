@@ -39,6 +39,26 @@ namespace snow {
 			}
 		}
 		
+		VALUE get_property(VALUE method, VALUE self, Symbol name, MethodType type) {
+			switch (type) {
+				case MethodTypeNone: {
+					ASSERT(false);
+					return NULL;
+				}
+				case MethodTypeFunction: {
+					ASSERT(false);
+					return NULL;
+				}
+				case MethodTypeProperty: {
+					return snow::call(method, self, 0, NULL);
+				}
+				case MethodTypeMissing: {
+					Value args[] = { symbol_to_value(name) };
+					return snow::call(method, self, 1, args);
+				}
+			}
+		}
+		
 		int32_t class_get_index_of_instance_variable(VALUE cls, Symbol name) {
 			return snow::class_get_index_of_instance_variable(cls, name);
 		}
