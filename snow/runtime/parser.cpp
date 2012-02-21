@@ -634,8 +634,8 @@ namespace snow {
 							MATCH_FAILED();
 						}
 						Symbol sym = id->identifier.name;
+						result = ast->instance_variable(id->location, result, sym);
 						ast->free(id);
-						result = ast->instance_variable(begin->location, result, sym);
 					} else {
 						ASTNode* id = identifier(p);
 						if (!id) {
@@ -643,8 +643,8 @@ namespace snow {
 							MATCH_FAILED();
 						}
 						Symbol sym = id->identifier.name;
+						result = ast->method(id->location, result, sym);
 						ast->free(id);
-						result = ast->method(begin->location, result, sym);
 					}
 					break;
 				}
@@ -657,7 +657,7 @@ namespace snow {
 						error(p, "Expected argument list for method call, got %s.", get_token_name(p->type));
 						MATCH_FAILED();
 					}
-					result = ast->call(begin->location, result, arg_list);
+					result = ast->call(result->location, result, arg_list);
 					break;
 				}
 				case Token::BRACKET_BEGIN: {
