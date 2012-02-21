@@ -294,6 +294,7 @@ namespace x86_64 {
 					}
 					movq(result, address(REG_SCRATCH[0], sizeof(VALUE) * i++));
 				}
+				record_source_location(node->association.object);
 				return compile_method_call(self, snow::sym("get"), num_args, args_ptr);
 			}
 			case ASTNodeTypeAnd: {
@@ -750,6 +751,7 @@ namespace x86_64 {
 		
 		if (node->call.object->type == ASTNodeTypeMethod) {
 			auto object = compile_ast_node(node->call.object->method.object);
+			record_source_location(node->call.object);
 			return compile_method_call(object, node->call.object->method.name, args.size(), args_ptr, names.size(), names_ptr);
 		} else {
 			auto functor = compile_ast_node(node->call.object);
@@ -786,7 +788,6 @@ namespace x86_64 {
 	AsmValue<VALUE> Codegen::Function::compile_method_call(const AsmValue<VALUE>& in_self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names, const AsmValue<Symbol*>& names_ptr) {
 		ASSERT(args_ptr.op.is_memory());
 		if (num_names) ASSERT(names_ptr.op.is_memory());
-		
 		AsmValue<VALUE> self(REG_PRESERVED_SCRATCH[1]);
 		movq(in_self, self);
 		
@@ -1040,7 +1041,7 @@ namespace x86_64 {
 			ASSERT(last.code_offset <= location.code_offset);
 			if (last.code_offset == offset) {
 				last = location;
-			} else if (last.line == location.line && last.column == location.line) {
+			} else if (last.line == location.line && last.column == location.column) {
 				// do nothing
 			} else {
 				source_locations.push_back(location);
