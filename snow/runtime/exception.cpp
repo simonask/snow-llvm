@@ -350,7 +350,7 @@ namespace snow {
 			}
 			
 			// print squiggly column indicator
-			for (size_t i = 0; i < adjusted_column+10; ++i) {
+			for (size_t i = 0; i < adjusted_column+9; ++i) {
 				ss << '~';
 			}
 			ss << "^\n";
