@@ -46,9 +46,9 @@ namespace {
 	VALUE object_method_missing(const CallFrame* here, VALUE self, VALUE it) {
 		if (is_symbol(it)) {
 			Symbol sym = value_to_symbol(it);
-			throw_exception_with_description("Object %@ does not respond to method '%@'.", self, sym_to_cstr(sym));
+			throw_exception_with_description("Object %@ does not respond to method '%@'.", value_inspect(self), sym_to_cstr(sym));
 		} else {
-			throw_exception_with_description("Object#method_missing called with wrong argument '%@'.", it);
+			throw_exception_with_description("Object#method_missing called with wrong argument '%@'.", value_inspect(it));
 		}
 		return NULL;
 	}

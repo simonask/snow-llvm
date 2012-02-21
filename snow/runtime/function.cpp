@@ -224,14 +224,14 @@ namespace snow {
 					functor = method.result;
 				} else if (method.type == MethodTypeProperty) {
 					if (method.result == NULL) {
-						throw_exception_with_description("Property __call__ is read-only on class %@@%@.", class_get_name(cls), format::pointer(cls));
+						throw_exception_with_description("Property __call__ is read-only on class %@.", class_get_name(cls), format::pointer(cls));
 					}
 					functor = call(method.result, *out_new_self, 0, NULL);
 				} else {
-					throw_exception_with_description("Object %@ of class %@@%@ is not a function, and does not respond to __call__.", functor, class_get_name(cls), format::pointer(cls));
+					throw_exception_with_description("Object %@ of class %@ is not a function, and does not respond to __call__.", value_inspect(functor), class_get_name(cls), format::pointer(cls));
 				}
 			} else {
-				throw_exception_with_description("Object %@ of class %@@%@ is not a function, and does not respond to __call__.", functor, class_get_name(cls), format::pointer(cls));
+				throw_exception_with_description("Object %@ of class %@ is not a function, and does not respond to __call__.", value_inspect(functor), class_get_name(cls), format::pointer(cls));
 			}
 		}
 		
