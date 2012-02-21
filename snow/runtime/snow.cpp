@@ -152,8 +152,13 @@ namespace snow {
 	}
 
 	ObjectPtr<String> value_inspect(Value it) {
-	 	ObjectPtr<String> str = SN_CALL_METHOD(it, "inspect", 0, NULL);
-		ASSERT(str != NULL); // .inspect returned non-String
-		return str;
+		try {
+			ObjectPtr<String> str = SN_CALL_METHOD(it, "inspect", 0, NULL);
+			ASSERT(str != NULL); // .inspect returned non-String
+			return str;
+		}
+		catch (ExceptionPtr ex) {
+			return format_string("<error in [%@].inspect>", format::pointer(it.value()));
+		}
 	}
 }

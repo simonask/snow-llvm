@@ -11,6 +11,7 @@
 
 namespace snow {
 	struct Class;
+	struct Array;
 	struct Function;
 	struct Environment;
 	typedef ObjectPtr<const Environment> EnvironmentConstPtr;
@@ -37,6 +38,8 @@ namespace snow {
 	Value* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels);
 	ObjectPtr<Function> environment_get_function(ObjectPtr<const Environment> env);
 	Value* environment_get_locals(ObjectPtr<const Environment> env);
+	Value environment_get_self(ObjectPtr<const Environment> env);
+	ObjectPtr<const Array> environment_get_arguments(ObjectPtr<const Environment> env);
 	
 	void merge_splat_arguments(CallFrame* callee_context, Value mergee);
 	ObjectPtr<Function> value_to_function(Value val, Value* out_new_self);

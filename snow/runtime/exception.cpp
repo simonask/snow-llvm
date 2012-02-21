@@ -234,6 +234,12 @@ namespace snow {
 				}
 				case TracePointTypeSnow: {
 					ss << point.info->file->path << ":" << dec << point.info->location->line << ":" << point.info->location->column;
+					ss << " (";
+					Value self = environment_get_self(point.info->environment);
+					ObjectPtr<const Array> args = environment_get_arguments(point.info->environment);
+					ObjectPtr<const String> str = format_string("self = %@, arguments = %@", value_inspect(self), value_inspect(args));
+					string_copy_to(str, ss);
+					ss << ")";
 					break;
 				}
 			}

@@ -182,6 +182,14 @@ namespace snow {
 	ObjectPtr<Function> environment_get_function(EnvironmentConstPtr obj) {
 		return obj->function;
 	}
+
+	Value environment_get_self(EnvironmentConstPtr env) {
+		return env->self;
+	}
+
+	ObjectPtr<const Array> environment_get_arguments(EnvironmentConstPtr env) {
+		return create_array_from_range(env->args.data, env->args.data + env->args.size);
+	}
 	
 	Value* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels) {
 		if (num_levels == 0) return frame->locals;
