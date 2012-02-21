@@ -12,15 +12,41 @@ LOG_NOT, OPERATOR_THIRD, OPERATOR_SECOND, OPERATOR_FIRST, DOT
 namespace {
 	// Utilities
 	
-	inline bool is_word_character(const char* utf8, size_t& out_char_len) {
-		// TODO: UTF-8
-		out_char_len = 1;
+	inline bool is_ascii_letter(const char* utf8) {
 		char c = *utf8;
-		return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) || (c == '_') || (c == '@');
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+	}
+	
+	inline bool is_special_word_character(const char* utf8) {
+		char c = *utf8;
+		return (c == '_') || (c == '@');
+	}
+	
+	inline bool is_unicode_control_byte(char c) {
+		return (c & 0x80) == 0x80;
+	}
+	
+	inline bool is_unicode_letter(const char* utf8, size_t& out_char_len) {
+		const char* p = utf8;
+		if (is_unicode_control_byte(*p)) {
+			do {
+				++p;
+			} while (is_unicode_control_byte(*p));
+			out_char_len = p - utf8;
+			return true;
+		}
+		return false;
+	}
+	
+	inline bool is_word_character(const char* utf8, size_t& out_char_len) {
+		out_char_len = 1;
+		if (is_ascii_letter(utf8))           { out_char_len = 1; return true; }
+		if (is_special_word_character(utf8)) { out_char_len = 1; return true; }
+		if (is_unicode_letter(utf8, out_char_len)) { return true; }
+		return false;
 	}
 	
 	inline bool is_operator_character(const char* utf8, size_t& out_char_len) {
-		// TODO: UTF-8
 		out_char_len = 1;
 		switch (*utf8) {
 			case '+':
