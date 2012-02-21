@@ -53,8 +53,9 @@ namespace snow {
 	bool class_lookup_property_setter(ClassConstPtr cls, Symbol name, MethodQueryResult* out_method);
 	ClassPtr _class_define_method(ClassPtr cls, Symbol name, Value function);
 	ClassPtr _class_define_property(ClassPtr cls, Symbol name, Value getter, Value setter);
-	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow::sym(NAME), snow::create_function(FUNCPTR, snow::sym(#FUNCPTR)))
-	#define SN_DEFINE_PROPERTY(CLS, NAME, GETTER, SETTER) snow::_class_define_property(CLS, snow::sym(NAME), snow::create_function(GETTER, snow::sym(#GETTER)), snow::create_function(SETTER, snow::sym(#SETTER)))
+	void _register_binding(ClassPtr cls, Symbol name, void* func);
+	#define SN_DEFINE_METHOD(CLS, NAME, FUNCPTR) snow::_class_define_method(CLS, snow::sym(NAME), snow::create_function(FUNCPTR, snow::sym(#FUNCPTR))); snow::_register_binding(CLS, snow::sym(NAME), (void*)FUNCPTR)
+	#define SN_DEFINE_PROPERTY(CLS, NAME, GETTER, SETTER) snow::_class_define_property(CLS, snow::sym(NAME), snow::create_function(GETTER, snow::sym(#GETTER)), snow::create_function(SETTER, snow::sym(#SETTER))); snow::_register_binding(CLS, snow::sym(NAME), (void*)GETTER); snow::_register_binding(CLS, snow::sym(NAME ":"), (void*)SETTER)
 	Value class_get_initialize(ClassConstPtr cls);
 	
 	ObjectPtr<Class> get_symbol_class();

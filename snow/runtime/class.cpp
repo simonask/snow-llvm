@@ -8,6 +8,7 @@
 #include "snow/util.hpp"
 #include "snow/objectptr.hpp"
 #include "internal.h"
+#include "codemanager.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -331,5 +332,9 @@ namespace snow {
 		AnyObjectPtr obj = create_object_without_initialize(cls);
 		object_initialize(obj, args);
 		return obj;
+	}
+	
+	void _register_binding(ClassPtr cls, Symbol name, void* func) {
+		CodeManager::get()->register_binding(cls->name, name, (uintptr_t)func);
 	}
 }

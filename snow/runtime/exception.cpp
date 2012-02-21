@@ -19,7 +19,8 @@ namespace snow {
 			TracePointTypeUnknown = -1,
 			TracePointTypeNativeC,
 			TracePointTypeNativeCPP,
-			TracePointTypeSnow
+			TracePointTypeBinding,
+			TracePointTypeSnow,
 		};
 		
 		struct TracePoint {
@@ -161,6 +162,21 @@ namespace snow {
 		return result;
 	}
 	
+	static void replace_common_std_template_names(std::string& symbol) {
+		static const char* const replacements[] = {
+			"std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >", "std::string",
+		};
+
+		for (size_t i = 0; i < countof(replacements)/2; ++i) {
+			std::string needle = replacements[i*2];
+			std::string replacement = replacements[i*2+1];
+			std::string::size_type pos = 0;
+			while ((pos = symbol.find(needle, pos)) != std::string::npos) {
+				symbol.replace(pos, needle.size(), replacement);
+			}
+		}
+	}
+	
 	static std::vector<TracePoint> build_stack_trace() {
 		std::vector<TracePoint> points;
 		unw_cursor_t cursor;
@@ -189,31 +205,25 @@ namespace snow {
 					
 				unw_word_t offset;
 				if (unw_get_proc_name(&cursor, name_buffer, NAME_BUFFER_LEN, &offset) == 0) {
-					// Try to demangle C++ name
-					bool is_cpp = false;
-					int status;
-					char* demangled = abi::__cxa_demangle(name_buffer, NULL, NULL, &status);
-					if (status == 0) {
-						::strncpy(name_buffer, demangled, NAME_BUFFER_LEN-1);
-						::free(demangled);
-						is_cpp = true;
-					}
-					points.emplace_back(ip, name_buffer, is_cpp);
-					
-					std::string& symbol = points.back().symbol;
-					// replace common std class names with more readable versions
-					std::string::size_type pos;
-					
-					static const char* const replacements[] = {
-						"std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >", "std::string",
-					};
-					
-					for (size_t i = 0; i < countof(replacements)/2; ++i) {
-						std::string needle = replacements[i*2];
-						std::string replacement = replacements[i*2+1];
-						std::string::size_type pos = 0;
-						while ((pos = symbol.find(needle, pos)) != std::string::npos) {
-							symbol.replace(pos, needle.size(), replacement);
+					uintptr_t function_start = wip - offset;
+					std::string binding_name;
+					if (CodeManager::get()->find_binding_starting_at(function_start, binding_name)) {
+						points.emplace_back(ip, binding_name, false);
+						points.back().type = TracePointTypeBinding;
+					} else {
+						// Try to demangle C++ name
+						bool is_cpp = false;
+						int status;
+						char* demangled = abi::__cxa_demangle(name_buffer, NULL, NULL, &status);
+						if (status == 0) {
+							::strncpy(name_buffer, demangled, NAME_BUFFER_LEN-1);
+							::free(demangled);
+							is_cpp = true;
+						}
+						points.emplace_back(ip, name_buffer, is_cpp);
+
+						if (is_cpp) {
+							replace_common_std_template_names(points.back().symbol);
 						}
 					}
 				} else {
@@ -239,7 +249,7 @@ namespace snow {
 		ssize_t n = 0;
 		bool limit_reached = false;
 		for (const TracePoint& point: backtrace) {
-			if (omit_native && point.type != TracePointTypeSnow)
+			if (omit_native && (point.type == TracePointTypeNativeC || point.type == TracePointTypeNativeCPP))
 				continue;
 			if (limit >= 0 && n > limit) {
 				limit_reached = true;
@@ -251,6 +261,10 @@ namespace snow {
 			switch (point.type) {
 				case TracePointTypeUnknown:
 					break;
+				case TracePointTypeBinding: {
+					ss << point.symbol << " [native]";
+					break;
+				}
 				case TracePointTypeNativeC:
 				case TracePointTypeNativeCPP: {
 					ss << point.symbol;
