@@ -934,7 +934,8 @@ namespace snow {
 			case Token::DQSTRING:
 				// TODO: Interpolation, escapes
 			case Token::SQSTRING: {
-				ObjectPtr<String> str = create_string_with_size(pos->line_begin + pos->location.column, pos->length);
+				GET_TOKEN_SZ(data, pos);
+				ObjectPtr<String> str = create_string(data);
 				++pos;
 				MATCH_SUCCESS(ast->literal(begin->location, str.value()));
 			}
