@@ -15,7 +15,7 @@
 #include <vector>
 #include <utility>
 
-#define GET_TOKEN_SZ(SZ, TOKEN) char* SZ = (char*)alloca((TOKEN)->length+1); memcpy(SZ, (TOKEN)->line_begin + (TOKEN)->location.column, (TOKEN)->length); (SZ)[(TOKEN)->length] = '\0'
+#define GET_TOKEN_SZ(SZ, TOKEN) char* SZ = (char*)alloca((TOKEN)->length+1); memcpy(SZ, (TOKEN)->line_begin + (TOKEN)->location.column-1, (TOKEN)->length); (SZ)[(TOKEN)->length] = '\0'
 
 #define FIRST_MATCH(BLOCK) do BLOCK while(0)
 #define MATCH(RULE) { Pos p = pos; ASTNode* r = RULE(p); if (r) { result = r; pos = p; break; } }

@@ -7,6 +7,11 @@
 #include "snow/symbol.hpp"
 
 namespace snow {
+	struct LexerLocation {
+		uint32_t line;
+		uint32_t column;
+	};
+	
 	struct ASTNode;
 
 	struct ASTBase {
@@ -63,8 +68,7 @@ namespace snow {
 			struct { ASTNode *cond, *body; }             loop;
 			struct { ASTNode *cond, *body, *else_body; } if_else;
 		};
-		uint32_t line;
-		uint32_t column;
+		LexerLocation location;
 	};
 
 }

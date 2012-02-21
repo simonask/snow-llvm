@@ -13,10 +13,8 @@
 struct unw_cursor_t;
 
 namespace snow {
-	struct SourceLocation {
+	struct SourceLocation : LexerLocation {
 		uint32_t code_offset;
-		uint32_t line;
-		uint32_t column;
 	};
 	
 	struct SourceFile {

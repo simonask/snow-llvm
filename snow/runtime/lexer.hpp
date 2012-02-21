@@ -3,16 +3,12 @@
 #define LEXER_HPP_S9CRBPS5
 
 #include "snow/basic.h"
+#include "snow/ast.hpp"
 #include "linkbuffer.hpp"
 
 #include <string>
 
 namespace snow {
-	struct LexerLocation {
-		uint32_t line;
-		uint32_t column;
-	};
-	
 	struct Token {
 		enum Type {
 			#define TOKEN(X) X,
@@ -28,7 +24,7 @@ namespace snow {
 		
 		Token(Type t, const char* begin, size_t len, int lineno, const char* line_begin) : type(t), length(len), line_begin(line_begin) {
 			location.line = lineno;
-			location.column = begin - line_begin;
+			location.column = begin - line_begin + 1;
 		}
 		Token(const Token& other) : type(other.type), length(other.length), location(other.location), line_begin(other.line_begin) {}
 	};

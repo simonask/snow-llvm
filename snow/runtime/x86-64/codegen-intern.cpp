@@ -1031,8 +1031,8 @@ namespace x86_64 {
 		ASSERT(offset <= UINT32_MAX);
 		SourceLocation location;
 		location.code_offset = offset;
-		location.line = node->line;
-		location.column = node->column;
+		location.line = node->location.line;
+		location.column = node->location.column;
 		
 		// Try to not record more locations than necessary.
 		if (source_locations.size()) {

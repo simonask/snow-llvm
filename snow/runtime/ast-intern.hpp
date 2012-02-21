@@ -184,8 +184,7 @@ namespace snow {
 		ASTNode* n = _heap.alloc();
 		n->type = type;
 		n->next = NULL;
-		n->line = loc.line;
-		n->column = loc.column;
+		n->location = loc;
 		return n;
 	}
 	
