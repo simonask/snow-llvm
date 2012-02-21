@@ -80,9 +80,9 @@ namespace snow {
 		return false;
 	}
 	
-	const CallFrame* CodeManager::find_call_frame(unw_cursor_t* cursor) {
+	CallFrame* CodeManager::find_call_frame(unw_cursor_t* cursor) {
 		unw_word_t frame;
 		unw_get_reg(cursor, x86_64::regnum(x86_64::REG_CALL_FRAME), &frame);
-		return (const CallFrame*)frame;
+		return (CallFrame*)frame;
 	}
 }

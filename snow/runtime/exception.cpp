@@ -23,9 +23,9 @@ namespace snow {
 		
 		struct TracePoint {
 			struct DebugInfo {
-				     const CallFrame* frame;
-				    const SourceFile* file;
-				const SourceLocation* location;
+				ObjectPtr<const Environment> environment;
+				           const SourceFile* file;
+				       const SourceLocation* location;
 			};
 			
 			TracePointType type;
@@ -35,8 +35,8 @@ namespace snow {
 			
 			TracePoint(void* ip) : type(TracePointTypeUnknown), ip(ip) {}
 			TracePoint(void* ip, const std::string& symbol, bool is_cpp = true) : type(is_cpp ? TracePointTypeNativeCPP : TracePointTypeNativeC), ip(ip), symbol(symbol) {}
-			TracePoint(void* ip, const CallFrame* frame, const SourceFile* file, const SourceLocation* location) : type(TracePointTypeSnow), ip(ip), info(new DebugInfo) {
-				info->frame = frame;
+			TracePoint(void* ip, ObjectPtr<const Environment> environment, const SourceFile* file, const SourceLocation* location) : type(TracePointTypeSnow), ip(ip), info(new DebugInfo) {
+				info->environment = environment;
 				info->location = location;
 				info->file = file;
 			}
@@ -178,8 +178,9 @@ namespace snow {
 			const SourceFile* file;
 			const SourceLocation* location;
 			if (CodeManager::get()->find_source_location_from_instruction_pointer(ip, file, location)) {
-				const CallFrame* frame = CodeManager::get()->find_call_frame(&cursor);
-				points.emplace_back(ip, frame, file, location);
+				CallFrame* frame = CodeManager::get()->find_call_frame(&cursor);
+				ObjectPtr<const Environment> environment = call_frame_environment(frame);
+				points.emplace_back(ip, environment, file, location);
 			} else {
 				static const size_t NAME_BUFFER_LEN = 512; // some C++ symbols can be really long!
 				char name_buffer[NAME_BUFFER_LEN];

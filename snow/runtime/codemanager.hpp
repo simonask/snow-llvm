@@ -47,7 +47,7 @@ namespace snow {
 		TestSuiteFunc load_test_suite(const char* path);
 		
 		bool find_source_location_from_instruction_pointer(void* ip, const SourceFile*& out_file, const SourceLocation*& out_location);
-		const CallFrame* find_call_frame(unw_cursor_t* cursor);
+		CallFrame* find_call_frame(unw_cursor_t* cursor);
 	private:
 		CodeManager() {}
 		std::vector<std::unique_ptr<CodeModule> > _modules;
