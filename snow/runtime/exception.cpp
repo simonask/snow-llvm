@@ -4,6 +4,7 @@
 #include "snow/class.hpp"
 #include "codemanager.hpp"
 #include "snow/numeric.hpp"
+#include "internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <libunwind.h>
@@ -198,6 +199,23 @@ namespace snow {
 						is_cpp = true;
 					}
 					points.emplace_back(ip, name_buffer, is_cpp);
+					
+					std::string& symbol = points.back().symbol;
+					// replace common std class names with more readable versions
+					std::string::size_type pos;
+					
+					static const char* const replacements[] = {
+						"std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >", "std::string",
+					};
+					
+					for (size_t i = 0; i < countof(replacements)/2; ++i) {
+						std::string needle = replacements[i*2];
+						std::string replacement = replacements[i*2+1];
+						std::string::size_type pos = 0;
+						while ((pos = symbol.find(needle, pos)) != std::string::npos) {
+							symbol.replace(pos, needle.size(), replacement);
+						}
+					}
 				} else {
 					points.emplace_back(ip);
 				}
@@ -215,12 +233,18 @@ namespace snow {
 	using std::left;
 	using std::right;
 	
-	static StringPtr backtrace_to_string(const std::vector<TracePoint>& backtrace, bool omit_native) {
+	static StringPtr backtrace_to_string(const std::vector<TracePoint>& backtrace, ssize_t limit, bool omit_native) {
 		std::stringstream ss;
 		
+		ssize_t n = 0;
+		bool limit_reached = false;
 		for (const TracePoint& point: backtrace) {
 			if (omit_native && point.type != TracePointTypeSnow)
 				continue;
+			if (limit >= 0 && n > limit) {
+				limit_reached = true;
+				break;
+			}
 			
 			ss << "0x" << setw(16) << setfill('0') << right << hex << (uintptr_t)point.ip;
 			ss << "    ";
@@ -244,6 +268,11 @@ namespace snow {
 				}
 			}
 			ss << '\n';
+			++n;
+		}
+		
+		if (limit_reached) {
+			ss << "...\n";
 		}
 		
 		return create_string_with_size(ss.str().c_str(), ss.str().size());
@@ -263,12 +292,12 @@ namespace snow {
 		throw ex;
 	}
 	
-	StringPtr exception_get_internal_backtrace(ExceptionConstPtr ex) {
-		return backtrace_to_string(ex->backtrace, false);
+	StringPtr exception_get_internal_backtrace(ExceptionConstPtr ex, ssize_t limit) {
+		return backtrace_to_string(ex->backtrace, limit, false);
 	}
 	
-	StringPtr exception_get_backtrace(ExceptionConstPtr ex) {
-		return backtrace_to_string(ex->backtrace, true);
+	StringPtr exception_get_backtrace(ExceptionConstPtr ex, ssize_t limit) {
+		return backtrace_to_string(ex->backtrace, limit, true);
 	}
 	
 	StringPtr exception_get_source_excerpt(ExceptionConstPtr ex, size_t radius) {
@@ -321,7 +350,7 @@ namespace snow {
 			}
 			
 			// print squiggly column indicator
-			for (size_t i = 0; i < adjusted_column+9; ++i) {
+			for (size_t i = 0; i < adjusted_column+10; ++i) {
 				ss << '~';
 			}
 			ss << "^\n";

@@ -13,8 +13,8 @@ namespace snow {
 	
 	ExceptionPtr create_exception(const std::string& message);
 	ExceptionPtr create_exception_with_message(Value message);
-	StringPtr exception_get_internal_backtrace(ExceptionConstPtr exception);
-	StringPtr exception_get_backtrace(ExceptionConstPtr exception);
+	StringPtr exception_get_internal_backtrace(ExceptionConstPtr exception, ssize_t limit = -1);
+	StringPtr exception_get_backtrace(ExceptionConstPtr exception, ssize_t limit = -1);
 	StringPtr exception_get_source_excerpt(ExceptionConstPtr exception, size_t radius = 3);
 	StringPtr exception_get_file(ExceptionConstPtr exception);
 	Immediate exception_get_line(ExceptionConstPtr exception);
