@@ -63,7 +63,7 @@ static void interactive_prompt()
 				printf("=> %s\n", buffer);
 			}
 			catch (snow::ExceptionPtr ex) {
-				StringPtr backtrace = exception_get_internal_backtrace(ex, 100);
+				StringPtr backtrace = exception_get_backtrace(ex, 100);
 				StringPtr source_excerpt = exception_get_source_excerpt(ex);
 				StringPtr error_message = format_string("ERROR: %@\n\nFile: %@ (line %@, column %@)\n\nSource excerpt:\n%@\nBacktrace:\n%@", ex, exception_get_file(ex), exception_get_line(ex), exception_get_column(ex), source_excerpt, backtrace);
 				string_puts(error_message);
