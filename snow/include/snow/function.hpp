@@ -7,7 +7,7 @@
 #include "snow/value.hpp"
 #include "snow/object.hpp"
 #include "snow/objectptr.hpp"
-#include "snow/arguments.h"
+#include "snow/arguments.hpp"
 
 namespace snow {
 	struct Class;
@@ -24,7 +24,7 @@ namespace snow {
 		CallFrame* caller;
 		Value self;
 		Value* locals; // size: function->descriptor.num_locals
-		const SnArguments* args;
+		const Arguments* args;
 		ObjectPtr<Environment> environment;
 	};
 	

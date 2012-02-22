@@ -110,15 +110,15 @@ namespace snow {
 		}
 
 		static VALUE map_initialize(const CallFrame* here, VALUE self, VALUE it) {
-			const SnArguments* args = here->args;
-			if ((args->size - args->num_names) % 2) {
-				throw_exception_with_description("Cannot create map with odd number (%u) of arguments.", (uint32_t)(args->size - args->num_names));
+			const Arguments& args = *here->args;
+			if ((args.size() - args.names().size()) % 2) {
+				throw_exception_with_description("Cannot create map with odd number (%u) of arguments.", (uint32_t)(args.size() - args.names().size()));
 			}
 
 			bool immediate_keys = true;
 			// check if any key is not an immediate
-			for (size_t i = args->num_names; i < args->size; i += 2) {
-				if (is_object(args->data[i])) {
+			for (size_t i = args.names().size(); i < args.size(); i += 2) {
+				if (is_object(args[i])) {
 					immediate_keys = false;
 					break;
 				}
@@ -134,15 +134,15 @@ namespace snow {
 				map->flags |= snow::MAP_IMMEDIATE_KEYS;
 			}
 
-			size_t num_pairs = (args->size - args->num_names) / 2 + args->num_names;
+			size_t num_pairs = (args.size() - args.names().size()) / 2 + args.names().size();
 			map_reserve(map, num_pairs);
 
-			for (size_t i = 0; i < args->num_names; ++i) {
-				map_set(map, snow::symbol_to_value(args->names[i]), args->data[i]);
+			for (size_t i = 0; i < args.names().size(); ++i) {
+				map_set(map, snow::symbol_to_value(args.names()[i]), args[i]);
 			}
 
-			for (size_t i = args->num_names; i < args->size; i += 2) {
-				map_set(map, args->data[i], args->data[i+1]);
+			for (size_t i = args.names().size(); i < args.size(); i += 2) {
+				map_set(map, args[i], args[i+1]);
 			}
 
 			return self;

@@ -44,19 +44,16 @@ namespace snow {
 		Value self;
 		Value* locals;
 		size_t num_locals;
-		SnArguments args;
+		Arguments args;
 		
 		Environment() :
 			self(NULL),
 			locals(NULL),
 			num_locals(0)
 		{
-			memset(&args, 0, sizeof(SnArguments));
 		}
 		~Environment() {
 			snow::dealloc_range(locals);
-			snow::dealloc_range(args.names);
-			snow::dealloc_range(args.data);
 		}
 	};
 	
@@ -67,8 +64,8 @@ namespace snow {
 		for (size_t i = 0; i < env->num_locals; ++i) {
 			callback(env->locals[i]);
 		}
-		for (size_t i = 0; i < env->args.size; ++i) {
-			callback(env->args.data[i]);
+		for (const Value& arg: env->args) {
+			callback(arg);
 		}
 	}
 	
@@ -124,14 +121,13 @@ namespace snow {
 
 		static VALUE environment_get_arguments(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Environment> cf = self;
-			return create_array_from_range(cf->args.data, cf->args.data + cf->args.size);
+			return create_array_from_range(cf->args.begin(), cf->args.end());
 		}
 	}
 	
 	static void environment_liberate(ObjectPtr<Environment> cf) {
 		cf->locals = snow::duplicate_range(cf->locals, cf->num_locals);
-		cf->args.names = snow::duplicate_range(cf->args.names, cf->args.num_names);
-		cf->args.data = snow::duplicate_range(cf->args.data, cf->args.size);
+		cf->args.take_ownership();
 	}
 
 	ObjectPtr<Function> create_function(FunctionPtr ptr, Symbol name) {
@@ -188,7 +184,7 @@ namespace snow {
 	}
 
 	ObjectPtr<const Array> environment_get_arguments(EnvironmentConstPtr env) {
-		return create_array_from_range(env->args.data, env->args.data + env->args.size);
+		return create_array_from_range(env->args.begin(), env->args.end());
 	}
 	
 	Value* get_locals_from_higher_lexical_scope(const CallFrame* frame, size_t num_levels) {
@@ -263,7 +259,7 @@ namespace snow {
 	}
 	
 	Value function_call(ObjectPtr<Function> function, CallFrame* frame) {
-		const SnArguments* args = frame->args;
+		const Arguments* args = frame->args;
 		// Allocate locals
 		const FunctionDescriptor* descriptor = function->descriptor;
 		size_t num_locals = descriptor->num_locals;
@@ -275,11 +271,11 @@ namespace snow {
 		// Copy arguments to locals
 		// TODO: Named args
 		if (frame->args)
-			snow::copy_range<Value>(locals, args->data, args->size < num_locals ? args->size : num_locals);
+			snow::copy_range<Value>(locals, args->begin(), args->size() < num_locals ? args->size() : num_locals);
 
 		// Call the function.
 		CallFramePusher call_frame_pusher(frame);
-		return descriptor->ptr(frame, frame->self, args->size ? args->data[0] : NULL);
+		return descriptor->ptr(frame, frame->self, args->size() ? *args->begin() : NULL);
 	}
 	
 	Symbol function_get_name(ObjectPtr<const Function> function) {
@@ -310,7 +306,7 @@ namespace snow {
 		ASSERT(is_object(self));
 		auto obj = object_get_instance_variable(self, snow::sym("object"));
 		auto method = object_get_instance_variable(self, snow::sym("method"));
-		return call_with_arguments(method, obj, here->args);
+		return call_with_arguments(method, obj, *here->args);
 	}
 
 	AnyObjectPtr create_method_proxy(Value self, Value method) {

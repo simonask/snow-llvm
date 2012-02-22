@@ -102,8 +102,8 @@ namespace snow {
 				throw_exception_with_description("Array#initialize called for object that doesn't derive from Array.");
 			}
 
-			array->reserve(here->args->size);
-			array->insert(array->begin(), here->args->data, here->args->data + here->args->size);
+			array->reserve(here->args->size());
+			array->insert(array->begin(), here->args->begin(), here->args->end());
 			return self;
 		}
 
@@ -143,7 +143,7 @@ namespace snow {
 			if (type_of(it) != IntegerType) {
 				throw_exception_with_description("Array#set called with a non-integer index %@.", value_inspect(it));
 			}
-			Value val = here->args->size > 1 ? here->args->data[1] : Value(SN_NIL);
+			Value val = here->args->size() > 1 ? (*here->args)[1] : Value(SN_NIL);
 			return array_set(array, value_to_integer(it), val);
 		}
 

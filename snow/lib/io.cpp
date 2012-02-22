@@ -218,7 +218,7 @@ namespace snow_io {
 		ObjectPtr<IO> create_io_for_file(FILE* fp) {
 			ObjectPtr<IO> io = create_object_without_initialize(get_io_class());
 			io->init_with_file(fp);
-			object_initialize(io, NULL);
+			object_initialize(io, Arguments());
 			return io;
 		}
 		
@@ -227,7 +227,7 @@ namespace snow_io {
 		ObjectPtr<IO> create_file_for_file(FILE* fp) {
 			ObjectPtr<IO> io = create_object_without_initialize(get_file_class());
 			io->init_with_file(fp);
-			object_initialize(io, NULL);
+			object_initialize(io, Arguments());
 			return io;
 		}
 		
@@ -237,10 +237,10 @@ namespace snow_io {
 				throw_exception_with_description("File.open: Expected 1st argument to be filename, got %@.", value_inspect(it));
 			}
 			ObjectPtr<String> mode;
-			if (here->args && here->args->size >= 2) {
-				mode = here->args->data[1];
+			if (here->args && here->args->size() >= 2) {
+				mode = (*here->args)[1];
 				if (mode == NULL) {
-					throw_exception_with_description("File.open: Expected 2nd argument to be a mode string, got %@.", value_inspect(here->args->data[1]));
+					throw_exception_with_description("File.open: Expected 2nd argument to be a mode string, got %@.", value_inspect((*here->args)[1]));
 				}
 			} else {
 				mode = create_string_constant("rw");

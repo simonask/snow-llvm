@@ -7,10 +7,10 @@
 #include "snow/symbol.hpp"
 #include "snow/objectptr.hpp"
 
-struct SnArguments;
 struct SnObject;
 
 namespace snow {
+	class Arguments;
 	struct CallFrame;
 	struct Class;
 	struct String;
@@ -29,7 +29,7 @@ namespace snow {
 	
 	ObjectPtr<Class> get_class(Value value);
 	Value call(Value functor, Value self, size_t num_args, const Value* args);
-	Value call_with_arguments(Value functor, Value self, const SnArguments* args);
+	Value call_with_arguments(Value functor, Value self, const Arguments& args);
 	Value call_method(Value self, Symbol method_name, size_t num_args, const Value* args);
 	Value call_with_named_arguments(Value functor, Value self, size_t num_names, const Symbol* names, size_t num_args, const Value* args);
 	Value call_method_with_named_arguments(Value self, Symbol method, size_t num_names, const Symbol* names, size_t num_args, const Value* args);

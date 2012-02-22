@@ -140,7 +140,7 @@ namespace snow {
 		
 		VALUE call_frame_get_it(const CallFrame* frame) {
 			if (frame->args != NULL) {
-				return frame->args->size ? frame->args->data[0] : NULL;
+				return frame->args->size() ? (*frame->args)[0] : NULL;
 			}
 			return NULL;
 		}

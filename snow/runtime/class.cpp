@@ -74,10 +74,10 @@ namespace snow {
 		VALUE class_define_method(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
-				if (here->args->size < 2) {
-					throw_exception_with_description("Class#define_method expects 2 arguments, %@ given,", here->args->size);
+				if (here->args->size() < 2) {
+					throw_exception_with_description("Class#define_method expects 2 arguments, %@ given,", here->args->size());
 				}
-				Value vmethod = here->args->data[1];
+				Value vmethod = (*here->args)[1];
 				if (!is_symbol(it)) throw_exception_with_description("Expected method name as first argument of Class#define_method.");
 				_class_define_method(cls, value_to_symbol(it), vmethod);
 				return self;
@@ -90,11 +90,11 @@ namespace snow {
 			// TODO: Use named arguments
 			ObjectPtr<Class> cls = self;
 			if (cls != NULL) {
-				if (here->args->size < 2) {
-					throw_exception_with_description("Class#define_property expects 2 arguments, %@ given,", here->args->size);
+				if (here->args->size() < 2) {
+					throw_exception_with_description("Class#define_property expects 2 arguments, %@ given,", here->args->size());
 				}
-				Value vgetter = here->args->data[1];
-				Value vsetter = here->args->size >= 3 ? here->args->data[2] : NULL;
+				Value vgetter = (*here->args)[1];
+				Value vsetter = here->args->size() >= 3 ? (*here->args)[2] : nullptr;
 				if (!is_symbol(it)) throw_exception_with_description("Class#define_property expects a property name as a symbol for the first argument.");
 				_class_define_property(cls, value_to_symbol(it), vgetter, vsetter);
 				return self;
@@ -113,7 +113,7 @@ namespace snow {
 		}
 
 		static VALUE class_call(const CallFrame* here, VALUE self, VALUE it) {
-			return create_object_with_arguments(self, here->args);
+			return create_object_with_arguments(self, *here->args);
 		}
 	}
 
@@ -312,7 +312,7 @@ namespace snow {
 		return obj;
 	}
 	
-	void object_initialize(AnyObjectPtr object, const SnArguments* args) {
+	void object_initialize(AnyObjectPtr object, const Arguments& args) {
 		// TODO: Consider how to call superclass initializers
 		Value initialize = class_get_initialize(get_class(object));
 		if (initialize != NULL) {
@@ -321,14 +321,10 @@ namespace snow {
 	}
 	
 	AnyObjectPtr create_object(ClassPtr cls, size_t num_constructor_args, const Value* args) {
-		SnArguments arguments = {
-			.size = num_constructor_args,
-			.data = args,
-		};
-		return create_object_with_arguments(cls, &arguments);
+		return create_object_with_arguments(cls, Arguments(args, num_constructor_args));
 	}
 	
-	AnyObjectPtr create_object_with_arguments(ClassPtr cls, const SnArguments* args) {
+	AnyObjectPtr create_object_with_arguments(ClassPtr cls, const Arguments& args) {
 		AnyObjectPtr obj = create_object_without_initialize(cls);
 		object_initialize(obj, args);
 		return obj;

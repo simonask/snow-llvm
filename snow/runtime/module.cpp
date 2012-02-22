@@ -174,12 +174,12 @@ namespace snow {
 					m->entry = snow::create_function_for_module_entry(code->entry, mod);
 
 					// Call module entry
-					static SnArguments args = {}; // zero arguments
+					Arguments zero_args;
 					CallFrame frame = {
 						.function = m->entry,
 						.self = NULL,
 						.locals = NULL,
-						.args = &args,
+						.args = &zero_args,
 						.environment = NULL
 					};
 					Value result = function_call(m->entry, &frame);

@@ -86,19 +86,15 @@ namespace snow {
 	}
 
 	Value call(Value functor, Value self, size_t num_args, const Value* args) {
-		SnArguments arguments = {
-			.size = num_args,
-			.data = args,
-		};
-		return call_with_arguments(functor, self, &arguments);
+		return call_with_arguments(functor, self, Arguments(args, num_args));
 	}
 
-	Value call_with_arguments(Value functor, Value self, const SnArguments* args) {
+	Value call_with_arguments(Value functor, Value self, const Arguments& args) {
 		Value new_self = self;
 		ObjectPtr<Function> function = value_to_function(functor, &new_self);
 		CallFrame frame = {
 			.self = new_self,
-			.args = args,
+			.args = &args,
 		};
 		return function_call(function, &frame);
 	}
@@ -123,13 +119,7 @@ namespace snow {
 
 	Value call_with_named_arguments(Value functor, Value self, size_t num_names, const Symbol* names, size_t num_args, const Value* args) {
 		ASSERT(num_names <= num_args);
-		SnArguments arguments = {
-			.num_names = num_names,
-			.names = names,
-			.size = num_args,
-			.data = args,
-		};
-		return call_with_arguments(functor, self, &arguments);
+		return call_with_arguments(functor, self, Arguments(args, num_args, names, num_names));
 	}
 
 	Value value_freeze(Value it) {

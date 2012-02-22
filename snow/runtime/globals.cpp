@@ -37,8 +37,8 @@ Value snow_get_vm_interface() {
 }
 
 static VALUE global_puts(const CallFrame* here, VALUE self, VALUE it) {
-	for (size_t i = 0; i < here->args->size; ++i) {
-		ObjectPtr<String> str = value_to_string(here->args->data[i]);
+	for (const Value& arg: *here->args) {
+		ObjectPtr<String> str = value_to_string(arg);
 		size_t sz = string_size(str);
 		char* buffer = (char*)alloca(sz+1);
 		string_copy_to(str, buffer, sz);
