@@ -67,6 +67,11 @@ namespace snow {
 	static void exception_gc_each_root(void* priv, GCCallback callback) {
 		Exception* ex = (Exception*)priv;
 		callback(ex->message);
+		for (const TracePoint& p: ex->backtrace) {
+			if (p.info != nullptr) {
+				callback(p.info->environment);
+			}
+		}
 	}
 	
 	SN_REGISTER_CPP_TYPE(Exception, exception_gc_each_root);
