@@ -505,7 +505,6 @@ namespace x86_64 {
 			}
 			SetCurrentAssignmentName assign_name(*this, name);
 			
-			// TODO: Assignment name
 			auto r = compile_ast_node(x);
 			if (r.is_memory()) {
 				movq(r, REG_SCRATCH[0]);
