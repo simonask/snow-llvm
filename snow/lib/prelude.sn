@@ -17,11 +17,11 @@ Class.define_method(#<<) [module] {
 
 Enumerable: #(
 	all?: [condition] {
-		.select(condition or {it}).count() = .count()
+		.count(condition) = .count()
 	},
 	
 	any?: [condition] {
-		.select(condition or {it}).count() > 0
+		.count(condition) > 0
 	},
 	
 	count: [condition] {
