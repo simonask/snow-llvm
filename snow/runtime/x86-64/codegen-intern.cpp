@@ -503,7 +503,7 @@ namespace x86_64 {
 					default: break;
 				}
 			}
-			SetCurrentAssignmentName(*this, name);
+			SetCurrentAssignmentName assign_name(*this, name);
 			
 			// TODO: Assignment name
 			auto r = compile_ast_node(x);
