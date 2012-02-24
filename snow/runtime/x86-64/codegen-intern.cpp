@@ -493,6 +493,18 @@ namespace x86_64 {
 		// compile assignment values
 		i = 0;
 		for (ASTNode* x = node->assign.value->sequence.head; x; x = x->next) {
+			Symbol name = 0;
+			if (i < num_targets) {
+				const ASTNode* target = targets[i];
+				switch (target->type) {
+					case ASTNodeTypeInstanceVariable: name = target->instance_variable.name; break;
+					case ASTNodeTypeIdentifier:       name = target->identifier.name; break;
+					case ASTNodeTypeMethod:           name = target->method.name; break;
+					default: break;
+				}
+			}
+			SetCurrentAssignmentName(*this, name);
+			
 			// TODO: Assignment name
 			auto r = compile_ast_node(x);
 			if (r.is_memory()) {
@@ -610,6 +622,7 @@ namespace x86_64 {
 		ASSERT(function->type == ASTNodeTypeClosure);
 		std::unique_ptr<Codegen::Function> f(new Function(codegen));
 		f->parent = this;
+		f->name = current_assignment_name;
 		if (function->closure.parameters) {
 			f->param_names.reserve(function->closure.parameters->sequence.length);
 			for (const ASTNode* x = function->closure.parameters->sequence.head; x; x = x->next) {
@@ -753,6 +766,11 @@ namespace x86_64 {
 		
 		// Compile arguments and put them in their places.
 		for (size_t i = 0; i < args.size(); ++i) {
+			Symbol name = 0;
+			if (i < names.size())
+				name = names[i];
+			SetCurrentAssignmentName assign_name(*this, name);
+			
 			const ASTNode* x = args[i].first;
 			int idx = args[i].second;
 			auto r = compile_ast_node(x);

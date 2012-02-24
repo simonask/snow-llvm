@@ -282,13 +282,19 @@ namespace snow {
 					break;
 				}
 				case TracePointTypeSnow: {
-					ss << point.info->file->path << ":" << dec << point.info->location->line << ":" << point.info->location->column;
-					/*ss << " (";
-					Value self = environment_get_self(point.info->environment);
-					ObjectPtr<const Array> args = environment_get_arguments(point.info->environment);
-					ObjectPtr<const String> str = format_string("self = %@, arguments = %@", value_inspect(self), value_inspect(args));
-					string_copy_to(str, ss);
-					ss << ")";*/
+					ObjectPtr<const Environment> environment = point.info->environment;
+					Value self = environment_get_self(environment);
+					ObjectPtr<const Class> cls = get_class(self);
+					const char* clsname = class_get_name(cls);
+					ObjectPtr<const Function> function = environment_get_function(environment);
+					Symbol funcname = function_get_name(function);
+					const char* funcname_str = funcname ? sym_to_cstr(funcname) : "<anonymous>";
+					if (!self.is_nil()) {
+						ss << clsname << "#" << funcname_str;
+					} else {
+						ss << funcname_str;
+					}
+					ss << " (" << point.info->file->path << ":" << dec << point.info->location->line << ":" << point.info->location->column << ")";
 					break;
 				}
 			}
@@ -311,7 +317,13 @@ namespace snow {
 		}
 		
 		if (ex->backtrace.size() == 0) {
-			ex->backtrace = build_stack_trace();
+			try {
+				ex->backtrace = build_stack_trace();
+			}
+			catch (ExceptionPtr ex) {
+				fprintf(stderr, "ERROR: Exception thrown while trying to throw exception! Aborting.");
+				ASSERT(false);
+			}
 		}
 		
 		throw ex;

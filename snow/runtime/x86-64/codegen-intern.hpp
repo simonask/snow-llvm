@@ -221,6 +221,19 @@ namespace x86_64 {
 		bool find_local(Symbol name, LocalLocation& location) const;
 		AsmValue<VALUE> compile_get_local(Symbol name, Register result_hint = REG_RETURN);
 		AsmValue<VALUE> compile_set_local(Symbol name, AsmValue<VALUE> value, Register result_hint = REG_RETURN);
+		ReadOnly<Function, Symbol> current_assignment_name; // Used to determine the name of functions.
+		struct SetCurrentAssignmentName {
+			SetCurrentAssignmentName(Function& f, Symbol name) : f(f) {
+				previous_name = f.current_assignment_name;
+				f.current_assignment_name = name;
+			}
+			~SetCurrentAssignmentName() {
+				f.current_assignment_name = previous_name;
+			}
+		private:
+			Function& f;
+			Symbol previous_name;
+		};
 		
 		// Calls
 		bool perform_inlining(void* callee);
