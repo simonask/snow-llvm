@@ -193,6 +193,7 @@ namespace x86_64 {
 		int alloc_temporary();
 		void free_temporary(int);
 		AsmValue<VALUE> temporary(int);
+		void compile_alloca(size_t num_bytes, const Operand& out_ptr);
 		
 		// Compilation (public API)
 		Function* compile_function(const ASTNode* function);
@@ -209,10 +210,21 @@ namespace x86_64 {
 		AsmValue<VALUE> compile_method_call(const AsmValue<VALUE>& self, Symbol method_name, size_t num_args, const AsmValue<VALUE*>& args_ptr, size_t num_names = 0, const AsmValue<Symbol*>& names_ptr = AsmValue<Symbol*>());
 		void compile_get_method_inline_cache(const AsmValue<VALUE>& self, Symbol name, const AsmValue<MethodType>& out_type, const AsmValue<VALUE>& out_method);
 		void compile_get_index_of_field_inline_cache(const AsmValue<VALUE>& self, Symbol name, const AsmValue<int32_t>& target, bool can_define = false);
-		AsmValue<VALUE> compile_get_address_for_local(const Register& reg, Symbol name, bool can_define = false);
+		
+		// Local variable handling
+		struct LocalLocation {
+			int32_t level;
+			int32_t index;
+			LocalLocation() : level(-1), index(0) {}
+			bool is_global() const { return level < 0; }
+		};
+		bool find_local(Symbol name, LocalLocation& location) const;
+		AsmValue<VALUE> compile_get_local(Symbol name, Register result_hint = REG_RETURN);
+		AsmValue<VALUE> compile_set_local(Symbol name, AsmValue<VALUE> value, Register result_hint = REG_RETURN);
+		
+		// Calls
 		bool perform_inlining(void* callee);
 		void call_or_inline(void* callee);
-		void compile_alloca(size_t num_bytes, const Operand& out_ptr);
 		
 		template <typename R, typename... Args>
 		AsmCall<R, Args...> call(R(*callee)(Args...)) {

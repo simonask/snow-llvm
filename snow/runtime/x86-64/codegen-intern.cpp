@@ -187,15 +187,14 @@ namespace x86_64 {
 				return result;
 			}
 			case ASTNodeTypeIdentifier: {
-				auto local = compile_get_address_for_local(REG_ARGS[2], node->identifier.name, false);
-				if (local.is_valid()) {
-					return local;
-				} else {
+				auto local = compile_get_local(node->identifier.name);
+				if (!local.is_valid()) {
 					auto c_local_missing = call(ccall::local_missing);
 					c_local_missing.set_arg<0>(get_call_frame());
 					c_local_missing.set_arg<1>(node->identifier.name);
 					return c_local_missing.call();
 				}
+				return local;
 			}
 			case ASTNodeTypeSelf: {
 				auto addr = address(get_call_frame(), UNSAFE_OFFSET_OF(CallFrame, self));
@@ -583,24 +582,7 @@ namespace x86_64 {
 				}
 				case ASTNodeTypeIdentifier: {
 					record_source_location(target);
-					auto local_addr = compile_get_address_for_local(REG_SCRATCH[0], target->identifier.name, true);
-					if (local_addr.is_valid()) {
-						AsmValue<VALUE> val(REG_RETURN);
-						movq(values[i], val);
-						movq(val, local_addr);
-						movq(val, ret);
-					} else {
-						// we can define a global!
-						int32_t idx = index_of(codegen.module_globals, target->identifier.name);
-						if (idx < 0) {
-							codegen.module_globals.push_back(target->identifier.name);
-						}
-						auto c_set_global = call(ccall::set_global);
-						c_set_global.set_arg<0>(get_call_frame());
-						c_set_global.set_arg<1>(target->identifier.name);
-						c_set_global.set_arg<2>(values[i]);
-						movq(c_set_global.call(), ret);
-					}
+					compile_set_local(target->identifier.name, values[i], ret);
 					break;
 				}
 				case ASTNodeTypeMethod: {
@@ -642,55 +624,96 @@ namespace x86_64 {
 		return final_function;
 	}
 	
-	AsmValue<VALUE> Codegen::Function::compile_get_address_for_local(const Register& reg, Symbol name, bool can_define) {
-		// Look for locals
-		Function* f = this;
-		int32_t level = 0;
-		int32_t index = -1;
+	bool Codegen::Function::find_local(Symbol name, LocalLocation& out_location) const {
+		// First, look for old-fashioned local variables in lexical scopes
+		const Function* f = this;
+		out_location.level = 0;
+		out_location.index = -1;
 		while (f) {
-			index = index_of(f->local_names, name);
-			if (index >= 0) break;
+			out_location.index = index_of(f->local_names, name);
+			if (out_location.index >= 0) break;
 			f = f->parent;
-			++level;
+			++out_location.level;
 		}
-		if (index >= 0) {
-			if (level == 0) {
-				// local to this scope
-				auto c_get_locals = call(ccall::call_frame_get_locals);
-				c_get_locals.set_arg<0>(get_call_frame());
-				auto locals = c_get_locals.call();
-				movq(locals, reg);
-				return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
+		
+		if (out_location.index < 0) {
+			out_location.level = -1;
+			out_location.index = index_of(codegen.module_globals, name);
+		}
+		
+		return out_location.index >= 0;
+	}
+	
+	AsmValue<VALUE> Codegen::Function::compile_get_local(Symbol name, Register result_hint) {
+		LocalLocation location;
+		if (find_local(name, location)) {
+			AsmValue<VALUE> result(result_hint);
+			if (location.is_global()) {
+				auto c_get_global = call(ccall::get_global);
+				c_get_global.set_arg<0>(get_call_frame());
+				c_get_global.set_arg<1>(name);
+				movq(c_get_global.call(), result);
+				return result;
 			} else {
-				// local in parent scope
-				auto c_get_locals = call(snow::get_locals_from_higher_lexical_scope);
-				c_get_locals.set_arg<0>(get_call_frame());
-				c_get_locals.set_arg<1>(level);
-				auto locals = c_get_locals.call();
-				movq(locals, reg);
-				return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
+				if (location.level == 0) {
+					auto c_get_locals = call(ccall::call_frame_get_locals);
+					c_get_locals.set_arg<0>(get_call_frame());
+					auto locals = c_get_locals.call();
+					movq(address(locals, location.index * sizeof(Value)), result);
+					return result;
+				} else {
+					auto c_get_locals = call(snow::get_locals_from_higher_lexical_scope);
+					c_get_locals.set_arg<0>(get_call_frame());
+					c_get_locals.set_arg<1>(location.level);
+					auto locals = c_get_locals.call();
+					movq(address(locals, location.index * sizeof(Value)), result);
+					return result;
+				}
+			}
+		}
+		return AsmValue<VALUE>(); // invalid
+	}
+	
+	AsmValue<VALUE> Codegen::Function::compile_set_local(Symbol name, AsmValue<VALUE> value, Register result_hint) {
+		LocalLocation location;
+		if (!find_local(name, location)) {
+			if (parent == nullptr) {
+				location.level = -1;
+				location.index = codegen.module_globals.size();
+				codegen.module_globals.push_back(name);
+			} else {
+				// define a regular local variable
+				location.level = 0;
+				location.index = local_names.size();
+				local_names.push_back(name);
 			}
 		}
 		
-		// Look for module globals.
-		ssize_t global_idx = index_of(codegen.module_globals, name);
-		if (global_idx >= 0) {
-			// a module-level variable was found, but we can't find the address of those,
-			// but we also don't want to define a local in this scope, so return invalid operand.
-			return AsmValue<VALUE>();
+		AsmValue<VALUE> result(result_hint);
+		if (location.is_global()) {
+			auto c_set_global = call(ccall::set_global);
+			c_set_global.set_arg<0>(get_call_frame());
+			c_set_global.set_arg<1>(name);
+			c_set_global.set_arg<2>(value);
+			movq(c_set_global.call(), result);
+		} else {
+			AsmValue<Value*> locals;
+			if (location.level == 0) {
+				auto c_get_locals = call(ccall::call_frame_get_locals);
+				c_get_locals.set_arg<0>(get_call_frame());
+				locals = c_get_locals.call();
+			} else {
+				auto c_get_locals = call(snow::get_locals_from_higher_lexical_scope);
+				c_get_locals.set_arg<0>(get_call_frame());
+				c_get_locals.set_arg<1>(location.level);
+				locals = c_get_locals.call();
+			}
+			movq(value, REG_SCRATCH[0]);
+			movq(REG_SCRATCH[0], address(locals, location.index * sizeof(Value)));
+			movq(REG_SCRATCH[0], result);
 		}
 		
-		if (can_define && parent != NULL) {
-			// if we're not in module global scope, define a regular local
-			index = local_names.size();
-			local_names.push_back(name);
-			auto c_get_locals = call(ccall::call_frame_get_locals);
-			c_get_locals.set_arg<0>(get_call_frame());
-			auto locals = c_get_locals.call();
-			movq(locals, reg);
-			return AsmValue<VALUE>(address(reg, index * sizeof(Value)));
-		}
-		return AsmValue<VALUE>(); // Invalid operand.
+		return result;
 	}
 	
 	AsmValue<VALUE> Codegen::Function::compile_call(const ASTNode* node) {
