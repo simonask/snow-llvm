@@ -24,11 +24,11 @@ namespace snow {
 		FiberIsStarted = 0x2, // started, but possibly suspended
 	};
 
-	CAPI void fiber_begin_thread();
-	CAPI void fiber_end_thread();
-	CAPI void fiber_suspend_for_garbage_collection(FiberPtr fiber);
-	CAPI void push_call_frame(CallFrame* frame);
-	CAPI void pop_call_frame(CallFrame* frame);
+	void fiber_begin_thread();
+	void fiber_end_thread();
+	void fiber_suspend_for_garbage_collection(FiberPtr fiber);
+	void push_call_frame(CallFrame* frame);
+	void pop_call_frame(CallFrame* frame);
 }
 
 

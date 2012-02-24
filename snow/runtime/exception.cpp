@@ -2,6 +2,7 @@
 #include "snow/str.hpp"
 #include "snow/snow.hpp"
 #include "snow/class.hpp"
+#include "snow/fiber.hpp"
 #include "codemanager.hpp"
 #include "snow/numeric.hpp"
 #include "internal.h"
@@ -187,6 +188,8 @@ namespace snow {
 		unw_cursor_t cursor;
 		unw_context_t uc;
 		unw_word_t wip;
+		
+		CallFrame* call_frame = fiber_get_current_frame(get_current_fiber());
 
 		unw_getcontext(&uc);
 		unw_init_local(&cursor, &uc);
@@ -200,7 +203,8 @@ namespace snow {
 			const SourceFile* file;
 			const SourceLocation* location;
 			if (CodeManager::get()->find_source_location_from_instruction_pointer(ip, file, location)) {
-				CallFrame* frame = CodeManager::get()->find_call_frame(&cursor);
+				CallFrame* frame = call_frame;
+				call_frame = call_frame->caller;
 				ObjectPtr<const Environment> environment = call_frame_environment(frame);
 				points.emplace_back(ip, environment, file, location);
 			} else {
@@ -215,6 +219,8 @@ namespace snow {
 					if (CodeManager::get()->find_binding_starting_at(function_start, binding_name)) {
 						points.emplace_back(ip, binding_name, false);
 						points.back().type = TracePointTypeBinding;
+						// pop call frame here too.
+						call_frame = call_frame->caller;
 					} else {
 						// Try to demangle C++ name
 						bool is_cpp = false;
