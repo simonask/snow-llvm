@@ -112,7 +112,7 @@ namespace snow {
 		
 		static VALUE function_inspect(const CallFrame* here, VALUE self, VALUE it) {
 			ObjectPtr<Function> f = self;
-			return format_string("[Function@%@ name:%@ code:%@]", format::pointer(self), sym_to_cstr(f->descriptor->name), (void*)f->descriptor->ptr);
+			return format_string("[Function@%@ name:%@ code:%@]", format::pointer(self), sym_to_cstr(f->descriptor->name), format::pointer(f->descriptor->ptr));
 		}
 
 		static VALUE environment_get_self(const CallFrame* here, VALUE self, VALUE it) {
