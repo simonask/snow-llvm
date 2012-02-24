@@ -82,7 +82,7 @@ namespace snow {
 
 	ObjectPtr<String> create_string_constant(const char* utf8) {
 		ObjectPtr<String> str = create_object(get_string_class(), 0, NULL);
-		str->size = strlen(utf8);
+		str->size = utf8 ? strlen(utf8) : 0;
 		str->data = (char*)utf8;
 		str->constant = true;
 		str->length = get_utf8_length(utf8, str->size);
