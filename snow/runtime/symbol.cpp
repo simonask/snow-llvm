@@ -28,11 +28,6 @@ namespace snow {
 			ASSERT(is_symbol(self));
 			const char* symstr = snow::sym_to_cstr(value_to_symbol(self));
 
-			if (!symstr) {
-				throw_exception_with_description("'%p' is not in the symbol table.", self);
-				return NULL;
-			}
-
 			size_t len = strlen(symstr);
 			char str[len+2];
 			str[0] = '#';
@@ -67,7 +62,7 @@ namespace snow {
 				return it->first.c_str();
 			}
 		}
-		return NULL;
+		return "<invalid>";
 	}
 
 	ObjectPtr<Class> get_symbol_class() {
