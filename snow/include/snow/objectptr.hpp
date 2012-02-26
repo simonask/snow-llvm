@@ -12,7 +12,7 @@ namespace snow {
 	
 	class AnyObjectPtr {
 	public:
-		AnyObjectPtr() : object_(NULL) {}
+		AnyObjectPtr() : object_(nullptr) {}
 		AnyObjectPtr(Object* object) : object_(object) {}
 		//AnyObjectPtr(VALUE val) { assign(val); }
 		AnyObjectPtr(Value val) { assign(val); }
@@ -40,7 +40,7 @@ namespace snow {
 			if (val.is_object()) {
 				object_ = val;
 			} else {
-				object_ = NULL;
+				object_ = nullptr;
 			}
 		}
 	};
@@ -53,17 +53,17 @@ namespace snow {
 		
 		struct Null;
 		
-		ObjectPtr() : priv_(NULL) {}
+		ObjectPtr() {}
 		ObjectPtr(Value val) : object_(val) { assign(object_); }
 		ObjectPtr(VALUE val) : object_(val) { assign(object_); }
 		ObjectPtr(const AnyObjectPtr& val) { assign(val); }
 		template <typename U> ObjectPtr(const ObjectPtr<U>& other) = delete;
-		ObjectPtr(const ObjectPtr<NonConstT>& other) : object_(other.object_), priv_(other.priv_) {}
-		ObjectPtr(const ObjectPtr<ConstT>& other) : object_(other.object_), priv_(other.priv_) {}
+		ObjectPtr(const ObjectPtr<NonConstT>& other) : object_(other.object_) {}
+		ObjectPtr(const ObjectPtr<ConstT>& other) : object_(other.object_) {}
 		
 		template <typename U> void operator=(ObjectPtr<U> other) = delete;
-		ObjectPtr<T>& operator=(ObjectPtr<NonConstT> other) { object_ = other.object_; priv_ = other.priv_; return *this; }
-		ObjectPtr<T>& operator=(ObjectPtr<ConstT> other) { object_ = other.object_; priv_ = other.priv_; return *this; }
+		ObjectPtr<T>& operator=(ObjectPtr<NonConstT> other) { object_ = other.object_; return *this; }
+		ObjectPtr<T>& operator=(ObjectPtr<ConstT> other) { object_ = other.object_; return *this; }
 		ObjectPtr<T>& operator=(AnyObjectPtr other) { assign(other); return *this; }
 		ObjectPtr<T>& operator=(Value other) { assign(AnyObjectPtr(other)); return *this; }
 		ObjectPtr<T>& operator=(VALUE other) { assign(AnyObjectPtr(other)); return *this; }
@@ -73,19 +73,19 @@ namespace snow {
 		operator Value() const { return object_; }
 		operator Object*() const { return object_; }
 		operator AnyObjectPtr() const { return object_; }
-		T* operator->() const { return priv_; }
-		T& operator*() const { return *priv_; }
+		T* operator->() const { return get(); }
+		T& operator*() const { return *get(); }
 		bool operator==(Value other) const { return object_ == other; }
 		bool operator!=(Value other) const { return object_ != other; }
-		bool operator==(Null*) const { return object_ == NULL; }
-		bool operator!=(Null*) const { return object_ != NULL; }
+		bool operator==(Null*) const { return object_ == nullptr; }
+		bool operator!=(Null*) const { return object_ != nullptr; }
+		
+		T* get() const;
 	private:
 		template <typename U> friend class ObjectPtr;
-		ObjectPtr(AnyObjectPtr o, T* p) : object_(o), priv_(p) {}
 		void assign(AnyObjectPtr val);
 		
 		AnyObjectPtr object_;
-		T* priv_;
 	};
 }
 
@@ -94,13 +94,16 @@ namespace snow {
 namespace snow {
 	template <typename T>
 	void ObjectPtr<T>::assign(AnyObjectPtr val) {
-		if (val != NULL) {
-			priv_ = object_get_private<T>(val);
-			object_ = priv_ != NULL ? val : AnyObjectPtr();
+		if (val != nullptr) {
+			object_ = object_get_private<T>(val) != nullptr ? val : AnyObjectPtr();
 		} else {
-			priv_ = NULL;
-			object_ = NULL;
+			object_ = nullptr;
 		}
+	}
+	
+	template <typename T>
+	T* ObjectPtr<T>::get() const {
+		return object_ != nullptr ? object_get_private<T>(object_) : nullptr;
 	}
 }
 
