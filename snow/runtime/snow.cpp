@@ -36,7 +36,7 @@ namespace snow {
 		init_gc(&stk);
 		init_fibers();
 		snow_init_globals();
-		load_in_global_module(snow::create_string_constant("lib/prelude.sn"));
+		load_in_global_module(snow::create_string_constant(lib_path));
 	}
 
 	void finish() {}
